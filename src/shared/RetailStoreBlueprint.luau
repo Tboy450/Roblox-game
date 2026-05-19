@@ -1,0 +1,2132 @@
+-- Symmetric retail supermarket greybox.
+local RetailStoreBlueprint = {}
+local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
+
+local DEFAULT_NAME = "RetailStore"
+local BLUEPRINT_VERSION = 32
+
+export type BuildOptions = {
+	parent: Instance?,
+	storeName: string?,
+	forceRebuild: boolean?,
+}
+
+local SNAP = 2
+local function snap(n: number): number
+	return math.round(n / SNAP) * SNAP
+end
+
+local function snapHorizontalPosition(position: Vector3): Vector3
+	return Vector3.new(snap(position.X), position.Y, snap(position.Z))
+end
+
+local function snapFootprint(size: Vector3): Vector3
+	local x = if size.X >= SNAP then snap(size.X) else size.X
+	local z = if size.Z >= SNAP then snap(size.Z) else size.Z
+	return Vector3.new(math.max(x, 0.05), math.max(size.Y, 0.05), math.max(z, 0.05))
+end
+
+local function part(props: {
+	name: string,
+	size: Vector3,
+	position: Vector3,
+	color: Color3,
+	material: Enum.Material?,
+	transparency: number?,
+	canCollide: boolean?,
+	parent: Instance,
+}): Part
+	local p = Instance.new("Part")
+	p.Name = props.name
+	p.Size = props.size
+	p.Position = props.position
+	p.Anchored = true
+	p.Color = props.color
+	p.Material = props.material or Enum.Material.SmoothPlastic
+	p.Transparency = props.transparency or 0
+	p.Reflectance = 0
+	p.CastShadow = true
+	p.CanCollide = if props.canCollide == nil then true else props.canCollide
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = props.parent
+	return p
+end
+
+function RetailStoreBlueprint.build(options: BuildOptions?): Model
+	local parent = (options and options.parent) or workspace
+	local storeName = (options and options.storeName) or DEFAULT_NAME
+	local forceRebuild = if options and options.forceRebuild ~= nil then options.forceRebuild else true
+
+	local existing = parent:FindFirstChild(storeName)
+	if existing then
+		if forceRebuild then
+			existing:Destroy()
+		else
+			return existing :: Model
+		end
+	end
+
+	for _, child in parent:GetChildren() do
+		if child:IsA("BasePart") and (child.Name:find("MapHint") or child.Name:find("Rojo Synced")) then
+			child:Destroy()
+		end
+	end
+
+	local store = Instance.new("Model")
+	store.Name = storeName
+	store:SetAttribute("BlueprintVersion", BLUEPRINT_VERSION)
+	store.Parent = parent
+
+	-- Walk surface top is always floorY + 0.5 (1-stud-thick floors at floorY)
+	local floorY = 0.5
+	local walkTop = floorY + 0.5
+	local wallH = 14
+	local wallT = 1
+	local W, D = 120, 100
+	local halfW, halfD = W / 2, D / 2
+	local wallCenterY = floorY + wallH / 2 + 0.5
+
+	local function storePart(props: {
+		name: string,
+		size: Vector3,
+		position: Vector3,
+		color: Color3,
+		material: Enum.Material?,
+		transparency: number?,
+		canCollide: boolean?,
+		parent: Instance?,
+	}): Part
+		local pos = snapHorizontalPosition(props.position)
+		local size = snapFootprint(props.size)
+		return part({
+			name = props.name,
+			size = size,
+			position = pos,
+			color = props.color,
+			material = props.material,
+			transparency = props.transparency,
+			canCollide = props.canCollide,
+			parent = props.parent or store,
+		})
+	end
+
+	local function detailPart(props: {
+		name: string,
+		size: Vector3,
+		position: Vector3,
+		color: Color3,
+		material: Enum.Material?,
+		transparency: number?,
+		canCollide: boolean?,
+		parent: Instance?,
+	}): Part
+		return part({
+			name = props.name,
+			size = props.size,
+			position = props.position,
+			color = props.color,
+			material = props.material,
+			transparency = props.transparency,
+			canCollide = props.canCollide,
+			parent = props.parent or store,
+		})
+	end
+
+	local function decorFloor(name: string, size: Vector3, position: Vector3, color: Color3, parent: Instance?)
+		return storePart({
+			name = name,
+			size = size,
+			position = position,
+			color = color,
+			material = Enum.Material.SmoothPlastic,
+			transparency = 0.35,
+			canCollide = false,
+			parent = parent,
+		})
+	end
+
+	local function addSign(
+		parent: Instance,
+		name: string,
+		cx: number,
+		cy: number,
+		cz: number,
+		w: number,
+		text: string,
+		color: Color3
+	): Part
+		local sign = storePart({
+			name = name,
+			size = Vector3.new(w, 2.5, 0.35),
+			position = Vector3.new(cx, cy, cz),
+			color = color,
+			parent = parent,
+		})
+		if sign then
+			for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+				local gui = Instance.new("SurfaceGui")
+				gui.Face = face
+				gui.LightInfluence = 0.2
+				gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+				gui.PixelsPerStud = 60
+				gui.Parent = sign
+
+				local label = Instance.new("TextLabel")
+				label.Name = "Label"
+				label.Size = UDim2.fromScale(1, 1)
+				label.BackgroundTransparency = 1
+				label.Text = text
+				label.TextColor3 = Color3.fromRGB(245, 245, 245)
+				label.TextScaled = true
+				label.Font = Enum.Font.GothamBold
+				label.Parent = gui
+			end
+		end
+
+		return sign
+	end
+
+	local function addPrompt(target: BasePart, actionId: string, actionText: string, objectText: string, holdDuration: number?)
+		target:SetAttribute("RetailAction", actionId)
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = actionText
+		prompt.ObjectText = objectText
+		prompt.HoldDuration = holdDuration or 0.15
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = target
+	end
+
+	-- Wall along X axis (runs in X), placed at fixed Z
+	local function wallX(
+		name: string,
+		xCenter: number,
+		zFixed: number,
+		lengthX: number,
+		door: { offset: number, width: number }?,
+		parentModel: Instance?
+	)
+		local y = wallCenterY
+		if not door then
+			storePart({
+				name = name,
+				size = Vector3.new(lengthX, wallH, wallT),
+				position = Vector3.new(xCenter, y, zFixed),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+				parent = parentModel,
+			})
+			return
+		end
+
+		local halfLen = lengthX / 2
+		local doorStart = door.offset - door.width / 2
+		local doorEnd = door.offset + door.width / 2
+		local leftLen = (halfLen + doorStart)
+		local rightLen = (halfLen - doorEnd)
+		if leftLen > 0 then
+			storePart({
+				name = `{name}_L`,
+				size = Vector3.new(leftLen, wallH, wallT),
+				position = Vector3.new(xCenter - halfLen + leftLen / 2, y, zFixed),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+				parent = parentModel,
+			})
+		end
+		if rightLen > 0 then
+			storePart({
+				name = `{name}_R`,
+				size = Vector3.new(rightLen, wallH, wallT),
+				position = Vector3.new(xCenter + halfLen - rightLen / 2, y, zFixed),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+				parent = parentModel,
+			})
+		end
+	end
+
+	-- Wall along Z axis (runs in Z), placed at fixed X
+	local function wallZ(
+		name: string,
+		xFixed: number,
+		zCenter: number,
+		lengthZ: number,
+		door: { offset: number, width: number }?,
+		parentModel: Instance?
+	)
+		local y = wallCenterY
+		if not door then
+			storePart({
+				name = name,
+				size = Vector3.new(wallT, wallH, lengthZ),
+				position = Vector3.new(xFixed, y, zCenter),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+				parent = parentModel,
+			})
+			return
+		end
+
+		local halfLen = lengthZ / 2
+		local doorStart = door.offset - door.width / 2
+		local doorEnd = door.offset + door.width / 2
+		local southLen = halfLen + doorStart
+		local northLen = halfLen - doorEnd
+		if southLen > 0 then
+			storePart({
+				name = `{name}_S`,
+				size = Vector3.new(wallT, wallH, southLen),
+				position = Vector3.new(xFixed, y, zCenter - halfLen + southLen / 2),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+				parent = parentModel,
+			})
+		end
+		if northLen > 0 then
+			storePart({
+				name = `{name}_N`,
+				size = Vector3.new(wallT, wallH, northLen),
+				position = Vector3.new(xFixed, y, zCenter + halfLen - northLen / 2),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+				parent = parentModel,
+			})
+		end
+	end
+
+	local function enclosedRoom(opts: {
+		name: string,
+		cx: number,
+		cz: number,
+		width: number,
+		depth: number,
+		floorColor: Color3,
+		sign: string?,
+		doorSide: "south" | "east" | "west" | "none"?,
+		skipWest: boolean?,
+		skipEast: boolean?,
+	})
+		local room = Instance.new("Model")
+		room.Name = opts.name
+		room.Parent = store
+
+		local w, d = opts.width, opts.depth
+		local cx, cz = opts.cx, opts.cz
+		local floorOverlayH = 0.12
+
+		storePart({
+			name = "Floor",
+			size = Vector3.new(w - 0.4, floorOverlayH, d - 0.4),
+			position = Vector3.new(cx, walkTop + floorOverlayH / 2 + 0.015, cz),
+			color = opts.floorColor,
+			material = Enum.Material.Concrete,
+			canCollide = false,
+			parent = room,
+		})
+
+		storePart({
+			name = "Ceiling",
+			size = Vector3.new(w - 0.4, 0.35, d - 0.4),
+			position = Vector3.new(cx, floorY + wallH - 0.35, cz),
+			color = Color3.fromRGB(198, 198, 200),
+			material = Enum.Material.SmoothPlastic,
+			parent = room,
+		})
+
+		local northZ = cz - d / 2
+		local southZ = cz + d / 2
+		local westX = cx - w / 2
+		local eastX = cx + w / 2
+
+		wallX(`{opts.name}_N`, cx, northZ, w, nil, room)
+		if opts.doorSide == "south" then
+			wallX(`{opts.name}_S`, cx, southZ, w, { offset = 0, width = 8 }, room)
+		else
+			wallX(`{opts.name}_S`, cx, southZ, w, nil, room)
+		end
+		if opts.skipWest then
+			-- Exterior shell already supplies this side wall.
+		elseif opts.doorSide == "west" then
+			wallZ(`{opts.name}_W`, westX, cz, d, { offset = 0, width = 6 }, room)
+		else
+			wallZ(`{opts.name}_W`, westX, cz, d, nil, room)
+		end
+		if opts.skipEast then
+			-- Exterior shell already supplies this side wall.
+		elseif opts.doorSide == "east" then
+			wallZ(`{opts.name}_E`, eastX, cz, d, { offset = 0, width = 6 }, room)
+		else
+			wallZ(`{opts.name}_E`, eastX, cz, d, nil, room)
+		end
+
+		if opts.sign then
+			addSign(room, "Sign", cx, floorY + 5, southZ + 0.8, math.min(w - 4, 12), opts.sign, Color3.fromRGB(65, 65, 70))
+		end
+
+		return room
+	end
+
+	local function surfaceFloor(
+		name: string,
+		size: Vector3,
+		position: Vector3,
+		color: Color3,
+		material: Enum.Material,
+		parent: Instance?,
+		topY: number
+	)
+		return storePart({
+			name = name,
+			size = Vector3.new(size.X, 1, size.Z),
+			position = Vector3.new(position.X, topY - 0.5, position.Z),
+			color = color,
+			material = material,
+			parent = parent,
+		})
+	end
+
+	local function zoneMarker(name: string, cx: number, cz: number, w: number, d: number, color: Color3)
+		-- Non-colliding overlay well above walk surface (prevents z-fight flicker when moving)
+		decorFloor(`{name}Marker`, Vector3.new(w - 2, 0.05, d - 2), Vector3.new(cx, floorY + 0.68, cz), color)
+	end
+
+	local function addSoftLight(cx: number, cz: number, parent: Instance)
+		local fixture = storePart({
+			name = `Light_{cx}_{cz}`,
+			size = Vector3.new(3, 0.3, 1),
+			position = Vector3.new(cx, floorY + wallH - 0.5, cz),
+			color = Color3.fromRGB(218, 216, 208),
+			material = Enum.Material.SmoothPlastic,
+			parent = parent,
+		})
+		local light = Instance.new("PointLight")
+		light.Brightness = 0.5
+		light.Range = 20
+		light.Color = Color3.fromRGB(255, 244, 230)
+		light.Parent = fixture
+	end
+
+	-- ========== MAIN SHELL (symmetric) ==========
+	local entranceW = 20
+
+	-- Floor chain with no gaps and no overlaps: interior → threshold → parking
+	local interiorDepth = D - 6
+	local floor = detailPart({
+		name = "MainFloor",
+		size = Vector3.new(W, 1, interiorDepth),
+		position = Vector3.new(0, floorY, -3),
+		color = Color3.fromRGB(188, 188, 192),
+		material = Enum.Material.Concrete,
+	})
+
+	detailPart({
+		name = "EntryThreshold",
+		size = Vector3.new(entranceW + 6, 1, 10),
+		position = Vector3.new(0, floorY, halfD - 1),
+		color = Color3.fromRGB(178, 178, 182),
+		material = Enum.Material.Concrete,
+	})
+
+	storePart({
+		name = "MainCeiling",
+		size = Vector3.new(W, 1, D),
+		position = Vector3.new(0, floorY + wallH, 0),
+		color = Color3.fromRGB(202, 202, 204),
+		material = Enum.Material.SmoothPlastic,
+	})
+
+	-- ========== ROOF SYSTEM ==========
+	local roof = Instance.new("Model")
+	roof.Name = "Roof"
+	roof.Parent = store
+
+	local roofY = floorY + wallH + 1
+	local fasciaH = 2
+
+	storePart({
+		name = "RoofMain",
+		size = Vector3.new(W + 2, 1, D + 2),
+		position = Vector3.new(0, roofY, 0),
+		color = Color3.fromRGB(72, 74, 78),
+		material = Enum.Material.Metal,
+		parent = roof,
+	})
+
+	-- Entrance canopy (covers door approach)
+	storePart({
+		name = "EntranceCanopy",
+		size = Vector3.new(entranceW + 10, 0.8, 12),
+		position = Vector3.new(0, roofY - 0.4, halfD + 2),
+		color = Color3.fromRGB(88, 90, 94),
+		material = Enum.Material.Metal,
+		parent = roof,
+	})
+	storePart({
+		name = "CanopyFrontLip",
+		size = Vector3.new(entranceW + 12, 0.4, 1.2),
+		position = Vector3.new(0, roofY - 0.7, halfD + 8),
+		color = Color3.fromRGB(60, 62, 66),
+		material = Enum.Material.Metal,
+		parent = roof,
+	})
+
+	-- Fascia / parapet band
+	local fasciaY = roofY + 0.9
+	storePart({
+		name = "FasciaNorth",
+		size = Vector3.new(W + 2, fasciaH, 1),
+		position = Vector3.new(0, fasciaY, -halfD - 0.5),
+		color = Color3.fromRGB(55, 58, 62),
+		material = Enum.Material.SmoothPlastic,
+		parent = roof,
+	})
+	storePart({
+		name = "FasciaSouth",
+		size = Vector3.new(W + 2, fasciaH, 1),
+		position = Vector3.new(0, fasciaY, halfD + 0.5),
+		color = Color3.fromRGB(55, 58, 62),
+		material = Enum.Material.SmoothPlastic,
+		parent = roof,
+	})
+	storePart({
+		name = "FasciaWest",
+		size = Vector3.new(1, fasciaH, D + 2),
+		position = Vector3.new(-halfW - 0.5, fasciaY, 0),
+		color = Color3.fromRGB(55, 58, 62),
+		material = Enum.Material.SmoothPlastic,
+		parent = roof,
+	})
+	storePart({
+		name = "FasciaEast",
+		size = Vector3.new(1, fasciaH, D + 2),
+		position = Vector3.new(halfW + 0.5, fasciaY, 0),
+		color = Color3.fromRGB(55, 58, 62),
+		material = Enum.Material.SmoothPlastic,
+		parent = roof,
+	})
+
+	-- Skylights (sales floor)
+	for _, sx in { -24, 0, 24 } do
+		storePart({
+			name = `Skylight_{sx}`,
+			size = Vector3.new(8, 0.2, 8),
+			position = Vector3.new(sx, roofY + 0.65, 4),
+			color = Color3.fromRGB(140, 180, 210),
+			material = Enum.Material.Glass,
+			transparency = 0.35,
+			canCollide = false,
+			parent = roof,
+		})
+	end
+
+	-- HVAC units on back roof
+	for _, hx in { -28, 0, 28 } do
+		storePart({
+			name = `HVAC_{hx}`,
+			size = Vector3.new(8, 3, 6),
+			position = Vector3.new(hx, roofY + 2.2, -halfD + 10),
+			color = Color3.fromRGB(110, 112, 115),
+			material = Enum.Material.Metal,
+			parent = roof,
+		})
+		storePart({
+			name = `HVACVent_{hx}`,
+			size = Vector3.new(6, 0.4, 4),
+			position = Vector3.new(hx, roofY + 3.8, -halfD + 10),
+			color = Color3.fromRGB(80, 82, 85),
+			material = Enum.Material.Metal,
+			parent = roof,
+		})
+	end
+
+	addSign(roof, "RooftopSign", 0, fasciaY + 2.5, halfD + 1.3, 32, "RETAIL STORE", Color3.fromRGB(20, 90, 160))
+
+	wallX("ExtNorth", 0, -halfD, W, nil)
+	wallZ("ExtWest", -halfW, 0, D, nil)
+	wallZ("ExtEast", halfW, 0, D, nil)
+
+	for _, segment in {
+		{ name = "ExtSouthFarL", cx = -56, len = 8 },
+		{ name = "ExtSouthInnerL", cx = -23, len = 18 },
+		{ name = "ExtSouthInnerR", cx = 23, len = 18 },
+		{ name = "ExtSouthFarR", cx = 56, len = 8 },
+	} do
+		wallX(segment.name, segment.cx, halfD, segment.len, nil)
+	end
+
+	for _, filler in {
+		{ name = "FrontDoorWallFillL", x = -12 },
+		{ name = "FrontDoorWallFillR", x = 12 },
+	} do
+		storePart({
+			name = filler.name,
+			size = Vector3.new(4, wallH, wallT),
+			position = Vector3.new(filler.x, wallCenterY, halfD),
+			color = Color3.fromRGB(215, 213, 210),
+			material = Enum.Material.Brick,
+		})
+	end
+
+	for _, window in {
+		{ name = "WindowL", x = -42, width = 16 },
+		{ name = "WindowR", x = 42, width = 16 },
+	} do
+		detailPart({
+			name = window.name,
+			size = Vector3.new(window.width, 6.7, 0.2),
+			position = Vector3.new(window.x, floorY + 5.85, halfD - 0.6),
+			color = Color3.fromRGB(145, 170, 190),
+			material = Enum.Material.Glass,
+			transparency = 0.5,
+			canCollide = false,
+		})
+		detailPart({
+			name = `{window.name}_Header`,
+			size = Vector3.new(window.width, 3.8, wallT),
+			position = Vector3.new(window.x, floorY + 12.5, halfD),
+			color = Color3.fromRGB(215, 213, 210),
+			material = Enum.Material.Brick,
+		})
+		detailPart({
+			name = `{window.name}_TopFill`,
+			size = Vector3.new(window.width, 1.3, wallT),
+			position = Vector3.new(window.x, floorY + 9.85, halfD),
+			color = Color3.fromRGB(215, 213, 210),
+			material = Enum.Material.Brick,
+		})
+		detailPart({
+			name = `{window.name}_Sill`,
+			size = Vector3.new(window.width, 1.5, wallT),
+			position = Vector3.new(window.x, floorY + 1.25, halfD),
+			color = Color3.fromRGB(215, 213, 210),
+			material = Enum.Material.Brick,
+		})
+		for _, side in { -1, 1 } do
+			detailPart({
+				name = `{window.name}_Jamb{side}`,
+				size = Vector3.new(2, 10, wallT),
+				position = Vector3.new(window.x + side * (window.width / 2 + 1), floorY + 6, halfD),
+				color = Color3.fromRGB(215, 213, 210),
+				material = Enum.Material.Brick,
+			})
+		end
+	end
+
+	local entrance = Instance.new("Model")
+	entrance.Name = "Entrance"
+	entrance.Parent = store
+
+	for _, panel in {
+		{ name = "DoorGlassL", x = -4.5 },
+		{ name = "DoorGlassR", x = 4.5 },
+	} do
+		detailPart({
+			name = panel.name,
+			size = Vector3.new(7, 8, 0.25),
+			position = Vector3.new(panel.x, floorY + 4.5, halfD - 0.65),
+			color = Color3.fromRGB(150, 185, 205),
+			material = Enum.Material.Glass,
+			transparency = 0.45,
+			canCollide = false,
+			parent = entrance,
+		})
+	end
+	for _, frame in {
+		{ name = "DoorFrameL", x = -9.5, y = floorY + 4.8, sx = 0.5, sy = 9 },
+		{ name = "DoorFrameC", x = 0, y = floorY + 4.8, sx = 0.5, sy = 9 },
+		{ name = "DoorFrameR", x = 9.5, y = floorY + 4.8, sx = 0.5, sy = 9 },
+		{ name = "DoorHeader", x = 0, y = floorY + 9.1, sx = 20, sy = 0.5 },
+	} do
+		detailPart({
+			name = frame.name,
+			size = Vector3.new(frame.sx, frame.sy, 0.5),
+			position = Vector3.new(frame.x, frame.y, halfD - 0.35),
+			color = Color3.fromRGB(62, 66, 70),
+			material = Enum.Material.Metal,
+			canCollide = false,
+			parent = entrance,
+		})
+	end
+
+	-- Lights on symmetric grid (recessed below main ceiling)
+	for x = -40, 40, 20 do
+		for z = -30, 30, 20 do
+			addSoftLight(x, z, store)
+		end
+	end
+
+	-- ========== NORTH BACK ROW (3 equal-ish rooms, symmetric) ==========
+	local backZ = -halfD + 12
+	enclosedRoom({
+		name = "StockRoom",
+		cx = -36,
+		cz = backZ,
+		width = 36,
+		depth = 22,
+		floorColor = Color3.fromRGB(138, 138, 142),
+		sign = "STOCK",
+		doorSide = "south",
+	})
+	enclosedRoom({
+		name = "WalkInCooler",
+		cx = 0,
+		cz = backZ,
+		width = 28,
+		depth = 22,
+		floorColor = Color3.fromRGB(165, 180, 192),
+		sign = "COOLER",
+		doorSide = "south",
+	})
+	enclosedRoom({
+		name = "LoadingDock",
+		cx = 36,
+		cz = backZ,
+		width = 36,
+		depth = 22,
+		floorColor = Color3.fromRGB(72, 72, 76),
+		sign = "LOADING",
+		doorSide = "south",
+	})
+
+	-- Divider between back rooms and sales floor (3 door openings at x = -36, 0, 36)
+	local dividerZ = -26
+	local backDividerSegments = {
+		{ name = "BD_W", cx = -52, len = 14 },
+		{ name = "BD_WC", cx = -18, len = 26 },
+		{ name = "BD_C", cx = 18, len = 26 },
+		{ name = "BD_E", cx = 52, len = 14 },
+	}
+	for _, seg in backDividerSegments do
+		storePart({
+			name = seg.name,
+			size = Vector3.new(seg.len, wallH, wallT),
+			position = Vector3.new(seg.cx, wallCenterY, dividerZ),
+			color = Color3.fromRGB(215, 213, 210),
+			material = Enum.Material.Brick,
+		})
+	end
+
+	-- ========== WEST / EAST WINGS (mirrored) ==========
+	local westCx = -halfW + 9
+	local eastCx = halfW - 9
+
+	enclosedRoom({
+		name = "Bakery",
+		cx = westCx,
+		cz = 16,
+		width = 18,
+		depth = 24,
+		floorColor = Color3.fromRGB(192, 172, 148),
+		sign = "BAKERY",
+		doorSide = "east",
+		skipWest = true,
+	})
+	enclosedRoom({
+		name = "Pharmacy",
+		cx = westCx,
+		cz = -14,
+		width = 18,
+		depth = 24,
+		floorColor = Color3.fromRGB(168, 182, 192),
+		sign = "PHARMACY",
+		doorSide = "east",
+		skipWest = true,
+	})
+
+	enclosedRoom({
+		name = "Restrooms",
+		cx = eastCx,
+		cz = -16,
+		width = 18,
+		depth = 22,
+		floorColor = Color3.fromRGB(162, 168, 174),
+		sign = "RESTROOM",
+		doorSide = "west",
+		skipEast = true,
+	})
+	enclosedRoom({
+		name = "BreakRoom",
+		cx = eastCx,
+		cz = 8,
+		width = 18,
+		depth = 18,
+		floorColor = Color3.fromRGB(148, 144, 140),
+		sign = "BREAK ROOM",
+		doorSide = "west",
+		skipEast = true,
+	})
+	local adminNook = Instance.new("Model")
+	adminNook.Name = "AdminNook"
+	adminNook.Parent = store
+	decorFloor(
+		"AdminNookFloor",
+		Vector3.new(16, 0.05, 14),
+		Vector3.new(eastCx, floorY + 0.68, 30),
+		Color3.fromRGB(138, 134, 130),
+		adminNook
+	)
+	decorFloor(
+		"StaffWalkway",
+		Vector3.new(6, 0.05, 56),
+		Vector3.new(38, floorY + 0.68, 4),
+		Color3.fromRGB(172, 172, 176),
+		adminNook
+	)
+
+	-- ========== SALES FLOOR (symmetric zones + aisles) ==========
+	zoneMarker("Produce", -28, -18, 24, 18, Color3.fromRGB(92, 128, 82))
+	zoneMarker("Dairy", 0, -18, 24, 18, Color3.fromRGB(98, 112, 132))
+	zoneMarker("Frozen", 28, -18, 24, 18, Color3.fromRGB(92, 118, 138))
+	zoneMarker("General", 0, 12, 56, 28, Color3.fromRGB(148, 148, 152))
+
+	local aisleSigns = Instance.new("Model")
+	aisleSigns.Name = "AisleSigns"
+	aisleSigns.Parent = store
+	for _, sign in {
+		{ name = "ProduceSign", x = -28, z = -18, text = "PRODUCE", color = Color3.fromRGB(72, 112, 68) },
+		{ name = "DairySign", x = 0, z = -8, text = "DAIRY", color = Color3.fromRGB(72, 92, 122) },
+		{ name = "FrozenSign", x = 28, z = 6, text = "FROZEN", color = Color3.fromRGB(62, 102, 126) },
+		{ name = "PantrySign", x = -14, z = 33, text = "PANTRY", color = Color3.fromRGB(132, 92, 58) },
+		{ name = "HouseholdSign", x = 24, z = 33, text = "HOUSEHOLD", color = Color3.fromRGB(92, 88, 112) },
+	} do
+		addSign(aisleSigns, sign.name, sign.x, floorY + 11.3, sign.z, 12, sign.text, sign.color)
+	end
+
+	local endcaps = Instance.new("Model")
+	endcaps.Name = "PromotionalEndcaps"
+	endcaps.Parent = store
+	for _, endcap in {
+		{ name = "SeasonalEndcap", x = 0, z = 36, color = Color3.fromRGB(70, 150, 130), prompt = "Seasonal Display" },
+	} do
+		local display = storePart({
+			name = endcap.name,
+			size = Vector3.new(7, 5, 4),
+			position = Vector3.new(endcap.x, floorY + 3, endcap.z),
+			color = endcap.color,
+			material = Enum.Material.SmoothPlastic,
+			parent = endcaps,
+		})
+		addPrompt(display, "InspectDisplay", "Inspect", endcap.prompt, 0.1)
+		storePart({
+			name = `{endcap.name}_Header`,
+			size = Vector3.new(8, 1.2, 0.5),
+			position = Vector3.new(endcap.x, floorY + 6.3, endcap.z + 2),
+			color = Color3.fromRGB(245, 230, 160),
+			material = Enum.Material.Neon,
+			canCollide = false,
+			parent = endcaps,
+		})
+	end
+
+	-- Produce bins (north of produce aisle — no shelf overlap)
+	local bins = Instance.new("Model")
+	bins.Name = "ProduceBins"
+	bins.Parent = store
+	for i = -2, 2 do
+		local bx = i * 10
+		storePart({
+			name = `Bin_{i}`,
+			size = Vector3.new(5, 2, 4),
+			position = Vector3.new(bx, floorY + 1.2, -22),
+			color = Color3.fromRGB(125, 90, 55),
+			material = Enum.Material.Wood,
+			parent = bins,
+		})
+		local produce = storePart({
+			name = `Produce_{i}`,
+			size = Vector3.new(3.5, 1, 2.8),
+			position = Vector3.new(bx, floorY + 2.6, -22),
+			color = Color3.fromRGB(82, 125, 62),
+			material = Enum.Material.Grass,
+			parent = bins,
+		})
+		produce:SetAttribute("RetailPriceCents", 149)
+		addPrompt(produce, "CollectItem", "Pick up", "Produce", 0.1)
+	end
+
+	-- Shelves: posts + boards (nothing coplanar with floor — fixes bottom flicker)
+	local shelfWalk = walkTop
+	local shelfCounter = 0
+	local function shelfUnit(cx: number, cz: number, defaultDepartmentIndex: number)
+		shelfCounter += 1
+		local department = RetailCatalog.getDepartment(defaultDepartmentIndex)
+		local product = RetailCatalog.getProduct(defaultDepartmentIndex, 1)
+		local unit = Instance.new("Model")
+		unit.Name = `ShelfUnit{shelfCounter}`
+		unit:SetAttribute("ShelfId", shelfCounter)
+		unit:SetAttribute("ShelfDepartmentIndex", defaultDepartmentIndex)
+		unit:SetAttribute("ShelfProductIndex", 1)
+		unit:SetAttribute("ShelfDepartmentName", department.name)
+		unit:SetAttribute("ShelfProductName", product.name)
+		unit:SetAttribute("ShelfCapacity", 9)
+		unit:SetAttribute("ShelfStock", 9)
+		unit.Parent = store
+
+		for _, side in { -1, 1 } do
+			storePart({
+				name = if side == -1 then "PostL" else "PostR",
+				size = Vector3.new(0.6, 9.2, 0.6),
+				position = Vector3.new(cx + side * 5.8, shelfWalk + 4.7, cz),
+				color = Color3.fromRGB(118, 78, 46),
+				material = Enum.Material.Wood,
+				parent = unit,
+			})
+		end
+
+		local shelfBack = storePart({
+			name = "Back",
+			size = Vector3.new(12, 9, 0.2),
+			position = Vector3.new(cx, shelfWalk + 4.8, cz - 2.15),
+			color = Color3.fromRGB(135, 135, 138),
+			material = Enum.Material.Metal,
+			parent = unit,
+		})
+		addPrompt(shelfBack, "RestockShelf", "Restock", "Shelf", 0.25)
+
+		local topSign = addSign(
+			unit,
+			"TopSign",
+			cx,
+			shelfWalk + 10.8,
+			cz + 1.95,
+			11.5,
+			`{string.upper(department.name)} | {string.upper(product.name)}`,
+			department.signColor
+		)
+		addPrompt(topSign, "ConfigureShelf", "Configure", "Shelf", 0.15)
+
+		local shelfControl = storePart({
+			name = "ShelfControl",
+			size = Vector3.new(2.8, 1.2, 0.35),
+			position = Vector3.new(cx - 4.4, shelfWalk + 2.3, cz + 2.05),
+			color = department.signColor,
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = unit,
+		})
+		addPrompt(shelfControl, "ConfigureShelf", "Set product", "Shelf Control", 0.1)
+
+		local restockControl = storePart({
+			name = "RestockControl",
+			size = Vector3.new(2.8, 1.2, 0.35),
+			position = Vector3.new(cx, shelfWalk + 2.3, cz + 2.05),
+			color = Color3.fromRGB(76, 92, 70),
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = unit,
+		})
+		addPrompt(restockControl, "RestockShelf", "Restock", product.name, 0.15)
+
+		local productSelector = storePart({
+			name = "ProductSelector",
+			size = Vector3.new(2.8, 1.2, 0.35),
+			position = Vector3.new(cx + 4.4, shelfWalk + 2.3, cz + 2.05),
+			color = product.color,
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = unit,
+		})
+		productSelector:SetAttribute("RetailPriceCents", product.priceCents)
+		addPrompt(productSelector, "CollectItem", "Take item", product.name, 0.1)
+
+		for level = 1, 3 do
+			local boardY = shelfWalk + 0.2 + level * 2.8
+			storePart({
+				name = `Shelf{level}`,
+				size = Vector3.new(11.5, 0.25, 3.6),
+				position = Vector3.new(cx, boardY, cz),
+				color = Color3.fromRGB(142, 98, 56),
+				material = Enum.Material.Wood,
+				parent = unit,
+			})
+			local slotIndex = 0
+			for bx = -4, 4, 4 do
+				slotIndex += 1
+				local absoluteSlotIndex = (level - 1) * 3 + slotIndex
+				local productPart = storePart({
+					name = `Product_{level}_{slotIndex}`,
+					size = product.size,
+					position = Vector3.new(cx + bx, boardY + product.size.Y / 2 + 0.2, cz + 0.2),
+					color = product.color,
+					material = product.material,
+					parent = unit,
+				})
+				productPart:SetAttribute("ShelfProductVisual", true)
+				productPart:SetAttribute("ShelfBoardY", boardY)
+				productPart:SetAttribute("ShelfSlotIndex", absoluteSlotIndex)
+				productPart:SetAttribute("RetailPriceCents", product.priceCents)
+			end
+		end
+	end
+
+	-- Aisles: keep the front third open for checkout, queueing, and NPC traffic.
+	local shelfRows = {
+		{ z = -12, departments = { 1, 2, 3 } },
+		{ z = 4, departments = { 4, 5, 2 } },
+		{ z = 18, departments = { 1, 4, 5 } },
+	}
+	for _, row in shelfRows do
+		for columnIndex, x in { -28, 0, 28 } do
+			shelfUnit(x, row.z, row.departments[columnIndex])
+		end
+	end
+
+	-- Freezer row (raised off floor, glass in front of frame)
+	local freezerZ = -2
+	for i = -1, 1 do
+		local fx = i * 24
+		local case = Instance.new("Model")
+		case.Name = `Freezer{i}`
+		case.Parent = store
+		local caseBaseY = shelfWalk + 4.2
+		storePart({
+			name = "Frame",
+			size = Vector3.new(10, 8, 2.8),
+			position = Vector3.new(fx, caseBaseY, freezerZ),
+			color = Color3.fromRGB(88, 92, 98),
+			material = Enum.Material.Metal,
+			parent = case,
+		})
+		local glass = storePart({
+			name = "Glass",
+			size = Vector3.new(8, 6, 0.15),
+			position = Vector3.new(fx, caseBaseY, freezerZ + 1.5),
+			color = Color3.fromRGB(170, 185, 195),
+			material = Enum.Material.Glass,
+			transparency = 0.45,
+			parent = case,
+		})
+		glass:SetAttribute("RetailPriceCents", 549)
+		addPrompt(glass, "CollectItem", "Take item", "Frozen Food", 0.15)
+		storePart({
+			name = "Plinth",
+			size = Vector3.new(10, 0.35, 2.8),
+			position = Vector3.new(fx, shelfWalk + 0.18, freezerZ),
+			color = Color3.fromRGB(70, 74, 78),
+			material = Enum.Material.Metal,
+			parent = case,
+		})
+	end
+
+	-- Front end: compact service point on the left, player register and staffed NPC lane on the right.
+	local frontEnd = Instance.new("Model")
+	frontEnd.Name = "FrontEnd"
+	frontEnd.Parent = store
+
+	zoneMarker("EntryQueuing", 0, halfD - 17, 24, 12, Color3.fromRGB(168, 168, 172))
+
+	addSign(frontEnd, "ServiceSign", -46, floorY + 6, halfD - 15, 11, "SERVICE", Color3.fromRGB(75, 75, 82))
+	local serviceDesk = storePart({
+		name = "ServiceDesk",
+		size = Vector3.new(10, 3, 3),
+		position = Vector3.new(-46, floorY + 2, halfD - 15),
+		color = Color3.fromRGB(88, 88, 92),
+		material = Enum.Material.Wood,
+		parent = frontEnd,
+	})
+	addPrompt(serviceDesk, "ServiceCustomer", "Help", "Customer Service", 0.2)
+
+	local teamStation = Instance.new("Model")
+	teamStation.Name = "FrontTeamStation"
+	teamStation.Parent = frontEnd
+	local teamBacker = storePart({
+		name = "TeamBacker",
+		size = Vector3.new(9, 6, 0.5),
+		position = Vector3.new(-32, floorY + 4.1, halfD - 15.2),
+		color = Color3.fromRGB(42, 58, 70),
+		material = Enum.Material.SmoothPlastic,
+		parent = teamStation,
+	})
+	addSign(teamStation, "TeamSign", -32, floorY + 7.6, halfD - 14.8, 8, "TEAM", Color3.fromRGB(42, 92, 118))
+	local frontTimeClock = storePart({
+		name = "FrontTimeClock",
+		size = Vector3.new(2.2, 3, 0.45),
+		position = Vector3.new(-35, floorY + 3.7, halfD - 14.7),
+		color = Color3.fromRGB(38, 44, 54),
+		material = Enum.Material.SmoothPlastic,
+		parent = teamStation,
+	})
+	addPrompt(frontTimeClock, "ClockIn", "Clock in", "Time Clock", 0.15)
+	local frontTaskBoard = storePart({
+		name = "FrontTaskBoard",
+		size = Vector3.new(4.5, 3, 0.45),
+		position = Vector3.new(-30, floorY + 3.7, halfD - 14.7),
+		color = Color3.fromRGB(38, 88, 68),
+		material = Enum.Material.SmoothPlastic,
+		parent = teamStation,
+	})
+	addPrompt(frontTaskBoard, "InspectTasks", "Review", "Task Board", 0.1)
+	storePart({
+		name = "TeamShelf",
+		size = Vector3.new(8.4, 0.35, 1.5),
+		position = Vector3.new(-32, floorY + 1.85, halfD - 13.8),
+		color = Color3.fromRGB(96, 82, 66),
+		material = Enum.Material.Wood,
+		parent = teamStation,
+	})
+	teamBacker.CastShadow = false
+
+	local checkout = Instance.new("Model")
+	checkout.Name = "Checkout"
+	checkout.Parent = frontEnd
+	local function buildRegisterLane(name: string, registerId: string, x: number, label: string, signColor: Color3, kind: string)
+		local lane = Instance.new("Model")
+		lane.Name = name
+		lane:SetAttribute("RegisterId", registerId)
+		lane:SetAttribute("RegisterKind", kind)
+		lane.Parent = checkout
+
+		storePart({
+			name = "Counter",
+			size = Vector3.new(12, 3, 3),
+			position = Vector3.new(x, floorY + 2, halfD - 22),
+			color = Color3.fromRGB(52, 52, 56),
+			material = Enum.Material.Metal,
+			parent = lane,
+		})
+		storePart({
+			name = "Belt",
+			size = Vector3.new(7.2, 0.2, 2),
+			position = Vector3.new(x - 1.1, floorY + 3.6, halfD - 22),
+			color = Color3.fromRGB(28, 28, 32),
+			material = Enum.Material.Fabric,
+			canCollide = false,
+			parent = lane,
+		})
+		storePart({
+			name = "BaggingShelf",
+			size = Vector3.new(3.4, 0.35, 2.6),
+			position = Vector3.new(x + 4.6, floorY + 3.1, halfD - 20.2),
+			color = Color3.fromRGB(112, 96, 78),
+			material = Enum.Material.Wood,
+			parent = lane,
+		})
+		local scanner = storePart({
+			name = "Scanner",
+			size = Vector3.new(1, 1, 1),
+			position = Vector3.new(x + 2.7, floorY + 4, halfD - 22),
+			color = Color3.fromRGB(35, 35, 40),
+			material = Enum.Material.Metal,
+			parent = lane,
+		})
+		storePart({
+			name = "Monitor",
+			size = Vector3.new(1.4, 1.8, 0.4),
+			position = Vector3.new(x + 4.8, floorY + 4.4, halfD - 23.2),
+			color = Color3.fromRGB(24, 30, 36),
+			material = Enum.Material.Glass,
+			parent = lane,
+		})
+		local cashDrawer = storePart({
+			name = "CashDrawer",
+			size = Vector3.new(2.2, 0.7, 1.4),
+			position = Vector3.new(x + 4.4, floorY + 3.75, halfD - 21.6),
+			color = Color3.fromRGB(70, 72, 78),
+			material = Enum.Material.Metal,
+			parent = lane,
+		})
+		local receiptPrinter = storePart({
+			name = "ReceiptPrinter",
+			size = Vector3.new(1, 0.8, 1),
+			position = Vector3.new(x + 5.3, floorY + 4.15, halfD - 22.6),
+			color = Color3.fromRGB(220, 220, 216),
+			material = Enum.Material.SmoothPlastic,
+			parent = lane,
+		})
+		storePart({
+			name = "LaneLight",
+			size = Vector3.new(1, 5, 1),
+			position = Vector3.new(x + 5.2, floorY + 7, halfD - 24.2),
+			color = if kind == "Player" then Color3.fromRGB(80, 180, 90) else Color3.fromRGB(82, 128, 185),
+			material = Enum.Material.Neon,
+			canCollide = false,
+			parent = lane,
+		})
+		addSign(lane, "LaneSign", x, floorY + 8.4, halfD - 25.2, 11.5, label, signColor)
+		local statusDisplay = addSign(lane, "StatusDisplay", x, floorY + 5.9, halfD - 18.7, 7.8, "READY", Color3.fromRGB(48, 52, 58))
+		statusDisplay:SetAttribute("RegisterStatusDisplay", true)
+
+		if kind == "Player" then
+			addPrompt(cashDrawer, "OpenPlayerRegister", "Open", "Player Register", 0.15)
+			addPrompt(scanner, "Checkout", "Scan basket", "Basket Checkout", 0.2)
+		else
+			receiptPrinter:SetAttribute("NpcRegisterProp", true)
+		end
+
+		return lane
+	end
+
+	buildRegisterLane("PlayerRegister", "PlayerRegister", 10, "PLAYER REGISTER", Color3.fromRGB(70, 110, 78), "Player")
+	buildRegisterLane("NpcRegister", "NpcRegister", 30, "NPC REGISTER", Color3.fromRGB(62, 82, 126), "NPC")
+
+	zoneMarker("Bagging", 20, halfD - 14.5, 30, 6, Color3.fromRGB(128, 128, 132))
+
+	-- Carts moved to parking (not blocking entrance)
+
+	-- Structural pillars at building exterior corners (inset from walls, clear of back rooms)
+	local pillarInset = 3.5
+	local pillarH = wallH + 0.5
+	local pillarY = floorY + pillarH / 2 + 0.5
+	for _, corner in {
+		{ name = "PillarNW", x = -halfW + pillarInset, z = -halfD + pillarInset },
+		{ name = "PillarNE", x = halfW - pillarInset, z = -halfD + pillarInset },
+		{ name = "PillarSW", x = -halfW + pillarInset, z = halfD - pillarInset },
+		{ name = "PillarSE", x = halfW - pillarInset, z = halfD - pillarInset },
+	} do
+		storePart({
+			name = corner.name,
+			size = Vector3.new(2.8, pillarH, 2.8),
+			position = Vector3.new(corner.x, pillarY, corner.z),
+			color = Color3.fromRGB(185, 183, 180),
+			material = Enum.Material.Concrete,
+		})
+	end
+
+	-- Stock / cooler / loading props (inside room centers)
+	local stock = store:FindFirstChild("StockRoom")
+	if stock then
+		for _, rack in {
+			{ name = "RackWest", x = -50 },
+			{ name = "RackNorth", x = -36 },
+			{ name = "RackEast", x = -22 },
+		} do
+			storePart({
+				name = rack.name,
+				size = Vector3.new(3, 7, 14),
+				position = Vector3.new(rack.x, floorY + 4.1, backZ - 3),
+				color = Color3.fromRGB(95, 98, 104),
+				material = Enum.Material.Metal,
+				parent = stock,
+			})
+			for shelf = -1, 1 do
+				storePart({
+					name = `{rack.name}_Shelf{shelf}`,
+					size = Vector3.new(4, 0.35, 14),
+					position = Vector3.new(rack.x, floorY + 2.5 + shelf * 2.4, backZ - 3),
+					color = Color3.fromRGB(125, 110, 90),
+					material = Enum.Material.Wood,
+					parent = stock,
+				})
+			end
+		end
+		for i, x in { -46, -36, -26 } do
+			local pallet = storePart({
+				name = `StockPallet{i}`,
+				size = Vector3.new(5, 3, 5),
+				position = Vector3.new(x, floorY + 2, backZ + 7),
+				color = Color3.fromRGB(125, 95, 68),
+				material = Enum.Material.Wood,
+				parent = stock,
+			})
+			addPrompt(pallet, "CollectStock", "Grab stock", "Stock Pallet", 0.2)
+		end
+		storePart({
+			name = "StockWorkTable",
+			size = Vector3.new(8, 2.4, 3),
+			position = Vector3.new(-36, floorY + 1.7, backZ + 1),
+			color = Color3.fromRGB(110, 112, 116),
+			material = Enum.Material.Metal,
+			parent = stock,
+		})
+	end
+
+	local pharmacy = store:FindFirstChild("Pharmacy")
+	if pharmacy then
+		local pharmacyCounter = storePart({
+			name = "ServiceCounter",
+			size = Vector3.new(10, 3, 2.5),
+			position = Vector3.new(westCx + 1, floorY + 2, -8),
+			color = Color3.fromRGB(220, 222, 226),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+		addPrompt(pharmacyCounter, "FillPrescription", "Fill", "Pharmacy Counter", 0.25)
+		for shelf, z in { -22, -6 } do
+			storePart({
+				name = `MedicineShelf{shelf}`,
+				size = Vector3.new(5, 6, 2),
+				position = Vector3.new(westCx - 5, floorY + 3.5, z),
+				color = Color3.fromRGB(235, 238, 242),
+				material = Enum.Material.SmoothPlastic,
+				parent = pharmacy,
+			})
+			storePart({
+				name = `MedicineBottles{shelf}`,
+				size = Vector3.new(4, 1.2, 1.2),
+				position = Vector3.new(westCx - 5, floorY + 5.6, z),
+				color = Color3.fromRGB(92, 132, 185),
+				material = Enum.Material.Plastic,
+				parent = pharmacy,
+			})
+		end
+		storePart({
+			name = "PharmacyMonitor",
+			size = Vector3.new(2.2, 1.6, 0.3),
+			position = Vector3.new(westCx + 2, floorY + 4.1, -8),
+			color = Color3.fromRGB(24, 28, 34),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+		storePart({
+			name = "WaitingBench",
+			size = Vector3.new(5, 1.5, 2),
+			position = Vector3.new(westCx + 1, floorY + 1.25, -22),
+			color = Color3.fromRGB(110, 90, 70),
+			material = Enum.Material.Wood,
+			parent = pharmacy,
+		})
+		storePart({
+			name = "PrivacyDivider",
+			size = Vector3.new(0.5, 5, 5),
+			position = Vector3.new(westCx + 5, floorY + 3.5, -8),
+			color = Color3.fromRGB(190, 198, 204),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+	end
+
+	local bakery = store:FindFirstChild("Bakery")
+	if bakery then
+		for i, z in { 8, 14, 20 } do
+			storePart({
+				name = `Display{i}`,
+				size = Vector3.new(4, 1.2, 2),
+				position = Vector3.new(westCx - 5, floorY + 1.2, z),
+				color = Color3.fromRGB(168, 135, 98),
+				material = Enum.Material.Wood,
+				parent = bakery,
+			})
+			storePart({
+				name = `DisplayGlass{i}`,
+				size = Vector3.new(4, 1.3, 1.8),
+				position = Vector3.new(westCx - 5, floorY + 2.45, z),
+				color = Color3.fromRGB(205, 225, 235),
+				material = Enum.Material.Glass,
+				transparency = 0.45,
+				canCollide = false,
+				parent = bakery,
+			})
+		end
+		storePart({
+			name = "Oven",
+			size = Vector3.new(6, 5, 4),
+			position = Vector3.new(westCx - 4, floorY + 3, 23),
+			color = Color3.fromRGB(68, 68, 72),
+			material = Enum.Material.Metal,
+			parent = bakery,
+		})
+		local prepCounter = storePart({
+			name = "PrepCounter",
+			size = Vector3.new(8, 2.4, 2),
+			position = Vector3.new(westCx + 2, floorY + 1.7, 24.5),
+			color = Color3.fromRGB(210, 205, 198),
+			material = Enum.Material.Marble,
+			parent = bakery,
+		})
+		addPrompt(prepCounter, "BakeBatch", "Prepare", "Bakery Counter", 0.25)
+		storePart({
+			name = "BreadRack",
+			size = Vector3.new(3, 6, 2),
+			position = Vector3.new(westCx + 3, floorY + 3.5, 8),
+			color = Color3.fromRGB(130, 95, 58),
+			material = Enum.Material.Wood,
+			parent = bakery,
+		})
+		storePart({
+			name = "PastrySign",
+			size = Vector3.new(7, 2, 0.4),
+			position = Vector3.new(westCx - 5, floorY + 7, 14),
+			color = Color3.fromRGB(120, 78, 42),
+			material = Enum.Material.Wood,
+			parent = bakery,
+		})
+	end
+
+	local restroom = store:FindFirstChild("Restrooms")
+	if restroom then
+		for s = -1, 1 do
+			wallZ(`Stall{s}`, eastCx - 6, -16 + s * 6, 5, nil, restroom)
+		end
+		for s = -1, 1 do
+			storePart({
+				name = `Sink{s}`,
+				size = Vector3.new(2, 1, 1.2),
+				position = Vector3.new(eastCx - 2, floorY + 1.5, -16 + s * 8),
+				color = Color3.fromRGB(195, 195, 200),
+				material = Enum.Material.Marble,
+				parent = restroom,
+			})
+		end
+		for s = -1, 1 do
+			storePart({
+				name = `StallDoor{s}`,
+				size = Vector3.new(0.4, 5, 3),
+				position = Vector3.new(eastCx - 3, floorY + 3.5, -16 + s * 6),
+				color = Color3.fromRGB(105, 115, 125),
+				material = Enum.Material.Metal,
+				parent = restroom,
+			})
+		end
+		storePart({
+			name = "HandDryer",
+			size = Vector3.new(2, 2, 1),
+			position = Vector3.new(eastCx - 2, floorY + 4, -24),
+			color = Color3.fromRGB(210, 210, 215),
+			material = Enum.Material.Metal,
+			parent = restroom,
+		})
+		storePart({
+			name = "PrivacyScreen",
+			size = Vector3.new(0.6, 6, 8),
+			position = Vector3.new(eastCx - 1, floorY + 4, -16),
+			color = Color3.fromRGB(125, 132, 140),
+			material = Enum.Material.Metal,
+			parent = restroom,
+		})
+	end
+
+	local office = store:FindFirstChild("AdminNook")
+	if office then
+		storePart({
+			name = "Desk",
+			size = Vector3.new(6, 1, 3),
+			position = Vector3.new(eastCx + 2, floorY + 1.5, 31),
+			color = Color3.fromRGB(92, 68, 48),
+			material = Enum.Material.Wood,
+			parent = office,
+		})
+		storePart({
+			name = "Chair",
+			size = Vector3.new(2, 2, 2),
+			position = Vector3.new(eastCx + 5, floorY + 1.5, 29),
+			color = Color3.fromRGB(55, 55, 60),
+			material = Enum.Material.Plastic,
+			parent = office,
+		})
+		storePart({
+			name = "Monitor",
+			size = Vector3.new(2.4, 1.6, 0.25),
+			position = Vector3.new(eastCx, floorY + 2.4, 31),
+			color = Color3.fromRGB(25, 28, 34),
+			material = Enum.Material.SmoothPlastic,
+			parent = office,
+		})
+		storePart({
+			name = "FilingCabinet",
+			size = Vector3.new(3, 4, 2),
+			position = Vector3.new(eastCx + 6, floorY + 2.5, 35),
+			color = Color3.fromRGB(110, 115, 120),
+			material = Enum.Material.Metal,
+			parent = office,
+		})
+	end
+
+	local breakRoom = store:FindFirstChild("BreakRoom")
+	if breakRoom then
+		storePart({
+			name = "Table",
+			size = Vector3.new(6, 1, 4),
+			position = Vector3.new(eastCx + 1, floorY + 1.5, 8),
+			color = Color3.fromRGB(105, 80, 55),
+			material = Enum.Material.Wood,
+			parent = breakRoom,
+		})
+		storePart({
+			name = "Fridge",
+			size = Vector3.new(3, 6, 3),
+			position = Vector3.new(eastCx + 5, floorY + 3.5, 4),
+			color = Color3.fromRGB(225, 228, 232),
+			material = Enum.Material.Metal,
+			parent = breakRoom,
+		})
+		storePart({
+			name = "VendingMachine",
+			size = Vector3.new(3, 6, 2),
+			position = Vector3.new(eastCx - 5, floorY + 3.5, 12),
+			color = Color3.fromRGB(40, 85, 150),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		local timeClock = storePart({
+			name = "TimeClock",
+			size = Vector3.new(2, 3, 0.5),
+			position = Vector3.new(eastCx - 6, floorY + 4, 4),
+			color = Color3.fromRGB(42, 48, 58),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		addPrompt(timeClock, "ClockIn", "Clock in", "Time Clock", 0.15)
+		local taskBoard = storePart({
+			name = "TaskBoard",
+			size = Vector3.new(7, 4, 0.5),
+			position = Vector3.new(eastCx + 1, floorY + 5, 0),
+			color = Color3.fromRGB(38, 88, 68),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		addPrompt(taskBoard, "InspectTasks", "Review", "Task Board", 0.1)
+		storePart({
+			name = "Countertop",
+			size = Vector3.new(6, 2.4, 2),
+			position = Vector3.new(eastCx + 3, floorY + 1.7, 14),
+			color = Color3.fromRGB(185, 182, 178),
+			material = Enum.Material.Marble,
+			parent = breakRoom,
+		})
+	end
+
+	local loading = store:FindFirstChild("LoadingDock")
+	if loading then
+		detailPart({
+			name = "RollDoor",
+			size = Vector3.new(18, 10, 0.2),
+			position = Vector3.new(36, floorY + 5.5, -halfD + 1.7),
+			color = Color3.fromRGB(95, 98, 102),
+			material = Enum.Material.CorrodedMetal,
+			parent = loading,
+		})
+		for i = -1, 1 do
+			storePart({
+				name = `DockBox{i}`,
+				size = Vector3.new(4, 3, 4),
+				position = Vector3.new(48, floorY + 2, backZ - 6 + i * 5),
+				color = Color3.fromRGB(150, 130, 100),
+				material = Enum.Material.Cardboard,
+				parent = loading,
+			})
+		end
+		local dockControl = storePart({
+			name = "DockControl",
+			size = Vector3.new(2, 3, 0.5),
+			position = Vector3.new(22, floorY + 4, backZ),
+			color = Color3.fromRGB(52, 58, 66),
+			material = Enum.Material.Metal,
+			parent = loading,
+		})
+		addPrompt(dockControl, "OpenDock", "Operate", "Dock Controls", 0.2)
+		storePart({
+			name = "PalletJack",
+			size = Vector3.new(5, 1, 3),
+			position = Vector3.new(30, floorY + 1.2, backZ + 6),
+			color = Color3.fromRGB(170, 130, 45),
+			material = Enum.Material.Metal,
+			parent = loading,
+		})
+	end
+
+	local cooler = store:FindFirstChild("WalkInCooler")
+	if cooler then
+		for i = -1, 1 do
+			storePart({
+				name = `CoolerShelf{i}`,
+				size = Vector3.new(6, 6, 2),
+				position = Vector3.new(i * 8, floorY + 3.5, backZ - 5),
+				color = Color3.fromRGB(190, 200, 210),
+				material = Enum.Material.Metal,
+				parent = cooler,
+			})
+			storePart({
+				name = `CoolerProduct{i}`,
+				size = Vector3.new(5, 1.4, 1.5),
+				position = Vector3.new(i * 8, floorY + 6.6, backZ - 4),
+				color = Color3.fromRGB(185, 220, 240),
+				material = Enum.Material.Plastic,
+				parent = cooler,
+			})
+		end
+		local coolerCase = storePart({
+			name = "CoolerCase",
+			size = Vector3.new(10, 7, 2),
+			position = Vector3.new(0, floorY + 4, backZ + 6),
+			color = Color3.fromRGB(150, 180, 196),
+			material = Enum.Material.Glass,
+			transparency = 0.35,
+			parent = cooler,
+		})
+		addPrompt(coolerCase, "CheckTemperature", "Check", "Cooler Case", 0.2)
+		storePart({
+			name = "CoolerLight",
+			size = Vector3.new(18, 0.3, 1),
+			position = Vector3.new(0, floorY + 10.8, backZ + 8),
+			color = Color3.fromRGB(185, 220, 255),
+			material = Enum.Material.Neon,
+			canCollide = false,
+			parent = cooler,
+		})
+	end
+
+	-- ========== INTERIOR PROPS ==========
+	local interiorProps = Instance.new("Model")
+	interiorProps.Name = "InteriorProps"
+	interiorProps.Parent = store
+
+	storePart({
+		name = "MagazineRack",
+		size = Vector3.new(4, 4, 1.5),
+		position = Vector3.new(14, floorY + 2.5, halfD - 18),
+		color = Color3.fromRGB(90, 90, 95),
+		material = Enum.Material.Metal,
+		parent = interiorProps,
+	})
+	storePart({
+		name = "WaterFountain",
+		size = Vector3.new(2, 4, 2),
+		position = Vector3.new(-14, floorY + 2.5, halfD - 18),
+		color = Color3.fromRGB(200, 205, 210),
+		material = Enum.Material.Metal,
+		parent = interiorProps,
+	})
+	local wetFloorSign = storePart({
+		name = "WetFloorSign",
+		size = Vector3.new(2, 2.5, 0.3),
+		position = Vector3.new(-8, floorY + 1.8, -6),
+		color = Color3.fromRGB(220, 180, 40),
+		material = Enum.Material.Plastic,
+		canCollide = false,
+		parent = interiorProps,
+	})
+	addPrompt(wetFloorSign, "CleanSpill", "Clean", "Spill Sign", 0.25)
+	local spill = decorFloor(
+		"FloorSpill",
+		Vector3.new(5, 0.05, 4),
+		Vector3.new(-5, floorY + 0.72, -6),
+		Color3.fromRGB(105, 150, 190),
+		interiorProps
+	)
+	spill.Transparency = 0.45
+	addPrompt(spill, "CleanSpill", "Mop", "Floor Spill", 0.3)
+
+	for i, x in { -18, 6 } do
+		storePart({
+			name = `BagHolder{i}`,
+			size = Vector3.new(3, 4, 1.5),
+			position = Vector3.new(x, floorY + 2.5, halfD - 16),
+			color = Color3.fromRGB(70, 120, 70),
+			material = Enum.Material.Plastic,
+			parent = interiorProps,
+		})
+	end
+
+	for i = -1, 1 do
+		storePart({
+			name = `BasketStack{i}`,
+			size = Vector3.new(3, 2, 3),
+			position = Vector3.new(-20 + i * 8, floorY + 1.5, halfD - 22),
+			color = Color3.fromRGB(200, 160, 50),
+			material = Enum.Material.Plastic,
+			parent = interiorProps,
+		})
+	end
+
+	for _, fx in { -40, 40 } do
+		storePart({
+			name = `FireExt_{fx}`,
+			size = Vector3.new(0.8, 2.5, 0.8),
+			position = Vector3.new(fx, floorY + 2, 0),
+			color = Color3.fromRGB(180, 40, 40),
+			material = Enum.Material.Metal,
+			parent = interiorProps,
+		})
+	end
+
+	if restroom then
+		storePart({
+			name = "Mirror",
+			size = Vector3.new(4, 3, 0.2),
+			position = Vector3.new(eastCx - 2, floorY + 4, -12),
+			color = Color3.fromRGB(200, 210, 220),
+			material = Enum.Material.Glass,
+			transparency = 0.3,
+			parent = interiorProps,
+		})
+		for s = -1, 1 do
+			storePart({
+				name = `Toilet{s}`,
+				size = Vector3.new(2, 2, 2.5),
+				position = Vector3.new(eastCx - 5, floorY + 1.5, -18 + s * 6),
+				color = Color3.fromRGB(240, 240, 245),
+				material = Enum.Material.SmoothPlastic,
+				parent = interiorProps,
+			})
+		end
+	end
+
+	if breakRoom then
+		for c = 0, 3 do
+			storePart({
+				name = `BreakChair{c}`,
+				size = Vector3.new(1.5, 2, 1.5),
+				position = Vector3.new(eastCx - 3 + (c % 2) * 4, floorY + 1.5, 6 + math.floor(c / 2) * 4),
+				color = Color3.fromRGB(55, 55, 60),
+				material = Enum.Material.Plastic,
+				parent = interiorProps,
+			})
+		end
+		storePart({
+			name = "Microwave",
+			size = Vector3.new(2, 1.5, 2),
+			position = Vector3.new(eastCx + 4, floorY + 3, 10),
+			color = Color3.fromRGB(50, 50, 55),
+			material = Enum.Material.Metal,
+			parent = interiorProps,
+		})
+	end
+
+	-- ========== OUTDOOR ENVIRONMENT ==========
+	local outdoor = Instance.new("Model")
+	outdoor.Name = "Outdoor"
+	outdoor.Parent = store
+
+	local parking = Instance.new("Model")
+	parking.Name = "ParkingLot"
+	parking.Parent = outdoor
+
+	local asphaltTop = walkTop - 0.08
+	local sidewalkTop = walkTop + 0.06
+	local paintTop = asphaltTop + 0.015
+	local grassTop = asphaltTop - 0.03
+
+	local landscaping = Instance.new("Model")
+	landscaping.Name = "Landscaping"
+	landscaping.Parent = outdoor
+
+	surfaceFloor(
+		"GrassField",
+		Vector3.new(400, 1, 320),
+		Vector3.new(0, floorY, 20),
+		Color3.fromRGB(70, 126, 62),
+		Enum.Material.Grass,
+		landscaping,
+		grassTop
+	)
+
+	local function curbPart(name: string, size: Vector3, position: Vector3, parentModel: Instance?)
+		return storePart({
+			name = name,
+			size = size,
+			position = position,
+			color = Color3.fromRGB(146, 146, 142),
+			material = Enum.Material.Concrete,
+			canCollide = false,
+			parent = parentModel or landscaping,
+		})
+	end
+
+	local function curbRect(name: string, cx: number, cz: number, w: number, d: number, parentModel: Instance?)
+		local y = sidewalkTop + 0.18
+		curbPart(`{name}_North`, Vector3.new(w, 0.35, 0.6), Vector3.new(cx, y, cz - d / 2), parentModel)
+		curbPart(`{name}_South`, Vector3.new(w, 0.35, 0.6), Vector3.new(cx, y, cz + d / 2), parentModel)
+		curbPart(`{name}_West`, Vector3.new(0.6, 0.35, d), Vector3.new(cx - w / 2, y, cz), parentModel)
+		curbPart(`{name}_East`, Vector3.new(0.6, 0.35, d), Vector3.new(cx + w / 2, y, cz), parentModel)
+	end
+
+	local function parkingIsland(name: string, cx: number, cz: number, w: number, d: number)
+		local island = Instance.new("Model")
+		island.Name = name
+		island.Parent = landscaping
+
+		surfaceFloor(
+			"Grass",
+			Vector3.new(w - 1.4, 1, d - 1.4),
+			Vector3.new(cx, floorY, cz),
+			Color3.fromRGB(72, 130, 64),
+			Enum.Material.Grass,
+			island,
+			sidewalkTop + 0.02
+		)
+		curbRect("Curb", cx, cz, w, d, island)
+
+		for offset = -1, 1, 2 do
+			storePart({
+				name = `Shrub{offset}`,
+				size = Vector3.new(4, 2.2, 4),
+				position = Vector3.new(cx, floorY + 1.7, cz + offset * (d / 4)),
+				color = Color3.fromRGB(52, 108, 48),
+				material = Enum.Material.Grass,
+				parent = island,
+			})
+		end
+	end
+
+	-- Expanded parking field: entry drive, two rows of stalls, perimeter roads.
+	surfaceFloor(
+		"Asphalt",
+		Vector3.new(W + 80, 1, 76),
+		Vector3.new(0, floorY, halfD + 38),
+		Color3.fromRGB(48, 50, 54),
+		Enum.Material.Asphalt,
+		parking,
+		asphaltTop
+	)
+
+	local function stripe(name: string, size: Vector3, position: Vector3, color: Color3, parentModel: Instance?)
+		local paintSize = Vector3.new(size.X, math.min(size.Y, 0.035), size.Z)
+		storePart({
+			name = name,
+			size = paintSize,
+			position = Vector3.new(position.X, paintTop + paintSize.Y / 2, position.Z),
+			color = color,
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = parentModel or parking,
+		})
+	end
+
+	for _, row in {
+		{ name = "Near", z = halfD + 18, stallDepth = 12 },
+		{ name = "Far", z = halfD + 56, stallDepth = 12 },
+	} do
+		for i = -5, 5 do
+			local x = i * 14
+			stripe(
+				`ParkingLine_{row.name}_{i}`,
+				Vector3.new(0.3, 0.06, row.stallDepth),
+				Vector3.new(x, floorY + 0.62, row.z),
+				Color3.fromRGB(220, 220, 215),
+				parking
+			)
+		end
+		stripe(
+			`ParkingBackLine_{row.name}`,
+			Vector3.new(142, 0.06, 0.3),
+			Vector3.new(0, floorY + 0.62, row.z + row.stallDepth / 2),
+			Color3.fromRGB(220, 220, 215),
+			parking
+		)
+	end
+
+	for i = 0, 2 do
+		local x = -50 + i * 14
+		stripe(
+			`AccessibleSpace{i}`,
+			Vector3.new(10, 0.06, 10),
+			Vector3.new(x, floorY + 0.63, halfD + 18),
+			Color3.fromRGB(40, 80, 180),
+			parking
+		)
+		stripe(
+			`AccessibleAisle{i}`,
+			Vector3.new(0.45, 0.06, 9),
+			Vector3.new(x + 5, floorY + 0.66, halfD + 18),
+			Color3.fromRGB(235, 235, 230),
+			parking
+		)
+	end
+
+	for i = 0, 1 do
+		local cart = storePart({
+			name = `NestedCart{i}`,
+			size = Vector3.new(3.5, 1.8, 4.5),
+			position = Vector3.new(-30 + i * 4.2, floorY + 1.45, halfD + 8),
+			color = Color3.fromRGB(126, 132, 138),
+			material = Enum.Material.Metal,
+			parent = outdoor,
+		})
+		if i == 0 then
+			addPrompt(cart, "ReturnCart", "Return", "Shopping Cart", 0.2)
+		end
+		storePart({
+			name = `CartHandle{i}`,
+			size = Vector3.new(3.2, 0.35, 0.35),
+			position = Vector3.new(-30 + i * 4.2, floorY + 2.55, halfD + 6),
+			color = Color3.fromRGB(42, 44, 48),
+			material = Enum.Material.Metal,
+			canCollide = false,
+			parent = outdoor,
+		})
+	end
+
+	-- Entrance bollards (protect storefront, not blocking door)
+	for _, bx in { -12, 12 } do
+		storePart({
+			name = `Bollard{bx}`,
+			size = Vector3.new(1.2, 3.5, 1.2),
+			position = Vector3.new(bx, floorY + 2.25, halfD + 5),
+			color = Color3.fromRGB(220, 180, 50),
+			material = Enum.Material.Metal,
+			parent = outdoor,
+		})
+	end
+
+	local trashCan = storePart({
+		name = "TrashCan",
+		size = Vector3.new(2, 3.5, 2),
+		position = Vector3.new(22, floorY + 2.25, halfD + 6),
+		color = Color3.fromRGB(45, 48, 52),
+		material = Enum.Material.Metal,
+		parent = outdoor,
+	})
+	addPrompt(trashCan, "TakeTrash", "Empty", "Trash Can", 0.25)
+	storePart({
+		name = "Bench",
+		size = Vector3.new(6, 1.5, 2),
+		position = Vector3.new(-22, floorY + 1.25, halfD + 6),
+		color = Color3.fromRGB(100, 75, 50),
+		material = Enum.Material.Wood,
+		parent = outdoor,
+	})
+
+	-- Sidewalks frame the store and connect the parking lot to the front door.
+	surfaceFloor("FrontSidewalk", Vector3.new(W - 2, 1, 12), Vector3.new(0, floorY, halfD + 3), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
+	surfaceFloor("SidewalkWest", Vector3.new(14, 1, 70), Vector3.new(-halfW - 6, floorY, halfD + 26), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
+	surfaceFloor("SidewalkEast", Vector3.new(14, 1, 70), Vector3.new(halfW + 6, floorY, halfD + 26), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
+	surfaceFloor("EntryWalk", Vector3.new(18, 1, 32), Vector3.new(0, floorY, halfD + 16), Color3.fromRGB(205, 203, 198), Enum.Material.Concrete, outdoor, sidewalkTop + 0.015)
+	storePart({
+		name = "Curb",
+		size = Vector3.new(W + 42, 0.6, 1),
+		position = Vector3.new(0, floorY + 0.35, halfD + 1),
+		color = Color3.fromRGB(140, 140, 145),
+		material = Enum.Material.Concrete,
+		canCollide = false,
+		parent = outdoor,
+	})
+
+	parkingIsland("IslandWest", -86, halfD + 42, 12, 36)
+	parkingIsland("IslandEast", 86, halfD + 42, 12, 36)
+
+	surfaceFloor(
+		"DrivewayApron",
+		Vector3.new(28, 1, 10),
+		Vector3.new(0, floorY, halfD + 78),
+		Color3.fromRGB(52, 54, 58),
+		Enum.Material.Asphalt,
+		outdoor,
+		asphaltTop + 0.005
+	)
+
+	for _, curb in {
+		{ name = "LotCurbFrontWest", size = Vector3.new(79, 0.35, 0.55), position = Vector3.new(-53.5, sidewalkTop + 0.18, halfD + 77) },
+		{ name = "LotCurbFrontEast", size = Vector3.new(79, 0.35, 0.55), position = Vector3.new(53.5, sidewalkTop + 0.18, halfD + 77) },
+		{ name = "LotCurbWest", size = Vector3.new(0.55, 0.35, 75), position = Vector3.new(-100, sidewalkTop + 0.18, halfD + 38) },
+		{ name = "LotCurbEast", size = Vector3.new(0.55, 0.35, 75), position = Vector3.new(100, sidewalkTop + 0.18, halfD + 38) },
+		{ name = "RoadCurbNorthWest", size = Vector3.new(74, 0.35, 0.55), position = Vector3.new(-51, sidewalkTop + 0.18, halfD + 78) },
+		{ name = "RoadCurbNorthEast", size = Vector3.new(74, 0.35, 0.55), position = Vector3.new(51, sidewalkTop + 0.18, halfD + 78) },
+		{ name = "RoadCurbSouth", size = Vector3.new(176, 0.35, 0.55), position = Vector3.new(0, sidewalkTop + 0.18, halfD + 98) },
+	} do
+		curbPart(curb.name, curb.size, curb.position, landscaping)
+	end
+
+	local entranceSign = storePart({
+		name = "ParkingEntranceSign",
+		size = Vector3.new(10, 5, 0.5),
+		position = Vector3.new(-78, floorY + 5.2, halfD + 88),
+		color = Color3.fromRGB(24, 80, 145),
+		material = Enum.Material.SmoothPlastic,
+		parent = landscaping,
+	})
+	addPrompt(entranceSign, "InspectSign", "Read", "Parking Sign", 0.05)
+	local signPost = storePart({
+		name = "ParkingEntranceSignPost",
+		size = Vector3.new(0.6, 7, 0.6),
+		position = Vector3.new(-78, floorY + 3.5, halfD + 88),
+		color = Color3.fromRGB(80, 82, 86),
+		material = Enum.Material.Metal,
+		parent = landscaping,
+	})
+	signPost.CastShadow = false
+
+	addSign(landscaping, "LotWayfinding", 78, floorY + 5.5, halfD + 88, 10, "PARKING", Color3.fromRGB(24, 80, 145))
+
+	local pickup = Instance.new("Model")
+	pickup.Name = "CurbsidePickup"
+	pickup.Parent = outdoor
+	local pickupX = 92
+	local pickupZ = halfD + 16
+	stripe("PickupPadPaint", Vector3.new(34, 0.06, 14), Vector3.new(pickupX, floorY, pickupZ), Color3.fromRGB(62, 80, 92), pickup)
+	for i = 0, 2 do
+		stripe(`PickupLine{i}`, Vector3.new(0.35, 0.06, 12), Vector3.new(pickupX - 12 + i * 12, floorY, pickupZ), Color3.fromRGB(245, 245, 240), pickup)
+	end
+	for i = 0, 1 do
+		local pickupPost = storePart({
+			name = `PickupPost{i}`,
+			size = Vector3.new(0.8, 6, 0.8),
+			position = Vector3.new(pickupX - 6 + i * 12, floorY + 3.5, pickupZ - 7),
+			color = Color3.fromRGB(50, 58, 66),
+			material = Enum.Material.Metal,
+			parent = pickup,
+		})
+		local pickupSign = storePart({
+			name = `PickupSign{i}`,
+			size = Vector3.new(7, 3, 0.5),
+			position = Vector3.new(pickupX - 6 + i * 12, floorY + 7, pickupZ - 7),
+			color = Color3.fromRGB(20, 105, 155),
+			material = Enum.Material.SmoothPlastic,
+			parent = pickup,
+		})
+		addPrompt(pickupSign, "PickupOrder", "Load", "Pickup Order", 0.25)
+		pickupPost.CastShadow = false
+	end
+
+	-- Front road and side service drives.
+	surfaceFloor("FrontRoad", Vector3.new(176, 1, 18), Vector3.new(0, floorY, halfD + 88), Color3.fromRGB(55, 58, 62), Enum.Material.Asphalt, outdoor, asphaltTop)
+	surfaceFloor("WestDrive", Vector3.new(18, 1, 32), Vector3.new(-halfW - 26, floorY, halfD - 16), Color3.fromRGB(55, 58, 62), Enum.Material.Asphalt, outdoor, asphaltTop)
+	surfaceFloor("EastDrive", Vector3.new(18, 1, 32), Vector3.new(halfW + 26, floorY, halfD - 16), Color3.fromRGB(55, 58, 62), Enum.Material.Asphalt, outdoor, asphaltTop)
+	stripe("RoadLine", Vector3.new(150, 0.06, 0.4), Vector3.new(0, floorY, halfD + 88), Color3.fromRGB(230, 200, 60), outdoor)
+
+	for i = -3, 3 do
+		stripe(`CrosswalkStripe{i}`, Vector3.new(8, 0.06, 1.1), Vector3.new(0, floorY, halfD + 76 + i * 2), Color3.fromRGB(235, 235, 230), outdoor)
+	end
+
+	for _, stop in {
+		{ name = "StopLineWest", x = -20 },
+		{ name = "StopLineEast", x = 20 },
+	} do
+		stripe(stop.name, Vector3.new(10, 0.06, 0.8), Vector3.new(stop.x, floorY, halfD + 76), Color3.fromRGB(235, 235, 230), outdoor)
+	end
+
+	local traffic = Instance.new("Model")
+	traffic.Name = "NpcTraffic"
+	traffic.Parent = outdoor
+
+	local function trafficMarker(name: string, x: number, z: number, markerKind: string?)
+		local marker = storePart({
+			name = name,
+			size = Vector3.new(1, 1, 1),
+			position = Vector3.new(x, walkTop, z),
+			color = Color3.fromRGB(255, 0, 255),
+			transparency = 1,
+			canCollide = false,
+			parent = traffic,
+		})
+		if markerKind then
+			marker:SetAttribute("TrafficMarkerKind", markerKind)
+		end
+		return marker
+	end
+
+	trafficMarker("RoadSpawn", -86, halfD + 88, "CarPath")
+	trafficMarker("RoadApproach", -24, halfD + 88, "CarPath")
+	trafficMarker("DriveEntry", 0, halfD + 78, "CarPath")
+	trafficMarker("DriveCenter", 0, halfD + 38, "CarPath")
+	trafficMarker("StoreEntryOutside", 0, halfD + 10, "CustomerPath")
+	trafficMarker("StoreEntryInside", 0, halfD - 8, "CustomerPath")
+	trafficMarker("ShopProduce", -28, -18, "Shop")
+	trafficMarker("ShopPantry", 0, 10, "Shop")
+	trafficMarker("ShopHousehold", 28, 24, "Shop")
+	trafficMarker("NpcRegisterQueue", 30, halfD - 15, "Register")
+	trafficMarker("NpcRegisterSpot", 30, halfD - 18, "Register")
+	trafficMarker("CashierSpot", 30, halfD - 28, "Staff")
+	trafficMarker("RoadExit", 86, halfD + 88, "CarPath")
+
+	for index, x in { -14, 0, 14, 28 } do
+		local spot = trafficMarker(`ParkingSpot{index}`, x, halfD + 56, "Parking")
+		spot:SetAttribute("ParkingIndex", index)
+	end
+
+	-- Lamp posts (symmetric)
+	for i = -2, 2 do
+		local lx = i * 36
+		storePart({
+			name = `LampPost{i}`,
+			size = Vector3.new(1.2, 12, 1.2),
+			position = Vector3.new(lx, floorY + 6.5, halfD + 50),
+			color = Color3.fromRGB(50, 50, 55),
+			material = Enum.Material.Metal,
+			parent = outdoor,
+		})
+		storePart({
+			name = `LampHead{i}`,
+			size = Vector3.new(2.5, 1, 2.5),
+			position = Vector3.new(lx, floorY + 12.5, halfD + 50),
+			color = Color3.fromRGB(230, 228, 210),
+			material = Enum.Material.SmoothPlastic,
+			parent = outdoor,
+		})
+	end
+
+	-- Landscaping (sides only — clear door)
+	for _, spot in {
+		{ name = "ShrubL", x = -halfW - 2, z = halfD - 8 },
+		{ name = "ShrubR", x = halfW + 2, z = halfD - 8 },
+		{ name = "FlowerBedL", x = -76, z = halfD + 2 },
+		{ name = "FlowerBedR", x = 76, z = halfD + 2 },
+		{ name = "TreeL", x = -halfW - 42, z = halfD + 8 },
+		{ name = "TreeR", x = halfW + 42, z = halfD + 8 },
+		{ name = "TreeFrontL", x = -76, z = halfD + 76 },
+		{ name = "TreeFrontR", x = 76, z = halfD + 76 },
+		{ name = "MedianShrubL", x = -72, z = halfD + 42 },
+		{ name = "MedianShrubR", x = 72, z = halfD + 42 },
+	} do
+		if spot.name:find("Tree") then
+			storePart({
+				name = spot.name,
+				size = Vector3.new(5, 12, 5),
+				position = Vector3.new(spot.x, floorY + 6.5, spot.z),
+				color = Color3.fromRGB(50, 100, 48),
+				material = Enum.Material.Grass,
+				parent = outdoor,
+			})
+		else
+			storePart({
+				name = spot.name,
+				size = if spot.name:find("FlowerBed") then Vector3.new(8, 1.2, 8) else Vector3.new(5, 2.5, 5),
+				position = Vector3.new(spot.x, if spot.name:find("FlowerBed") then floorY + 1.15 else floorY + 1.8, spot.z),
+				color = if spot.name:find("FlowerBed") then Color3.fromRGB(150, 72, 90) else Color3.fromRGB(55, 105, 50),
+				material = if spot.name:find("FlowerBed") then Enum.Material.LeafyGrass else Enum.Material.Grass,
+				parent = outdoor,
+			})
+		end
+	end
+
+	-- Back-of-store exterior (loading area)
+	local serviceYard = Instance.new("Model")
+	serviceYard.Name = "ServiceYard"
+	serviceYard.Parent = outdoor
+
+	surfaceFloor("LoadingApron", Vector3.new(64, 1, 24), Vector3.new(36, floorY, -halfD - 15), Color3.fromRGB(58, 60, 64), Enum.Material.Asphalt, serviceYard, asphaltTop)
+	storePart({
+		name = "Dumpster",
+		size = Vector3.new(8, 5, 5),
+		position = Vector3.new(halfW - 14, floorY + 3, -halfD - 12),
+		color = Color3.fromRGB(45, 75, 45),
+		material = Enum.Material.Metal,
+		parent = serviceYard,
+	})
+	for i = -1, 1 do
+		storePart({
+			name = `DockBumper{i}`,
+			size = Vector3.new(2, 2, 1),
+			position = Vector3.new(36 + i * 8, floorY + 1.5, -halfD - 1),
+			color = Color3.fromRGB(40, 40, 40),
+			material = Enum.Material.Rubber,
+			parent = serviceYard,
+		})
+	end
+	local loadingPallet = storePart({
+		name = "LoadingPallet",
+		size = Vector3.new(6, 4, 6),
+		position = Vector3.new(48, floorY + 2.5, -halfD - 12),
+		color = Color3.fromRGB(125, 95, 68),
+		material = Enum.Material.Wood,
+		parent = serviceYard,
+	})
+	addPrompt(loadingPallet, "CollectStock", "Grab stock", "Loading Pallet", 0.2)
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "StoreSpawn"
+	spawn.Size = Vector3.new(8, 1, 8)
+	spawn.Position = Vector3.new(0, walkTop, halfD + 12)
+	spawn.Anchored = true
+	spawn.Neutral = true
+	spawn.CanCollide = true
+	spawn.BrickColor = BrickColor.new("Dark green")
+	spawn.Parent = parking
+
+	addSign(store, "WelcomeSign", 0, floorY + 9, halfD - 3, 26, "RETAIL STORE", Color3.fromRGB(22, 85, 145))
+	addSign(store, "VersionSign", 0, floorY + 10, halfD - 5, 6, `v{BLUEPRINT_VERSION}`, Color3.fromRGB(75, 75, 80))
+
+	local lighting = game:GetService("Lighting")
+	lighting.Brightness = 2
+	lighting.Ambient = Color3.fromRGB(58, 58, 62)
+	lighting.OutdoorAmbient = Color3.fromRGB(72, 74, 78)
+	lighting.EnvironmentDiffuseScale = 0.45
+	lighting.EnvironmentSpecularScale = 0.25
+
+	store.PrimaryPart = floor
+	return store
+end
+
+return RetailStoreBlueprint

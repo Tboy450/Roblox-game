@@ -1,0 +1,25 @@
+# Roblox place files (use Rojo sync instead of committing places)
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+!plugins/Rojo.rbxm
+
+# Downloaded CLI tools (re-run setup.ps1)
+.tools/
+
+# Wally packages
+Packages/
+wally.lock
+
+# Messages sent from Studio to Cursor
+.cursor/
+.studio/inbox.md
+.studio/pending.json
+.studio/pending.md
+.studio/.watch-hash.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp

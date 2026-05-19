@@ -1,0 +1,7 @@
+{
+  "files.eol": "\n",
+  "[luau]": {
+    "editor.defaultFormatter": "johnnymorganz.stylua",
+    "editor.formatOnSave": true
+  }
+}

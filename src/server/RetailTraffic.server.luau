@@ -1,0 +1,414 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local MAX_ACTIVE_CUSTOMERS = 4
+local CUSTOMER_SPEED = 8
+local CAR_SPEED = 28
+local ARRIVAL_GAP = { 8, 14 }
+local SHOP_WAIT = { 2, 5 }
+local REGISTER_WAIT = { 1.4, 2.4 }
+
+local SHIRT_COLORS = {
+	Color3.fromRGB(65, 120, 185),
+	Color3.fromRGB(185, 110, 75),
+	Color3.fromRGB(88, 150, 105),
+	Color3.fromRGB(146, 96, 174),
+	Color3.fromRGB(198, 150, 76),
+	Color3.fromRGB(80, 140, 145),
+}
+
+local VEHICLE_STYLES = {
+	{
+		name = "Compact",
+		bodySize = Vector3.new(6.5, 2.2, 10),
+		cabinSize = Vector3.new(5.2, 2.2, 4.8),
+		bodyColor = Color3.fromRGB(188, 72, 64),
+	},
+	{
+		name = "Sedan",
+		bodySize = Vector3.new(7.2, 2.2, 11.5),
+		cabinSize = Vector3.new(5.4, 2.3, 5.2),
+		bodyColor = Color3.fromRGB(64, 96, 156),
+	},
+	{
+		name = "SUV",
+		bodySize = Vector3.new(7.8, 2.8, 11.8),
+		cabinSize = Vector3.new(6, 2.6, 5.6),
+		bodyColor = Color3.fromRGB(78, 102, 84),
+	},
+	{
+		name = "Van",
+		bodySize = Vector3.new(8.2, 3.1, 12.4),
+		cabinSize = Vector3.new(6.8, 2.8, 6.2),
+		bodyColor = Color3.fromRGB(182, 184, 188),
+	},
+}
+
+local currentStore: Model? = nil
+local trafficFolder: Model? = nil
+local runtimeFolder: Folder? = nil
+local markers: { [string]: BasePart } = {}
+local parkingSpots: { BasePart } = {}
+local occupiedSpots: { [BasePart]: boolean } = {}
+local activeCustomers = 0
+local npcRegisterBusy = false
+local visitGeneration = 0
+
+local retailRemotes = ReplicatedStorage:WaitForChild("RetailRemotes")
+local processNpcCheckout = retailRemotes:WaitForChild("ProcessNpcCheckout") :: BindableFunction
+local createNpcOrder = retailRemotes:WaitForChild("CreateNpcOrder") :: BindableFunction
+
+local function createPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = cframe
+	part.Anchored = true
+	part.CanCollide = false
+	part.Color = color
+	part.Material = material
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Parent = parent
+	return part
+end
+
+local function tweenModelTo(model: Model, targetPosition: Vector3, speed: number)
+	local startPivot = model:GetPivot()
+	local startPosition = startPivot.Position
+	local distance = (targetPosition - startPosition).Magnitude
+	if distance < 0.05 then
+		return
+	end
+
+	local targetCFrame = CFrame.lookAt(targetPosition, targetPosition + (targetPosition - startPosition))
+	local value = Instance.new("CFrameValue")
+	value.Value = startPivot
+	local connection = value:GetPropertyChangedSignal("Value"):Connect(function()
+		model:PivotTo(value.Value)
+	end)
+	local tween = TweenService:Create(value, TweenInfo.new(distance / speed, Enum.EasingStyle.Linear), { Value = targetCFrame })
+	tween:Play()
+	tween.Completed:Wait()
+	connection:Disconnect()
+	value:Destroy()
+	model:PivotTo(targetCFrame)
+end
+
+local function moveModelAlong(model: Model, waypoints: { Vector3 }, speed: number)
+	for _, waypoint in waypoints do
+		tweenModelTo(model, waypoint, speed)
+	end
+end
+
+local function createNpc(name: string, shirtColor: Color3, position: Vector3): Model
+	local npc = Instance.new("Model")
+	npc.Name = name
+	npc.Parent = runtimeFolder
+
+	local root = createPart(npc, "Root", Vector3.new(1, 1, 1), CFrame.new(position), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
+	root.Transparency = 1
+	createPart(npc, "Legs", Vector3.new(1.6, 2.4, 0.9), CFrame.new(position + Vector3.new(0, 1.2, 0)), Color3.fromRGB(45, 50, 58), Enum.Material.SmoothPlastic)
+	createPart(npc, "Torso", Vector3.new(2.1, 2.4, 1), CFrame.new(position + Vector3.new(0, 3.6, 0)), shirtColor, Enum.Material.SmoothPlastic)
+	createPart(npc, "Head", Vector3.new(1.4, 1.4, 1.4), CFrame.new(position + Vector3.new(0, 5.45, 0)), Color3.fromRGB(222, 185, 145), Enum.Material.SmoothPlastic)
+	npc.PrimaryPart = root
+	return npc
+end
+
+local function addPurchaseBag(npc: Model)
+	local root = npc.PrimaryPart
+	if not root then
+		return
+	end
+
+	createPart(
+		npc,
+		"PurchaseBag",
+		Vector3.new(1.1, 1.4, 0.8),
+		root.CFrame * CFrame.new(1.25, 2.1, 0),
+		Color3.fromRGB(224, 212, 184),
+		Enum.Material.Fabric
+	)
+end
+
+local function createVehicle(style, cframe: CFrame): Model
+	local vehicle = Instance.new("Model")
+	vehicle.Name = style.name
+	vehicle.Parent = runtimeFolder
+
+	local root = createPart(vehicle, "Root", Vector3.new(1, 1, 1), CFrame.new(), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
+	root.Transparency = 1
+	createPart(vehicle, "Body", style.bodySize, CFrame.new(0, 1.5, 0), style.bodyColor, Enum.Material.Metal)
+	createPart(vehicle, "Cabin", style.cabinSize, CFrame.new(0, 3.2, 0.6), Color3.fromRGB(160, 180, 192), Enum.Material.Glass)
+	createPart(vehicle, "FrontGlass", Vector3.new(style.cabinSize.X - 0.8, 1.5, 0.25), CFrame.new(0, 3.35, -style.cabinSize.Z / 2 + 0.25), Color3.fromRGB(120, 145, 160), Enum.Material.Glass)
+	for _, x in { -style.bodySize.X / 2 + 0.7, style.bodySize.X / 2 - 0.7 } do
+		for _, z in { -style.bodySize.Z / 2 + 1.8, style.bodySize.Z / 2 - 1.8 } do
+			createPart(vehicle, "Wheel", Vector3.new(0.8, 1.5, 1.5), CFrame.new(x, 0.8, z), Color3.fromRGB(30, 30, 32), Enum.Material.Rubber)
+		end
+	end
+
+	vehicle.PrimaryPart = root
+	vehicle:PivotTo(cframe)
+	return vehicle
+end
+
+local function getMarker(name: string): BasePart
+	return markers[name]
+end
+
+local function randomBetween(range: { number }): number
+	return math.random(range[1] * 10, range[2] * 10) / 10
+end
+
+local function getFreeSpot(): BasePart?
+	for _, spot in parkingSpots do
+		if not occupiedSpots[spot] then
+			return spot
+		end
+	end
+	return nil
+end
+
+local function getCarEntryPath(spot: BasePart): { Vector3 }
+	local roadSpawn = getMarker("RoadSpawn").Position
+	local roadApproach = getMarker("RoadApproach").Position
+	local driveEntry = getMarker("DriveEntry").Position
+	local driveCenter = getMarker("DriveCenter").Position
+	return {
+		roadSpawn,
+		roadApproach,
+		driveEntry,
+		driveCenter,
+		Vector3.new(spot.Position.X, spot.Position.Y, driveCenter.Z),
+		spot.Position,
+	}
+end
+
+local function getCarExitPath(spot: BasePart): { Vector3 }
+	local driveCenter = getMarker("DriveCenter").Position
+	return {
+		Vector3.new(spot.Position.X, spot.Position.Y, driveCenter.Z),
+		driveCenter,
+		getMarker("DriveEntry").Position,
+		getMarker("RoadExit").Position,
+	}
+end
+
+local function waitForNpcRegister(generation: number): boolean
+	while npcRegisterBusy and generation == visitGeneration do
+		task.wait(0.2)
+	end
+	if generation ~= visitGeneration then
+		return false
+	end
+
+	npcRegisterBusy = true
+	return true
+end
+
+local function releaseNpcRegister()
+	npcRegisterBusy = false
+end
+
+local function updateTrafficSummary()
+	if currentStore then
+		currentStore:SetAttribute("ActiveShoppers", activeCustomers)
+		local occupiedCount = 0
+		for _, occupied in occupiedSpots do
+			if occupied then
+				occupiedCount += 1
+			end
+		end
+		currentStore:SetAttribute("OccupiedParkingSpots", occupiedCount)
+	end
+end
+
+local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, generation: number)
+	local shopMarkers = { getMarker("ShopProduce"), getMarker("ShopPantry"), getMarker("ShopHousehold") }
+	local shopMarker = shopMarkers[math.random(1, #shopMarkers)]
+	local outsideEntry = getMarker("StoreEntryOutside").Position
+	local insideEntry = getMarker("StoreEntryInside").Position
+	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -6)
+
+	moveModelAlong(npc, {
+		parkingExit,
+		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
+		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
+		shopMarker.Position + Vector3.new(groupOffset * 1.1, 0, 0),
+	}, CUSTOMER_SPEED)
+	task.wait(randomBetween(SHOP_WAIT))
+	local ok, order = pcall(function()
+		return createNpcOrder:Invoke()
+	end)
+	if not ok then
+		warn("[RetailTraffic] Failed to create NPC order:", order)
+		order = nil
+	end
+	if not order then
+		moveModelAlong(npc, {
+			insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
+			outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
+			parkingExit,
+			spot.Position + Vector3.new(groupOffset * 1.8, 0, 0),
+		}, CUSTOMER_SPEED)
+		return
+	end
+
+	if not waitForNpcRegister(generation) then
+		return
+	end
+
+	moveModelAlong(npc, {
+		getMarker("NpcRegisterQueue").Position,
+		getMarker("NpcRegisterSpot").Position,
+	}, CUSTOMER_SPEED)
+	task.wait(randomBetween(REGISTER_WAIT))
+	local checkoutOk, checkoutResult = pcall(function()
+		return processNpcCheckout:Invoke(order)
+	end)
+	if not checkoutOk then
+		warn("[RetailTraffic] NPC checkout failed:", checkoutResult)
+	end
+	addPurchaseBag(npc)
+	releaseNpcRegister()
+
+	moveModelAlong(npc, {
+		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
+		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
+		parkingExit,
+		spot.Position + Vector3.new(groupOffset * 1.8, 0, 0),
+	}, CUSTOMER_SPEED)
+end
+
+local function runVisitGroup(spot: BasePart, groupSize: number, generation: number)
+	occupiedSpots[spot] = true
+	activeCustomers += groupSize
+	updateTrafficSummary()
+
+	local style = VEHICLE_STYLES[math.random(1, #VEHICLE_STYLES)]
+	local entryPath = getCarEntryPath(spot)
+	local vehicle = createVehicle(style, CFrame.lookAt(entryPath[1], entryPath[2]))
+	moveModelAlong(vehicle, { table.unpack(entryPath, 2) }, CAR_SPEED)
+
+	local customers = {}
+	for index = 1, groupSize do
+		local offset = index - (groupSize + 1) / 2
+		local npc = createNpc(`Customer{index}`, SHIRT_COLORS[math.random(1, #SHIRT_COLORS)], spot.Position + Vector3.new(offset * 1.8, 0, 0))
+		table.insert(customers, npc)
+	end
+
+	local finished = 0
+	for index, npc in customers do
+		local offset = index - (groupSize + 1) / 2
+		task.spawn(function()
+			runCustomerTrip(npc, spot, offset, generation)
+			if npc.Parent then
+				npc:Destroy()
+			end
+			finished += 1
+		end)
+		task.wait(0.45)
+	end
+
+	while finished < groupSize and generation == visitGeneration do
+		task.wait(0.25)
+	end
+
+	if vehicle.Parent then
+		moveModelAlong(vehicle, getCarExitPath(spot), CAR_SPEED)
+		vehicle:Destroy()
+	end
+
+	if generation == visitGeneration then
+		activeCustomers -= groupSize
+		occupiedSpots[spot] = nil
+		updateTrafficSummary()
+	end
+end
+
+local function spawnCashier()
+	local cashierSpot = getMarker("CashierSpot")
+	createNpc("NpcCashier", Color3.fromRGB(72, 118, 170), cashierSpot.Position)
+end
+
+local function configureStore(store: Model)
+	currentStore = store
+	local outdoor = store:FindFirstChild("Outdoor")
+	trafficFolder = if outdoor then outdoor:FindFirstChild("NpcTraffic") :: Model? else nil
+	if not trafficFolder then
+		return false
+	end
+
+	markers = {}
+	parkingSpots = {}
+	occupiedSpots = {}
+	activeCustomers = 0
+	npcRegisterBusy = false
+	visitGeneration += 1
+
+	local oldRuntime = store:FindFirstChild("DynamicTraffic")
+	if oldRuntime then
+		oldRuntime:Destroy()
+	end
+
+	runtimeFolder = Instance.new("Folder")
+	runtimeFolder.Name = "DynamicTraffic"
+	runtimeFolder.Parent = store
+
+	for _, child in trafficFolder:GetChildren() do
+		if child:IsA("BasePart") then
+			markers[child.Name] = child
+			if child:GetAttribute("TrafficMarkerKind") == "Parking" then
+				table.insert(parkingSpots, child)
+			end
+		end
+	end
+
+	table.sort(parkingSpots, function(a, b)
+		return (a:GetAttribute("ParkingIndex") or 0) < (b:GetAttribute("ParkingIndex") or 0)
+	end)
+
+	spawnCashier()
+	updateTrafficSummary()
+	return true
+end
+
+local function runTrafficLoop(generation: number)
+	while generation == visitGeneration do
+		task.wait(randomBetween(ARRIVAL_GAP))
+
+		if not currentStore or not currentStore.Parent or activeCustomers >= MAX_ACTIVE_CUSTOMERS then
+			continue
+		end
+
+		local freeSpot = getFreeSpot()
+		if not freeSpot then
+			continue
+		end
+
+		local maxGroupSize = math.max(1, MAX_ACTIVE_CUSTOMERS - activeCustomers)
+		local groupSize = math.random(1, math.min(4, maxGroupSize))
+		task.spawn(runVisitGroup, freeSpot, groupSize, generation)
+	end
+end
+
+local function startForStore(store: Model)
+	if not configureStore(store) then
+		return
+	end
+
+	local generation = visitGeneration
+	task.spawn(runTrafficLoop, generation)
+end
+
+local existingStore = Workspace:FindFirstChild("RetailStore")
+if existingStore and existingStore:IsA("Model") then
+	startForStore(existingStore)
+end
+
+Workspace.ChildAdded:Connect(function(child)
+	if child.Name == "RetailStore" and child:IsA("Model") then
+		startForStore(child)
+	end
+end)

@@ -1,0 +1,13 @@
+{
+  "className": "Part",
+  "properties": {
+    "Name": "Rojo Placeholder - Press Play or Build Retail Store plugin",
+    "Anchored": true,
+    "CanCollide": false,
+    "Size": [10, 0.5, 10],
+    "Position": [0, 3, 80],
+    "Color": [0.1, 0.45, 1],
+    "Material": "SmoothPlastic",
+    "Transparency": 0.35
+  }
+}

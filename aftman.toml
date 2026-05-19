@@ -1,0 +1,4 @@
+# Optional: install https://mise.jdx.dev or legacy Aftman, then run `aftman install`
+[tools]
+rojo = "rojo-rbx/rojo@7.6.1"
+wally = "UpliftGames/wally@0.3.2"
