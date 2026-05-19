@@ -9,19 +9,40 @@ local RetailAssets = require(Shared:WaitForChild("RetailAssets"))
 local RetailCatalog = require(Shared:WaitForChild("RetailCatalog"))
 local RetailCurrency = require(Shared:WaitForChild("RetailCurrency"))
 local player = Players.LocalPlayer
-local retailRemotes = ReplicatedStorage:WaitForChild("RetailRemotes")
-local openShelfEditor = retailRemotes:WaitForChild("OpenShelfEditor")
-local selectShelfProduct = retailRemotes:WaitForChild("SelectShelfProduct")
-local openRegisterPanel = retailRemotes:WaitForChild("OpenRegisterPanel")
-local updateRegisterPanel = retailRemotes:WaitForChild("UpdateRegisterPanel")
-local adjustRegisterChange = retailRemotes:WaitForChild("AdjustRegisterChange")
-local resetRegisterChange = retailRemotes:WaitForChild("ResetRegisterChange")
-local finishRegisterSale = retailRemotes:WaitForChild("FinishRegisterSale")
-local openPlayerMenu = retailRemotes:WaitForChild("OpenPlayerMenu")
-local requestPetLottery = retailRemotes:WaitForChild("RequestPetLottery")
-local requestEquipPet = retailRemotes:WaitForChild("RequestEquipPet")
-local petInventoryUpdate = retailRemotes:WaitForChild("PetInventoryUpdate")
-local petLotteryResult = retailRemotes:WaitForChild("PetLotteryResult")
+
+local retailRemotes = ReplicatedStorage:WaitForChild("RetailRemotes", 3)
+local usingFallbackRemotes = false
+if not retailRemotes then
+	warn("[Client] RetailRemotes did not replicate yet; HUD will still load with local fallback remotes.")
+	retailRemotes = Instance.new("Folder")
+	retailRemotes.Name = "RetailRemotes"
+	usingFallbackRemotes = true
+end
+
+local function getRemoteEvent(name: string): RemoteEvent
+	local remote = if usingFallbackRemotes then nil else retailRemotes:FindFirstChild(name) or retailRemotes:WaitForChild(name, 0.35)
+	if remote and remote:IsA("RemoteEvent") then
+		return remote
+	end
+
+	warn(`[Client] Missing RetailRemotes.{name}; UI will stay visible but this action needs server sync.`)
+	local fallback = Instance.new("RemoteEvent")
+	fallback.Name = name
+	return fallback
+end
+
+local openShelfEditor = getRemoteEvent("OpenShelfEditor")
+local selectShelfProduct = getRemoteEvent("SelectShelfProduct")
+local openRegisterPanel = getRemoteEvent("OpenRegisterPanel")
+local updateRegisterPanel = getRemoteEvent("UpdateRegisterPanel")
+local adjustRegisterChange = getRemoteEvent("AdjustRegisterChange")
+local resetRegisterChange = getRemoteEvent("ResetRegisterChange")
+local finishRegisterSale = getRemoteEvent("FinishRegisterSale")
+local openPlayerMenu = getRemoteEvent("OpenPlayerMenu")
+local requestPetLottery = getRemoteEvent("RequestPetLottery")
+local requestEquipPet = getRemoteEvent("RequestEquipPet")
+local petInventoryUpdate = getRemoteEvent("PetInventoryUpdate")
+local petLotteryResult = getRemoteEvent("PetLotteryResult")
 
 print(Hello.greet("player"))
 
@@ -1061,8 +1082,9 @@ updateRegisterPanel.OnClientEvent:Connect(function(state)
 	end
 end)
 
-local function showPlayerMenu()
+local function showPlayerMenu(focus: string?)
 	playerMenu.Visible = true
+	playerMenuTitle.Text = if focus == "pets" then "Pet Lottery" else "Player Menu"
 	if renderPlayerMenu then
 		renderPlayerMenu()
 	end
@@ -1070,13 +1092,13 @@ end
 
 menuButton.Activated:Connect(function()
 	playerMenu.Visible = not playerMenu.Visible
-	if playerMenu.Visible and renderPlayerMenu then
-		renderPlayerMenu()
+	if playerMenu.Visible then
+		showPlayerMenu()
 	end
 end)
 
 petsButton.Activated:Connect(function()
-	showPlayerMenu()
+	showPlayerMenu("pets")
 end)
 
 closePlayerMenuButton.Activated:Connect(function()
@@ -1085,7 +1107,7 @@ end)
 
 local function requestPetRoll()
 	local cost = if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
-	showPlayerMenu()
+	showPlayerMenu("pets")
 	if readStat("Cash") < cost then
 		lotteryResult.Text = `Need {RetailCurrency.formatCents(cost)} to roll`
 		lotteryResult.TextColor3 = Color3.fromRGB(244, 140, 118)
@@ -1126,9 +1148,9 @@ end)
 petLotteryResult.OnClientEvent:Connect(function(result)
 	lastPetResult = result
 	selectedPetId = result.id
-	showPlayerMenu()
+	showPlayerMenu("pets")
 end)
 
-openPlayerMenu.OnClientEvent:Connect(function()
-	showPlayerMenu()
+openPlayerMenu.OnClientEvent:Connect(function(focus: string?)
+	showPlayerMenu(focus)
 end)

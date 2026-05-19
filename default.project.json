@@ -5,7 +5,8 @@
 
     "ReplicatedStorage": {
       "Shared": { "$path": "src/shared" },
-      "Packages": { "$path": "Packages" }
+      "Packages": { "$path": "Packages" },
+      "RetailRemotes": { "$path": "src/replicatedstorage/RetailRemotes" }
     },
 
     "ServerScriptService": {
