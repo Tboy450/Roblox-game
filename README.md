@@ -1,98 +1,311 @@
-# roblox-game
+# Roblox Retail Game
 
-Edit Luau in Cursor, sync into Roblox Studio with [Rojo](https://rojo.space/).
+A Rojo-based Roblox Studio project for a playable retail store game. The map is generated from code, so layout changes, store props, shelves, prompts, registers, traffic markers, and exterior details can be edited in Luau and rebuilt in Studio with the custom **Retail Game** plugin.
 
-## One-time setup
+## What Is In The Game
 
-1. **Roblox Studio** — install and sign in.
-2. **Rojo plugin in Studio** — Plugins → Plugin Folder → copy `plugins/Rojo.rbxm` into that folder, restart Studio.  
-   Or install from the [Rojo plugin page](https://create.roblox.com/marketplace/asset/13916111004/Rojo).
-3. **Cursor** — open this folder (`File → Open Folder`).
-4. **CLI tools** (if `.tools/` is missing):
+This project currently builds a supermarket-style store with:
 
-   ```powershell
-   .\setup.ps1
-   ```
+- A procedural retail blueprint with exterior shell, front windows, entrance, parking lot, sidewalks, rooms, checkout lanes, shelves, signs, lighting, and service areas.
+- Player work mechanics for clocking in, stocking shelves, collecting products, helping customers, cleaning spills, handling trash, pickup orders, bakery/pharmacy tasks, and register sales.
+- Dynamic shelf assignment so players can choose what product a shelf should stock.
+- NPC customer/traffic systems for parking, entering the store, shopping from stocked shelves, and using the NPC checkout lane.
+- A player HUD, shelf editor, register panel, player menu, and pet lottery/inventory UI.
+- A pet lottery system with resource-based pet icons, rarity odds, equip/unequip, and a visible companion pet.
 
-5. Optional: install recommended extensions when Cursor prompts (Rojo, StyLua, Selene).
+## Important Files
 
-## Daily workflow
+| Path | Purpose |
+| --- | --- |
+| `src/shared/RetailStoreBlueprint.luau` | Main generated map blueprint. Builds the store model in `Workspace.RetailStore`. |
+| `src/shared/RetailCatalog.luau` | Product departments, product visuals, sizes, prices, and shelf data. |
+| `src/shared/RetailAssets.luau` | Button image resources, pet image resources, pet definitions, rarity weights, and roll cost. |
+| `src/shared/RetailCurrency.luau` | Money formatting and register denominations. |
+| `src/server/BuildRetailMap.server.luau` | Rebuilds the store on Play from the blueprint. |
+| `src/server/RetailMechanics.server.luau` | Core work actions, shelf stock, shelf assignment, register sales, and store stats. |
+| `src/server/RetailTraffic.server.luau` | NPC shoppers, parking spots, store pathing, and NPC checkout flow. |
+| `src/server/RetailPets.server.luau` | Pet lottery, pet inventory, equip/unequip, and companion model spawning. |
+| `src/client/init.client.luau` | Player HUD, shelf editor, register UI, player menu, pet lottery UI, and client event handling. |
+| `plugins/BuildRetailStore.lua` | Roblox Studio plugin for updating, clearing, selecting, and auto-updating the generated map. |
+| `plugins/LinkToCursor.lua` | Optional helper plugin for sending notes from Studio back to this project. |
 
-1. In Cursor terminal (Rojo + link bridge):
+## Blueprint Overview
 
-   ```powershell
-   .\scripts\dev.ps1
-   ```
+The map is not hand-built in Studio. `RetailStoreBlueprint.build()` creates the store through Luau parts and models.
 
-   Or only Rojo: `.\scripts\serve.ps1`
+The blueprint handles:
 
-2. Open Roblox Studio → **Baseplate** or a blank place.
-3. **Game Settings → Security → Allow HTTP Requests** (needed for link).
-4. Rojo plugin → **Connect** (default `localhost:34872`).
-5. Edit files under `src/` — changes sync into Studio.
-6. Press **Play** in Studio to test.
+- Main floor, ceiling, roof, fascia, windows, doors, and exterior wall segments.
+- Back rooms: stock room, walk-in cooler, loading dock.
+- Side rooms: bakery, pharmacy, restrooms, break room, and admin/staff areas.
+- Sales floor zones: produce, dairy, frozen, pantry/general, household.
+- Shelf units with product boards, product visuals, shelf controls, restock controls, and product selector prompts.
+- Checkout front end with player register, NPC register, service desk, bagging area, task board, and time clock.
+- Outdoor environment: sidewalk, parking lot, pickup spaces, landscaping, road markings, traffic markers, and service yard.
 
-## Map updater plugin
+The blueprint uses a version number near the top:
 
-After `.\setup.ps1` installs plugins and Studio restarts, use **Plugins -> Retail Game**:
-
-- **Update Map** rebuilds `Workspace.RetailStore` from the latest Rojo-synced blueprint.
-- **Clear Map** removes the generated map from Workspace.
-- **Select Map** selects `RetailStore` in Explorer.
-- **Auto Update** watches `RetailStoreBlueprint` and rebuilds after Rojo syncs changes.
-
-Rojo must be connected before Update Map or Auto Update can use the blueprint.
-
-## Link command (talk to Cursor from Studio)
-
-Studio cannot open Cursor chat directly. The **link** plugin sends notes to a file in this project.
-
-1. Run `.\scripts\dev.ps1` in Cursor (starts bridge on port `8765`).
-2. Restart Studio once after `.\setup.ps1` (installs **LinkToCursor** plugin).
-3. In Studio: **Plugins** tab → **Link** (opens the panel at the bottom).
-4. Type your message (optional prefix `link `), press **Enter** or click **link**.
-5. In **Cursor chat**, say: `read pending` (or keep this chat open — hooks may auto-continue).
-
-### Auto-read (background)
-
-With `.\scripts\dev.ps1` running:
-
-- Studio messages create `.studio/pending.md` + a Windows notification
-- Project hooks (`.cursor/hooks.json`) can auto-submit a follow-up when an agent chat is active
-- Rule `.cursor/rules/studio-link.mdc` tells the agent to process pending messages
-
-**Limitation:** Cursor cannot run the agent with zero interaction unless you use the [Cursor SDK](https://cursor.com/docs/api/sdk/typescript) with an API key. For fully unattended runs, set `CURSOR_API_KEY` and we can add an optional `scripts/auto-agent.ts` later.
-
-From terminal:
-
-```powershell
-.\scripts\link.ps1 "Add a red spawn platform"
+```luau
+local BLUEPRINT_VERSION = 32
 ```
 
-## Project layout
+When making major map changes, bump this number and also update:
 
-| Path | Maps to Studio |
-|------|----------------|
-| `src/server/` | ServerScriptService → Server |
-| `src/client/` | StarterPlayerScripts → Client |
-| `src/shared/` | ReplicatedStorage → Shared |
+- `src/server/BuildRetailMap.server.luau`
+- `plugins/BuildRetailStore.lua`
 
-- `*.server.luau` → Script (runs on server)
-- `*.client.luau` → LocalScript (runs on client)
-- Other `*.luau` → ModuleScript
+That makes it obvious in Studio which map version is running.
 
-## Packages (Wally)
+## Game Mechanics
 
-```powershell
-.\.tools\wally\wally.exe install
+### Player Work Loop
+
+Players use prompts around the store to perform jobs:
+
+- Clock in at a time clock before most work actions.
+- Grab stock from the stock room or loading pallet.
+- Restock shelves when inventory is low or empty.
+- Pick products into the player basket.
+- Scan baskets at the player register.
+- Make exact change using the register panel.
+- Complete task-style interactions like spill cleanup, trash, pickup orders, bakery prep, pharmacy counter, dock controls, and temperature checks.
+
+Player stats are created as `leaderstats`:
+
+- `Cash`
+- `Basket`
+- `BasketValue`
+- `Stock`
+- `Tasks`
+- `Shift`
+- `Customers`
+- `Pets`
+
+### Shelf Assignment
+
+Shelves are generated from `RetailCatalog` departments and products.
+
+Each shelf has:
+
+- `ShelfControl` prompt: opens the shelf editor.
+- `RestockControl` prompt: restocks the current product.
+- `ProductSelector` prompt: lets players take the shelf item.
+- `TopSign`: shows the current department and product.
+
+The shelf editor lets players select a department and product. Applying a new product updates shelf attributes and visuals, then empties the shelf so it needs restocking.
+
+### Register System
+
+The player register creates customer orders and tracks:
+
+- Item count.
+- Total due.
+- Customer payment.
+- Change due.
+- Change given.
+- Suggested tender.
+
+The client register UI disables tender buttons that would overpay the remaining change. A sale can finish only when exact change is ready.
+
+### NPC Traffic
+
+NPC traffic uses invisible markers generated by the blueprint:
+
+- Road spawn/approach/exit.
+- Parking spots.
+- Store entry markers.
+- Shopping markers.
+- Register queue and register spot.
+
+NPC shoppers pick from stocked shelves, reduce shelf inventory, and complete orders through the NPC register.
+
+### Pet Lottery
+
+The player menu includes a pet lottery using assets from `RetailAssets.luau`.
+
+Current pet flow:
+
+- Rolls cost `$5.00`.
+- A roll awards one pet based on rarity weights.
+- The first pet auto-equips.
+- Players can select owned pets in the menu and equip or unequip them.
+- Equipped pets spawn as a small companion model near the character with a resource icon badge.
+
+Pet definitions live in:
+
+```text
+src/shared/RetailAssets.luau
 ```
 
-Add dependencies in `wally.toml`, then sync with Rojo.
+Add or rebalance pets by editing the `RetailAssets.pets` table.
 
-## Build a place file
+## Rojo And Studio Workflow
+
+### One-Time Setup
+
+Install local tools if `.tools/` is missing:
+
+```powershell
+.\setup.ps1
+```
+
+Install the Rojo Studio plugin:
+
+1. Open Roblox Studio.
+2. Go to **Plugins -> Plugins Folder**.
+3. Copy `plugins/Rojo.rbxm` into that folder.
+4. Restart Roblox Studio.
+
+Or install Rojo from Roblox's plugin marketplace.
+
+### Daily Development
+
+Start Rojo:
+
+```powershell
+.\scripts\serve.ps1
+```
+
+Or start Rojo plus the optional Studio message bridge:
+
+```powershell
+.\scripts\dev.ps1
+```
+
+Then in Roblox Studio:
+
+1. Open a blank/baseplate place.
+2. Open the Rojo plugin.
+3. Connect to `localhost:34872`.
+4. Confirm `ReplicatedStorage.Shared`, `ServerScriptService.Server`, and `StarterPlayerScripts.Client` are synced.
+5. Press **Play** to test, or use the custom map updater plugin.
+
+### Build A Place File
+
+To build an `.rbxlx` place file from the project:
 
 ```powershell
 .\scripts\build.ps1
 ```
 
-Outputs `build.rbxlx` you can open in Studio.
+Output:
+
+```text
+build.rbxlx
+```
+
+The build output is ignored by git. Source files are the real project.
+
+## Retail Game Studio Plugin
+
+The custom plugin is:
+
+```text
+plugins/BuildRetailStore.lua
+```
+
+In Studio, it appears under **Plugins -> Retail Game**.
+
+Buttons:
+
+- **Update Map**: rebuilds `Workspace.RetailStore` from the latest Rojo-synced blueprint.
+- **Clear Map**: deletes the generated `RetailStore`.
+- **Select Map**: selects `RetailStore` in Explorer.
+- **Auto Update**: watches blueprint/catalog changes and rebuilds after Rojo syncs.
+
+Rojo must be connected before **Update Map** can use the latest local files.
+
+### Updating The Plugin
+
+If you edit `plugins/BuildRetailStore.lua`, copy it into your Roblox plugins folder and restart Studio:
+
+```powershell
+Copy-Item -LiteralPath ".\plugins\BuildRetailStore.lua" "$env:LOCALAPPDATA\Roblox\Plugins\BuildRetailStore.lua" -Force
+```
+
+If the copy fails, Roblox Studio probably has the plugin file locked. Close Studio, run the copy command again, then reopen Studio.
+
+## Adding More Content
+
+### Add Products
+
+Edit `src/shared/RetailCatalog.luau`:
+
+- Add products to a department.
+- Set product color, material, size, and price.
+- Shelves and NPC orders will use the catalog automatically.
+
+### Add Pets
+
+Edit `src/shared/RetailAssets.luau`:
+
+- Add a pet entry with `id`, `name`, `rarity`, `weight`, `image`, colors, and size.
+- Higher `weight` means more common.
+- The client menu and server lottery read this shared table.
+
+### Change The Store Layout
+
+Edit `src/shared/RetailStoreBlueprint.luau`:
+
+- Move parts by changing positions and sizes.
+- Keep checkout/front entry clear before adding new props.
+- Avoid overlapping floor slabs at the same height because Roblox may flicker between surfaces.
+- Prefer non-colliding overlay markers for visual floor zones.
+
+After edits:
+
+```powershell
+.\.tools\rojo\rojo.exe build default.project.json -o build.rbxlx
+```
+
+Then connect Rojo in Studio and click **Retail Game -> Update Map**.
+
+## Troubleshooting
+
+### Update Map Uses Old Code
+
+- Make sure Rojo is connected.
+- Save the file in your editor.
+- Restart Studio if the plugin itself was changed.
+- Check the map version sign in front of the store.
+
+### Plugin Copy Fails
+
+Close Roblox Studio and retry:
+
+```powershell
+Copy-Item -LiteralPath ".\plugins\BuildRetailStore.lua" "$env:LOCALAPPDATA\Roblox\Plugins\BuildRetailStore.lua" -Force
+```
+
+### Map Looks Like Parts Are Flickering
+
+This usually means two parts occupy the same plane. Check floor/sidewalk/paint pieces first. Use thin non-colliding overlays slightly above the surface instead of full duplicate slabs.
+
+### Rojo Is Missing
+
+Run:
+
+```powershell
+.\setup.ps1
+```
+
+### Rebuild From Scratch In Studio
+
+1. Connect Rojo.
+2. Click **Retail Game -> Clear Map**.
+3. Click **Retail Game -> Update Map**.
+4. Press **Play** to test mechanics.
+
+## GitHub
+
+Published repository:
+
+```text
+https://github.com/Tboy450/Roblox-game
+```
+
+Main branch:
+
+```text
+main
+```
