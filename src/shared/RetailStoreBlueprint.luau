@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 32
+local BLUEPRINT_VERSION = 33
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1028,6 +1028,47 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		parent = frontEnd,
 	})
 	addPrompt(serviceDesk, "ServiceCustomer", "Help", "Customer Service", 0.2)
+
+	local petKiosk = Instance.new("Model")
+	petKiosk.Name = "PetLotteryKiosk"
+	petKiosk.Parent = frontEnd
+	storePart({
+		name = "Base",
+		size = Vector3.new(7, 1.2, 4),
+		position = Vector3.new(-17, floorY + 1.1, halfD - 14),
+		color = Color3.fromRGB(44, 52, 66),
+		material = Enum.Material.Metal,
+		parent = petKiosk,
+	})
+	local petConsole = storePart({
+		name = "Console",
+		size = Vector3.new(5.8, 4.6, 0.8),
+		position = Vector3.new(-17, floorY + 3.9, halfD - 14.8),
+		color = Color3.fromRGB(72, 54, 104),
+		material = Enum.Material.SmoothPlastic,
+		parent = petKiosk,
+	})
+	addPrompt(petConsole, "OpenPetMenu", "Open", "Pet Lottery", 0.1)
+	storePart({
+		name = "GlowPanel",
+		size = Vector3.new(4.8, 2.8, 0.25),
+		position = Vector3.new(-17, floorY + 4.1, halfD - 14.3),
+		color = Color3.fromRGB(160, 100, 230),
+		material = Enum.Material.Neon,
+		canCollide = false,
+		parent = petKiosk,
+	})
+	storePart({
+		name = "CapsuleDisplay",
+		size = Vector3.new(2.6, 2.6, 2.6),
+		position = Vector3.new(-17, floorY + 6.4, halfD - 14),
+		color = Color3.fromRGB(245, 205, 88),
+		material = Enum.Material.Glass,
+		transparency = 0.25,
+		canCollide = false,
+		parent = petKiosk,
+	})
+	addSign(petKiosk, "PetLotterySign", -17, floorY + 8.1, halfD - 15.1, 8, "PETS", Color3.fromRGB(96, 58, 132))
 
 	local teamStation = Instance.new("Model")
 	teamStation.Name = "FrontTeamStation"

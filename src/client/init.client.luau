@@ -17,6 +17,7 @@ local updateRegisterPanel = retailRemotes:WaitForChild("UpdateRegisterPanel")
 local adjustRegisterChange = retailRemotes:WaitForChild("AdjustRegisterChange")
 local resetRegisterChange = retailRemotes:WaitForChild("ResetRegisterChange")
 local finishRegisterSale = retailRemotes:WaitForChild("FinishRegisterSale")
+local openPlayerMenu = retailRemotes:WaitForChild("OpenPlayerMenu")
 local requestPetLottery = retailRemotes:WaitForChild("RequestPetLottery")
 local requestEquipPet = retailRemotes:WaitForChild("RequestEquipPet")
 local petInventoryUpdate = retailRemotes:WaitForChild("PetInventoryUpdate")
@@ -338,11 +339,27 @@ clearChangeButton.BackgroundColor3 = Color3.fromRGB(76, 80, 88)
 clearChangeButton.Text = "Clear Change"
 clearChangeButton.Parent = registerButtons
 
+local actionDock = Instance.new("Frame")
+actionDock.Name = "ActionDock"
+actionDock.Size = UDim2.fromOffset(228, 78)
+actionDock.Position = UDim2.fromOffset(18, 138)
+actionDock.BackgroundColor3 = Color3.fromRGB(18, 20, 24)
+actionDock.BackgroundTransparency = 0.08
+actionDock.BorderSizePixel = 0
+actionDock.Parent = gui
+stylePanel(actionDock)
+
+local actionDockLayout = Instance.new("UIListLayout")
+actionDockLayout.FillDirection = Enum.FillDirection.Horizontal
+actionDockLayout.Padding = UDim.new(0, 8)
+actionDockLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+actionDockLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+actionDockLayout.Parent = actionDock
+
 local menuButton = Instance.new("ImageButton")
 menuButton.Name = "PlayerMenuButton"
-menuButton.Size = UDim2.fromOffset(54, 54)
-menuButton.Position = UDim2.fromOffset(18, 138)
-menuButton.Parent = gui
+menuButton.Size = UDim2.fromOffset(62, 62)
+menuButton.Parent = actionDock
 styleResourceButton(menuButton, RetailAssets.buttons.Menu, 10, Color3.fromRGB(34, 42, 52))
 
 local menuButtonLabel = Instance.new("TextLabel")
@@ -356,10 +373,30 @@ menuButtonLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
 menuButtonLabel.TextSize = 10
 menuButtonLabel.Parent = menuButton
 
+local petsButton = Instance.new("ImageButton")
+petsButton.Name = "PetsButton"
+petsButton.Size = UDim2.fromOffset(62, 62)
+petsButton.Parent = actionDock
+styleResourceButton(petsButton, RetailAssets.buttons.Pets, 10, Color3.fromRGB(68, 58, 116))
+
+local petsButtonLabel = menuButtonLabel:Clone()
+petsButtonLabel.Text = "PETS"
+petsButtonLabel.Parent = petsButton
+
+local quickRollButton = Instance.new("ImageButton")
+quickRollButton.Name = "QuickRollButton"
+quickRollButton.Size = UDim2.fromOffset(62, 62)
+quickRollButton.Parent = actionDock
+styleResourceButton(quickRollButton, RetailAssets.buttons.Lottery, 10, Color3.fromRGB(70, 116, 82))
+
+local quickRollButtonLabel = menuButtonLabel:Clone()
+quickRollButtonLabel.Text = "ROLL"
+quickRollButtonLabel.Parent = quickRollButton
+
 local playerMenu = Instance.new("Frame")
 playerMenu.Name = "PlayerMenu"
 playerMenu.Size = UDim2.fromOffset(378, 448)
-playerMenu.Position = UDim2.fromOffset(18, 202)
+playerMenu.Position = UDim2.fromOffset(18, 226)
 playerMenu.BackgroundColor3 = Color3.fromRGB(22, 24, 28)
 playerMenu.BackgroundTransparency = 0.06
 playerMenu.BorderSizePixel = 0
@@ -1024,6 +1061,13 @@ updateRegisterPanel.OnClientEvent:Connect(function(state)
 	end
 end)
 
+local function showPlayerMenu()
+	playerMenu.Visible = true
+	if renderPlayerMenu then
+		renderPlayerMenu()
+	end
+end
+
 menuButton.Activated:Connect(function()
 	playerMenu.Visible = not playerMenu.Visible
 	if playerMenu.Visible and renderPlayerMenu then
@@ -1031,16 +1075,31 @@ menuButton.Activated:Connect(function()
 	end
 end)
 
+petsButton.Activated:Connect(function()
+	showPlayerMenu()
+end)
+
 closePlayerMenuButton.Activated:Connect(function()
 	playerMenu.Visible = false
 end)
 
-rollPetButton.Activated:Connect(function()
+local function requestPetRoll()
 	local cost = if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
+	showPlayerMenu()
 	if readStat("Cash") < cost then
+		lotteryResult.Text = `Need {RetailCurrency.formatCents(cost)} to roll`
+		lotteryResult.TextColor3 = Color3.fromRGB(244, 140, 118)
 		return
 	end
 	requestPetLottery:FireServer()
+end
+
+rollPetButton.Activated:Connect(function()
+	requestPetRoll()
+end)
+
+quickRollButton.Activated:Connect(function()
+	requestPetRoll()
 end)
 
 equipPetButton.Activated:Connect(function()
@@ -1067,8 +1126,9 @@ end)
 petLotteryResult.OnClientEvent:Connect(function(result)
 	lastPetResult = result
 	selectedPetId = result.id
-	playerMenu.Visible = true
-	if renderPlayerMenu then
-		renderPlayerMenu()
-	end
+	showPlayerMenu()
+end)
+
+openPlayerMenu.OnClientEvent:Connect(function()
+	showPlayerMenu()
 end)

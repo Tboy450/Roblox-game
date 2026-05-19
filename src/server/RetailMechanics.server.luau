@@ -42,6 +42,7 @@ local updateRegisterPanel = getRemoteEvent("UpdateRegisterPanel")
 local adjustRegisterChange = getRemoteEvent("AdjustRegisterChange")
 local resetRegisterChange = getRemoteEvent("ResetRegisterChange")
 local finishRegisterSale = getRemoteEvent("FinishRegisterSale")
+local openPlayerMenu = getRemoteEvent("OpenPlayerMenu")
 local processNpcCheckout = retailRemotes:FindFirstChild("ProcessNpcCheckout")
 if not processNpcCheckout then
 	processNpcCheckout = Instance.new("BindableFunction")
@@ -95,6 +96,7 @@ local ACTION_COOLDOWNS = {
 	ServeCustomer = 2,
 	QueueCustomer = 2,
 	OpenPlayerRegister = 0.5,
+	OpenPetMenu = 0.5,
 }
 local SHIFT_REQUIRED_ACTIONS: { [string]: boolean } = {
 	CollectItem = true,
@@ -662,6 +664,8 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		local state = getRegisterState(registerId)
 		setRegisterDisplay(register, `NEXT {RetailCurrency.formatCents(state.totalCents)}`)
 		openRegisterPanel:FireClient(player, registerPayload(registerId, state))
+	elseif action == "OpenPetMenu" then
+		openPlayerMenu:FireClient(player, "pets")
 	else
 		warn(`[RetailMechanics] Unknown action '{action}' on {target:GetFullName()}`)
 	end
