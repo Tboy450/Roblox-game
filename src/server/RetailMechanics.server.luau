@@ -61,16 +61,20 @@ type RegisterState = {
 	totalCents: number,
 	paidCents: number,
 	changeGivenCents: number,
+	items: { { name: string, priceCents: number } },
+	receiptNumber: number,
+	completed: boolean?,
 }
 
 local registerStates: { [string]: RegisterState } = {}
-local ORDER_PRICES = {}
+local ORDER_PRODUCTS = {}
 for _, department in RetailCatalog.departments do
 	for _, product in department.products do
-		table.insert(ORDER_PRICES, product.priceCents)
+		table.insert(ORDER_PRODUCTS, product)
 	end
 end
 local CUSTOMER_TENDER = { 500, 1000, 2000, 5000, 10000 }
+local receiptCounter = 1000
 local ALLOWED_DENOMINATIONS: { [number]: boolean } = {}
 for _, denomination in RetailCurrency.denominations do
 	ALLOWED_DENOMINATIONS[denomination.cents] = true
@@ -382,8 +386,14 @@ end
 local function createRegisterOrder(): RegisterState
 	local itemCount = math.random(2, 7)
 	local totalCents = 0
+	local items = {}
 	for _ = 1, itemCount do
-		totalCents += ORDER_PRICES[math.random(1, #ORDER_PRICES)]
+		local product = ORDER_PRODUCTS[math.random(1, #ORDER_PRODUCTS)]
+		totalCents += product.priceCents
+		table.insert(items, {
+			name = product.name,
+			priceCents = product.priceCents,
+		})
 	end
 
 	local paidCents = totalCents
@@ -393,12 +403,19 @@ local function createRegisterOrder(): RegisterState
 			break
 		end
 	end
+	if paidCents < totalCents then
+		paidCents = math.ceil(totalCents / 2000) * 2000
+	end
+
+	receiptCounter += 1
 
 	return {
 		itemCount = itemCount,
 		totalCents = totalCents,
 		paidCents = paidCents,
 		changeGivenCents = 0,
+		items = items,
+		receiptNumber = receiptCounter,
 	}
 end
 
@@ -430,13 +447,20 @@ local function getSuggestedChange(changeDueCents: number): string
 	return if #pieces > 0 then table.concat(pieces, " + ") else "No change"
 end
 
-local function registerPayload(registerId: string, state: RegisterState)
+local function registerPayload(registerId: string, state: RegisterState, extra: { [string]: any }?)
 	local changeDueCents = getChangeDue(state)
 	local changeRemainingCents = math.max(0, changeDueCents - state.changeGivenCents)
 	local changeOverCents = math.max(0, state.changeGivenCents - changeDueCents)
-	return {
+	local itemLines = {}
+	for _, item in state.items do
+		table.insert(itemLines, `{item.name} {RetailCurrency.formatCents(item.priceCents)}`)
+	end
+
+	local payload = {
 		registerId = registerId,
 		itemCount = state.itemCount,
+		items = itemLines,
+		receiptNumber = state.receiptNumber,
 		totalCents = state.totalCents,
 		paidCents = state.paidCents,
 		changeDueCents = changeDueCents,
@@ -444,7 +468,14 @@ local function registerPayload(registerId: string, state: RegisterState)
 		changeRemainingCents = changeRemainingCents,
 		changeOverCents = changeOverCents,
 		suggestedTender = getSuggestedChange(changeRemainingCents),
+		completed = state.completed == true,
 	}
+	if extra then
+		for key, value in extra do
+			payload[key] = value
+		end
+	end
+	return payload
 end
 
 local function setRegisterDisplay(register: Model, text: string)
@@ -452,6 +483,35 @@ local function setRegisterDisplay(register: Model, text: string)
 	if statusDisplay and statusDisplay:IsA("BasePart") then
 		updateSignText(statusDisplay, text)
 	end
+end
+
+local function setReceiptPaper(register: Model, text: string)
+	local receiptPaper = register:FindFirstChild("ReceiptPaper")
+	if receiptPaper and receiptPaper:IsA("BasePart") then
+		updateSignText(receiptPaper, text)
+	end
+end
+
+local function buildReceiptText(state: RegisterState, source: string, bonusCents: number?): string
+	local lines = {
+		`Receipt #{state.receiptNumber}`,
+		`Lane: {source}`,
+	}
+	for index, item in state.items do
+		if index <= 4 then
+			table.insert(lines, `{item.name} {RetailCurrency.formatCents(item.priceCents)}`)
+		end
+	end
+	if #state.items > 4 then
+		table.insert(lines, `+{#state.items - 4} more items`)
+	end
+	table.insert(lines, `Total {RetailCurrency.formatCents(state.totalCents)}`)
+	table.insert(lines, `Paid {RetailCurrency.formatCents(state.paidCents)}`)
+	table.insert(lines, `Change {RetailCurrency.formatCents(getChangeDue(state))}`)
+	if bonusCents and bonusCents > 0 then
+		table.insert(lines, `Pet tip {RetailCurrency.formatCents(bonusCents)}`)
+	end
+	return table.concat(lines, "\n")
 end
 
 local function recordStoreSale(totalCents: number, source: string)
@@ -469,14 +529,25 @@ local function recordStoreSale(totalCents: number, source: string)
 	end
 end
 
-local function completeRegisterSale(player: Player?, register: Model, state: RegisterState, source: string)
+local function getPetCheckoutBonusCents(player: Player?): number
+	if not player then
+		return 0
+	end
+	return math.max(0, math.floor(player:GetAttribute("PetCheckoutBonusCents") or 0))
+end
+
+local function completeRegisterSale(player: Player?, register: Model, state: RegisterState, source: string): (string, number)
 	recordStoreSale(state.totalCents, source)
+	state.completed = true
+	local bonusCents = getPetCheckoutBonusCents(player)
+	local receiptText = buildReceiptText(state, source, bonusCents)
 
 	if player then
-		awardCash(player, state.totalCents)
+		awardCash(player, state.totalCents + bonusCents)
 		getStat(player, "Tasks").Value += state.itemCount
 		getStat(player, "Customers").Value += 1
-		message(player, `Completed {source} sale for {RetailCurrency.formatCents(state.totalCents)}`)
+		local bonusText = if bonusCents > 0 then ` + pet tip {RetailCurrency.formatCents(bonusCents)}` else ""
+		message(player, `Printed receipt #{state.receiptNumber} for {RetailCurrency.formatCents(state.totalCents)}{bonusText}`)
 	elseif source == "NPC" then
 		for _, activePlayer in Players:GetPlayers() do
 			awardCash(activePlayer, state.totalCents)
@@ -484,13 +555,16 @@ local function completeRegisterSale(player: Player?, register: Model, state: Reg
 		end
 	end
 
-	setRegisterDisplay(register, `SALE {RetailCurrency.formatCents(state.totalCents)}`)
+	setRegisterDisplay(register, `RECEIPT #{state.receiptNumber}`)
+	setReceiptPaper(register, `#{state.receiptNumber}\n{RetailCurrency.formatCents(state.totalCents)}`)
+	return receiptText, bonusCents
 end
 
 local function beginNextRegisterOrder(registerId: string, register: Model): RegisterState
 	local nextState = createRegisterOrder()
 	registerStates[registerId] = nextState
 	setRegisterDisplay(register, `NEXT {RetailCurrency.formatCents(nextState.totalCents)}`)
+	setReceiptPaper(register, "RECEIPT\nREADY")
 	return nextState
 end
 
@@ -591,9 +665,12 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		tasks.Value += 1
 		message(player, "Returned carts to the corral")
 	elseif action == "CollectStock" then
-		stock.Value += 6
+		local bonus = math.max(0, math.floor(player:GetAttribute("PetStockBonusUnits") or 0))
+		local amount = 6 + bonus
+		stock.Value += amount
 		tasks.Value += 1
-		message(player, "Picked up 6 stock units")
+		local bonusText = if bonus > 0 then ` ({bonus} pet bonus)` else ""
+		message(player, `Picked up {amount} stock units{bonusText}`)
 	elseif action == "RestockShelf" then
 		local unit = getShelfUnit(target)
 		if not unit then
@@ -616,7 +693,7 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		setShelfStock(unit, currentStock + moved)
 		awardCash(player, moved * 100)
 		tasks.Value += 1
-		message(player, `Restocked {getShelfProductName(target) or target.Parent.Name} +{moved}`)
+		message(player, `Restocked {getShelfProductName(target) or target.Parent.Name} +{moved} ({currentStock + moved}/{capacity})`)
 	elseif action == "ConfigureShelf" then
 		local unit = getShelfUnit(target)
 		if not unit then
@@ -627,7 +704,9 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 			player,
 			unit:GetAttribute("ShelfId"),
 			unit:GetAttribute("ShelfDepartmentIndex"),
-			unit:GetAttribute("ShelfProductIndex")
+			unit:GetAttribute("ShelfProductIndex"),
+			getShelfStock(unit),
+			getShelfCapacity(unit)
 		)
 	elseif action == "ServiceCustomer" then
 		awardCash(player, 200)
@@ -644,10 +723,13 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 			return
 		end
 
-		local earned = basketValue.Value
+		local bonusCents = getPetCheckoutBonusCents(player)
+		local earned = basketValue.Value + bonusCents
 		awardCash(player, earned)
 		tasks.Value += basket.Value
-		message(player, `Checked out {basket.Value} items for {RetailCurrency.formatCents(earned)}`)
+		receiptCounter += 1
+		local bonusText = if bonusCents > 0 then ` with {RetailCurrency.formatCents(bonusCents)} pet tip` else ""
+		message(player, `Printed basket receipt #{receiptCounter}: {basket.Value} items for {RetailCurrency.formatCents(basketValue.Value)}{bonusText}`)
 		basket.Value = 0
 		basketValue.Value = 0
 	elseif action == "OpenPlayerRegister" then
@@ -692,6 +774,10 @@ adjustRegisterChange.OnServerEvent:Connect(function(player, registerId, cents)
 	end
 
 	local state = getRegisterState(registerId)
+	if state.completed then
+		updateRegisterPanel:FireClient(player, registerPayload(registerId, state))
+		return
+	end
 	local changeDueCents = getChangeDue(state)
 	if state.changeGivenCents + cents > changeDueCents then
 		local overBy = state.changeGivenCents + cents - changeDueCents
@@ -720,6 +806,10 @@ resetRegisterChange.OnServerEvent:Connect(function(player, registerId)
 	end
 
 	local state = getRegisterState(registerId)
+	if state.completed then
+		updateRegisterPanel:FireClient(player, registerPayload(registerId, state))
+		return
+	end
 	state.changeGivenCents = 0
 	updateRegisterPanel:FireClient(player, registerPayload(registerId, state))
 end)
@@ -740,15 +830,34 @@ finishRegisterSale.OnServerEvent:Connect(function(player, registerId)
 	end
 
 	local state = getRegisterState(registerId)
+	if state.completed then
+		message(player, "Receipt already printed; next customer is loading")
+		updateRegisterPanel:FireClient(player, registerPayload(registerId, state))
+		return
+	end
 	if state.changeGivenCents ~= getChangeDue(state) then
 		message(player, `Need exact change: {RetailCurrency.formatCents(getChangeDue(state))}`)
 		updateRegisterPanel:FireClient(player, registerPayload(registerId, state))
 		return
 	end
 
-	completeRegisterSale(player, register, state, "Player")
-	local nextState = beginNextRegisterOrder(registerId, register)
-	updateRegisterPanel:FireClient(player, registerPayload(registerId, nextState))
+	local receiptText, bonusCents = completeRegisterSale(player, register, state, "Player")
+	updateRegisterPanel:FireClient(
+		player,
+		registerPayload(registerId, state, {
+			receiptText = receiptText,
+			bonusCents = bonusCents,
+			saleComplete = true,
+		})
+	)
+	task.delay(3, function()
+		if registerStates[registerId] ~= state then
+			return
+		end
+
+		local nextState = beginNextRegisterOrder(registerId, register)
+		updateRegisterPanel:FireClient(player, registerPayload(registerId, nextState))
+	end)
 end)
 
 createNpcOrder.OnInvoke = function()
@@ -759,6 +868,7 @@ createNpcOrder.OnInvoke = function()
 
 	local itemCount = 0
 	local totalCents = 0
+	local items = {}
 	local wantedItems = math.random(1, 4)
 
 	for _ = 1, wantedItems do
@@ -778,6 +888,10 @@ createNpcOrder.OnInvoke = function()
 		setShelfStock(shelf, getShelfStock(shelf) - 1)
 		itemCount += 1
 		totalCents += product.priceCents
+		table.insert(items, {
+			name = product.name,
+			priceCents = product.priceCents,
+		})
 	end
 
 	if itemCount == 0 then
@@ -787,6 +901,7 @@ createNpcOrder.OnInvoke = function()
 	return {
 		itemCount = itemCount,
 		totalCents = totalCents,
+		items = items,
 	}
 end
 
@@ -809,8 +924,18 @@ processNpcCheckout.OnInvoke = function(order)
 			totalCents = math.max(0, math.floor(order.totalCents)),
 			paidCents = math.max(0, math.floor(order.totalCents)),
 			changeGivenCents = 0,
+			items = if typeof(order.items) == "table" then order.items else {
+				{
+					name = "NPC basket",
+					priceCents = math.max(0, math.floor(order.totalCents)),
+				},
+			},
+			receiptNumber = receiptCounter + 1,
 		}
 		else getRegisterState("NpcRegister")
+	if state.receiptNumber == receiptCounter + 1 then
+		receiptCounter += 1
+	end
 	local totalCents = state.totalCents
 	setRegisterDisplay(npcRegister, `SALE {RetailCurrency.formatCents(totalCents)}`)
 	completeRegisterSale(nil, npcRegister, state, "NPC")

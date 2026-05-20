@@ -245,8 +245,8 @@ styleButton(applyShelfButton, 7)
 
 local registerPanel = Instance.new("Frame")
 registerPanel.Name = "RegisterPanel"
-registerPanel.Size = UDim2.fromOffset(420, 330)
-registerPanel.Position = UDim2.new(1, -438, 0, 292)
+registerPanel.Size = UDim2.fromOffset(420, 420)
+registerPanel.Position = UDim2.new(1, -438, 0, 250)
 registerPanel.BackgroundColor3 = Color3.fromRGB(24, 26, 30)
 registerPanel.BackgroundTransparency = 0.08
 registerPanel.BorderSizePixel = 0
@@ -297,7 +297,7 @@ changeHint.Parent = registerPanel
 local billHeader = Instance.new("TextLabel")
 billHeader.Name = "BillHeader"
 billHeader.Size = UDim2.fromOffset(184, 20)
-billHeader.Position = UDim2.fromOffset(14, 140)
+billHeader.Position = UDim2.fromOffset(14, 226)
 billHeader.BackgroundTransparency = 1
 billHeader.Font = Enum.Font.GothamBold
 billHeader.Text = "Bills"
@@ -308,14 +308,38 @@ billHeader.Parent = registerPanel
 
 local coinHeader = billHeader:Clone()
 coinHeader.Name = "CoinHeader"
-coinHeader.Position = UDim2.fromOffset(220, 140)
+coinHeader.Position = UDim2.fromOffset(220, 226)
 coinHeader.Text = "Coins"
 coinHeader.Parent = registerPanel
+
+local receiptPreview = Instance.new("Frame")
+receiptPreview.Name = "ReceiptPreview"
+receiptPreview.Size = UDim2.new(1, -28, 0, 76)
+receiptPreview.Position = UDim2.fromOffset(14, 140)
+receiptPreview.BackgroundColor3 = Color3.fromRGB(236, 232, 218)
+receiptPreview.BorderSizePixel = 0
+receiptPreview.Parent = registerPanel
+addCorner(receiptPreview, 6)
+addStroke(receiptPreview, Color3.fromRGB(90, 88, 80), 0.72)
+
+local receiptPreviewText = Instance.new("TextLabel")
+receiptPreviewText.Name = "Text"
+receiptPreviewText.Size = UDim2.new(1, -16, 1, -10)
+receiptPreviewText.Position = UDim2.fromOffset(8, 5)
+receiptPreviewText.BackgroundTransparency = 1
+receiptPreviewText.Font = Enum.Font.Code
+receiptPreviewText.Text = "Open a register to start a receipt."
+receiptPreviewText.TextColor3 = Color3.fromRGB(38, 36, 30)
+receiptPreviewText.TextSize = 12
+receiptPreviewText.TextWrapped = true
+receiptPreviewText.TextXAlignment = Enum.TextXAlignment.Left
+receiptPreviewText.TextYAlignment = Enum.TextYAlignment.Top
+receiptPreviewText.Parent = receiptPreview
 
 local billGrid = Instance.new("Frame")
 billGrid.Name = "BillGrid"
 billGrid.Size = UDim2.fromOffset(184, 80)
-billGrid.Position = UDim2.fromOffset(14, 166)
+billGrid.Position = UDim2.fromOffset(14, 252)
 billGrid.BackgroundTransparency = 1
 billGrid.Parent = registerPanel
 
@@ -326,13 +350,13 @@ billLayout.Parent = billGrid
 
 local coinGrid = billGrid:Clone()
 coinGrid.Name = "CoinGrid"
-coinGrid.Position = UDim2.fromOffset(220, 166)
+coinGrid.Position = UDim2.fromOffset(220, 252)
 coinGrid.Parent = registerPanel
 
 local registerButtons = Instance.new("Frame")
 registerButtons.Name = "Actions"
 registerButtons.Size = UDim2.new(1, -28, 0, 42)
-registerButtons.Position = UDim2.fromOffset(14, 272)
+registerButtons.Position = UDim2.fromOffset(14, 362)
 registerButtons.BackgroundTransparency = 1
 registerButtons.Parent = registerPanel
 
@@ -625,6 +649,8 @@ local selectedDepartmentIndex = 1
 local selectedProductIndex = 1
 local appliedDepartmentIndex = 1
 local appliedProductIndex = 1
+local currentShelfStock = 0
+local currentShelfCapacity = 0
 local currentRegisterId: string? = nil
 local currentRegisterState = nil
 local tenderButtons: { { button: TextButton, cents: number, color: Color3 } } = {}
@@ -700,6 +726,7 @@ local function getPetEntries()
 			rarity = pet.rarity,
 			image = pet.image,
 			color = pet.color,
+			perk = pet.perk,
 			count = 0,
 			equipped = false,
 		})
@@ -800,20 +827,28 @@ end
 
 renderPlayerMenu = function()
 	local cost = if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
+	local rollsUntilRare = if petInventory and petInventory.rollsUntilRare then petInventory.rollsUntilRare else RetailAssets.petLottery.rarePityRolls
+	local perkText = if petInventory and petInventory.equippedPerk then petInventory.equippedPerk else "No pet equipped"
 	playerMenuStats.Text =
 		`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Pets {readStat("Pets")}
-Rolls cost {RetailCurrency.formatCents(cost)}.`
+Roll {RetailCurrency.formatCents(cost)} | Rare safety in {rollsUntilRare} | {perkText}`
 
 	rollPetButtonLabel.Text = `Roll {RetailCurrency.formatCents(cost)}`
 	setResourceButtonEnabled(rollPetButton, readStat("Cash") >= cost, Color3.fromRGB(70, 116, 82))
 
 	if lastPetResult then
 		lotteryIcon.Image = lastPetResult.image
-		lotteryResult.Text = `{lastPetResult.rarity} | {lastPetResult.name} | Owned x{lastPetResult.count}`
+		local refundText = if lastPetResult.duplicateRefundCents and lastPetResult.duplicateRefundCents > 0
+			then ` | Refund {RetailCurrency.formatCents(lastPetResult.duplicateRefundCents)}`
+			else ""
+		local safetyText = if lastPetResult.guaranteedRare then "Safety roll hit" else lastPetResult.perk or "Companion unlocked"
+		lotteryResult.Text = `{lastPetResult.rarity} | {lastPetResult.name} | Owned x{lastPetResult.count}{refundText}
+{safetyText}`
 		lotteryResult.TextColor3 = rarityColor(lastPetResult.rarity)
 	else
 		lotteryIcon.Image = RetailAssets.buttons.Lottery
-		lotteryResult.Text = "Roll to discover a pet"
+		lotteryResult.Text = `Roll to discover a pet
+Rare safety in {rollsUntilRare}`
 		lotteryResult.TextColor3 = Color3.fromRGB(208, 220, 234)
 	end
 
@@ -872,6 +907,10 @@ local function createTenderButton(parent: Instance, denomination)
 	})
 	button.Activated:Connect(function()
 		if currentRegisterId and currentRegisterState then
+			if currentRegisterState.completed then
+				return
+			end
+
 			local remaining = currentRegisterState.changeRemainingCents
 				or math.max(0, currentRegisterState.changeDueCents - currentRegisterState.changeGivenCents)
 			if denomination.cents > remaining then
@@ -894,34 +933,62 @@ end
 local function refreshTenderButtons(state)
 	local remaining = state.changeRemainingCents or math.max(0, state.changeDueCents - state.changeGivenCents)
 	for _, tender in tenderButtons do
-		setButtonEnabled(tender.button, tender.cents <= remaining, tender.color)
+		setButtonEnabled(tender.button, tender.cents <= remaining and state.completed ~= true, tender.color)
 	end
+end
+
+local function buildRegisterReceiptPreview(state): string
+	if typeof(state.receiptText) == "string" then
+		return state.receiptText
+	end
+
+	local lines = {
+		`Receipt #{state.receiptNumber or "--"}`,
+	}
+	if typeof(state.items) == "table" then
+		for index, itemLine in state.items do
+			if index <= 4 then
+				table.insert(lines, tostring(itemLine))
+			end
+		end
+		if #state.items > 4 then
+			table.insert(lines, `+{#state.items - 4} more items`)
+		end
+	end
+	table.insert(lines, `Total {RetailCurrency.formatCents(state.totalCents)}`)
+	table.insert(lines, `Paid {RetailCurrency.formatCents(state.paidCents)} | Change {RetailCurrency.formatCents(state.changeDueCents)}`)
+	return table.concat(lines, "\n")
 end
 
 local function renderRegisterPanel(state)
 	currentRegisterState = state
 	currentRegisterId = state.registerId
-	registerTitle.Text = "Player Register"
+	registerTitle.Text = if state.completed then "Receipt Printed" else `Player Register #{state.receiptNumber or "--"}`
 	registerSummary.Text = `Items {state.itemCount} | Total {RetailCurrency.formatCents(state.totalCents)}
 Customer paid {RetailCurrency.formatCents(state.paidCents)} | Change due {RetailCurrency.formatCents(state.changeDueCents)}
 Change given {RetailCurrency.formatCents(state.changeGivenCents)}`
+	receiptPreviewText.Text = buildRegisterReceiptPreview(state)
 
 	local remaining = state.changeRemainingCents or math.max(0, state.changeDueCents - state.changeGivenCents)
 	local over = state.changeOverCents or math.max(0, state.changeGivenCents - state.changeDueCents)
-	if over > 0 then
+	if state.completed then
+		changeHint.Text = "Receipt printed. Next customer loading..."
+		changeHint.TextColor3 = Color3.fromRGB(160, 226, 168)
+	elseif over > 0 then
 		changeHint.Text = `Over by {RetailCurrency.formatCents(over)} | Clear change and try again`
 		changeHint.TextColor3 = Color3.fromRGB(244, 140, 118)
 	elseif remaining == 0 then
-		changeHint.Text = "Exact change ready"
+		changeHint.Text = "Exact change ready | Print receipt"
 		changeHint.TextColor3 = Color3.fromRGB(160, 226, 168)
 	else
 		changeHint.Text = `Remaining {RetailCurrency.formatCents(remaining)} | Try {state.suggestedTender or "smallest change"}`
 		changeHint.TextColor3 = Color3.fromRGB(245, 214, 142)
 	end
 
-	local canFinish = remaining == 0 and over == 0
-	finishSaleButton.Text = if canFinish then "Finish Sale" else `Need {RetailCurrency.formatCents(remaining)}`
+	local canFinish = remaining == 0 and over == 0 and state.completed ~= true
+	finishSaleButton.Text = if state.completed then "Receipt Printed" elseif canFinish then "Print Receipt" else `Need {RetailCurrency.formatCents(remaining)}`
 	setButtonEnabled(finishSaleButton, canFinish, Color3.fromRGB(68, 124, 82))
+	setButtonEnabled(clearChangeButton, state.completed ~= true and (state.changeGivenCents or 0) > 0, Color3.fromRGB(76, 80, 88))
 	refreshTenderButtons(state)
 end
 
@@ -929,9 +996,10 @@ local function renderShelfEditor()
 	local department = RetailCatalog.getDepartment(selectedDepartmentIndex)
 	local product = RetailCatalog.getProduct(selectedDepartmentIndex, selectedProductIndex)
 	local changed = selectedDepartmentIndex ~= appliedDepartmentIndex or selectedProductIndex ~= appliedProductIndex
+	local stockText = if currentShelfCapacity > 0 then `Stock {currentShelfStock}/{currentShelfCapacity} | ` else ""
 	shelfTitle.Text = `Shelf {currentShelfId or "-"} | {department.name}: {product.name}`
-	shelfInfo.Text = `{RetailCurrency.formatCents(product.priceCents)} each | {if changed then "Apply to assign this product" else "Current shelf assignment"}`
-	applyShelfButton.Text = if changed then `Stock shelf with {product.name}` else "Current Shelf Product"
+	shelfInfo.Text = `{stockText}{RetailCurrency.formatCents(product.priceCents)} each | {if changed then "Apply product, then restock" else "Current shelf assignment"}`
+	applyShelfButton.Text = if changed then `Assign {product.name}` else "Current Shelf Product"
 	setButtonEnabled(applyShelfButton, changed and currentShelfId ~= nil, product.color)
 
 	clearButtons(departmentList)
@@ -1021,8 +1089,10 @@ closeShelfButton.Activated:Connect(function()
 	shelfPanel.Visible = false
 end)
 
-openShelfEditor.OnClientEvent:Connect(function(shelfId: number, departmentIndex: number, productIndex: number)
+openShelfEditor.OnClientEvent:Connect(function(shelfId: number, departmentIndex: number, productIndex: number, shelfStock: number?, shelfCapacity: number?)
 	currentShelfId = shelfId
+	currentShelfStock = math.max(0, math.floor(shelfStock or 0))
+	currentShelfCapacity = math.max(0, math.floor(shelfCapacity or 0))
 	appliedDepartmentIndex = RetailCatalog.wrapDepartmentIndex(departmentIndex)
 	appliedProductIndex = RetailCatalog.wrapProductIndex(appliedDepartmentIndex, productIndex)
 	selectedDepartmentIndex = appliedDepartmentIndex
@@ -1042,6 +1112,7 @@ applyShelfButton.Activated:Connect(function()
 	selectShelfProduct:FireServer(currentShelfId, selectedDepartmentIndex, selectedProductIndex)
 	appliedDepartmentIndex = selectedDepartmentIndex
 	appliedProductIndex = selectedProductIndex
+	currentShelfStock = 0
 	shelfInfo.Text = "Applied. Restock this shelf to put items out."
 	renderShelfEditor()
 end)
@@ -1052,6 +1123,9 @@ closeRegisterButton.Activated:Connect(function()
 end)
 
 clearChangeButton.Activated:Connect(function()
+	if currentRegisterState and currentRegisterState.completed then
+		return
+	end
 	if currentRegisterId then
 		resetRegisterChange:FireServer(currentRegisterId)
 	end
@@ -1059,6 +1133,10 @@ end)
 
 finishSaleButton.Activated:Connect(function()
 	if currentRegisterId and currentRegisterState then
+		if currentRegisterState.completed then
+			return
+		end
+
 		local remaining = currentRegisterState.changeRemainingCents
 			or math.max(0, currentRegisterState.changeDueCents - currentRegisterState.changeGivenCents)
 		local over = currentRegisterState.changeOverCents

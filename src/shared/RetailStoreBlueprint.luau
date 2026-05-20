@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 34
+local BLUEPRINT_VERSION = 35
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1177,6 +1177,61 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.SmoothPlastic,
 			parent = lane,
 		})
+		local cashTray = detailPart({
+			name = "CashTray",
+			size = Vector3.new(2.6, 0.16, 1.5),
+			position = Vector3.new(x + 4.4, floorY + 4.2, halfD - 21.6),
+			color = Color3.fromRGB(28, 30, 34),
+			material = Enum.Material.Metal,
+			canCollide = false,
+			parent = lane,
+		})
+		for index, offset in { -0.75, -0.25, 0.25, 0.75 } do
+			detailPart({
+				name = `BillStack{index}`,
+				size = Vector3.new(0.42, 0.08, 0.9),
+				position = cashTray.Position + Vector3.new(offset, 0.14, -0.18),
+				color = Color3.fromRGB(96, 154, 104),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = lane,
+			})
+		end
+		for index, offset in { -0.45, 0, 0.45 } do
+			detailPart({
+				name = `CoinCup{index}`,
+				size = Vector3.new(0.32, 0.1, 0.32),
+				position = cashTray.Position + Vector3.new(offset, 0.16, 0.48),
+				color = Color3.fromRGB(190, 184, 154),
+				material = Enum.Material.Metal,
+				canCollide = false,
+				parent = lane,
+			})
+		end
+		local receiptPaper = detailPart({
+			name = "ReceiptPaper",
+			size = Vector3.new(0.95, 0.05, 1.35),
+			position = Vector3.new(x + 5.3, floorY + 4.62, halfD - 22.15),
+			color = Color3.fromRGB(242, 238, 222),
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = lane,
+		})
+		local receiptGui = Instance.new("SurfaceGui")
+		receiptGui.Face = Enum.NormalId.Top
+		receiptGui.LightInfluence = 0.1
+		receiptGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		receiptGui.PixelsPerStud = 80
+		receiptGui.Parent = receiptPaper
+		local receiptLabel = Instance.new("TextLabel")
+		receiptLabel.Name = "Label"
+		receiptLabel.Size = UDim2.fromScale(1, 1)
+		receiptLabel.BackgroundTransparency = 1
+		receiptLabel.Text = "RECEIPT\nREADY"
+		receiptLabel.TextColor3 = Color3.fromRGB(42, 38, 32)
+		receiptLabel.TextScaled = true
+		receiptLabel.Font = Enum.Font.Code
+		receiptLabel.Parent = receiptGui
 		storePart({
 			name = "LaneLight",
 			size = Vector3.new(1, 5, 1),

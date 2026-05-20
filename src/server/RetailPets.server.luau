@@ -39,6 +39,8 @@ end
 type PetState = {
 	owned: { [string]: number },
 	equippedPetId: string?,
+	totalRolls: number,
+	rollsSinceRare: number,
 }
 
 local petStates: { [Player]: PetState } = {}
@@ -73,11 +75,24 @@ local function getState(player: Player): PetState
 		state = {
 			owned = {},
 			equippedPetId = nil,
+			totalRolls = 0,
+			rollsSinceRare = 0,
 		}
 		petStates[player] = state
 	end
 
 	return state
+end
+
+local function applyPetAttributes(player: Player)
+	local state = getState(player)
+	local pet = if state.equippedPetId then RetailAssets.getPet(state.equippedPetId) else nil
+	player:SetAttribute("EquippedPetId", if pet then pet.id else nil)
+	player:SetAttribute("EquippedPetName", if pet then pet.name else nil)
+	player:SetAttribute("EquippedPetPerk", if pet then pet.perk else nil)
+	player:SetAttribute("PetStockBonusUnits", if pet and pet.stockBonusUnits then pet.stockBonusUnits else 0)
+	player:SetAttribute("PetCheckoutBonusCents", if pet and pet.checkoutBonusCents then pet.checkoutBonusCents else 0)
+	player:SetAttribute("PetDuplicateRefundBonusCents", if pet and pet.duplicateRefundBonusCents then pet.duplicateRefundBonusCents else 0)
 end
 
 local function setPetCountStat(player: Player)
@@ -99,14 +114,21 @@ local function buildInventoryPayload(player: Player)
 			rarity = pet.rarity,
 			image = pet.image,
 			color = pet.color,
+			perk = pet.perk,
 			count = state.owned[pet.id] or 0,
 			equipped = state.equippedPetId == pet.id,
 		})
 	end
 
+	local pityTarget = RetailAssets.petLottery.rarePityRolls
 	return {
 		rollCostCents = RetailAssets.petLottery.rollCostCents,
+		rarePityRolls = pityTarget,
+		rollsSinceRare = state.rollsSinceRare,
+		rollsUntilRare = math.max(0, pityTarget - state.rollsSinceRare),
+		totalRolls = state.totalRolls,
 		equippedPetId = state.equippedPetId,
+		equippedPerk = player:GetAttribute("EquippedPetPerk"),
 		pets = pets,
 	}
 end
@@ -211,22 +233,45 @@ local function attachPetToCharacter(player: Player)
 end
 
 local function awardPet(player: Player)
-	local pet = RetailAssets.rollPet(random)
 	local state = getState(player)
+	local guaranteedRare = state.rollsSinceRare >= RetailAssets.petLottery.rarePityRolls - 1
+	local pet = if guaranteedRare then RetailAssets.rollPetAtLeast("Rare", random) else RetailAssets.rollPet(random)
+	local ownedBefore = state.owned[pet.id] or 0
 	state.owned[pet.id] = (state.owned[pet.id] or 0) + 1
+	state.totalRolls += 1
+	if RetailAssets.getRarityRank(pet.rarity) >= RetailAssets.getRarityRank("Rare") then
+		state.rollsSinceRare = 0
+	else
+		state.rollsSinceRare += 1
+	end
 	if not state.equippedPetId then
 		state.equippedPetId = pet.id
+		applyPetAttributes(player)
 		attachPetToCharacter(player)
 	end
 
-	message(player, `Won {pet.rarity} pet: {pet.name}`)
+	local duplicateRefund = 0
+	if ownedBefore > 0 then
+		duplicateRefund = RetailAssets.getDuplicateRefundCents(pet.rarity)
+			+ math.max(0, math.floor(player:GetAttribute("PetDuplicateRefundBonusCents") or 0))
+		getStat(player, "Cash").Value += duplicateRefund
+	end
+
+	local suffix = if duplicateRefund > 0 then ` duplicate refund {RetailCurrency.formatCents(duplicateRefund)}` else ""
+	message(player, `Won {pet.rarity} pet: {pet.name}{suffix}`)
 	petLotteryResult:FireClient(player, {
 		id = pet.id,
 		name = pet.name,
 		rarity = pet.rarity,
 		image = pet.image,
 		color = pet.color,
+		perk = pet.perk,
 		count = state.owned[pet.id],
+		duplicate = ownedBefore > 0,
+		duplicateRefundCents = duplicateRefund,
+		guaranteedRare = guaranteedRare,
+		rollsSinceRare = state.rollsSinceRare,
+		rollsUntilRare = math.max(0, RetailAssets.petLottery.rarePityRolls - state.rollsSinceRare),
 	})
 	sendInventory(player)
 end
@@ -252,6 +297,7 @@ requestEquipPet.OnServerEvent:Connect(function(player, petId)
 	local state = getState(player)
 	if petId == "" then
 		state.equippedPetId = nil
+		applyPetAttributes(player)
 		clearPetModel(player)
 		message(player, "Pet unequipped")
 		sendInventory(player)
@@ -268,13 +314,15 @@ requestEquipPet.OnServerEvent:Connect(function(player, petId)
 	end
 
 	state.equippedPetId = petId
+	applyPetAttributes(player)
 	attachPetToCharacter(player)
-	message(player, `Equipped {pet.name}`)
+	message(player, `Equipped {pet.name}: {pet.perk or "Companion active"}`)
 	sendInventory(player)
 end)
 
 Players.PlayerAdded:Connect(function(player)
 	getState(player)
+	applyPetAttributes(player)
 	getStat(player, "Pets").Value = 0
 
 	player.CharacterAdded:Connect(function()
@@ -294,6 +342,7 @@ end)
 
 for _, player in Players:GetPlayers() do
 	getState(player)
+	applyPetAttributes(player)
 	sendInventory(player)
 	if player.Character then
 		attachPetToCharacter(player)
