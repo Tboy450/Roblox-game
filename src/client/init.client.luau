@@ -602,9 +602,20 @@ local function readStoreAttribute(store: Instance?, name: string): number
 	return if typeof(value) == "number" then value else 0
 end
 
-local function getTaskHint(shift: number, stock: number, lowStock: number, emptyShelves: number, basket: number): string
+local function readStoreOpen(store: Instance?): boolean
+	if not store then
+		return true
+	end
+
+	return store:GetAttribute("StoreOpen") ~= false
+end
+
+local function getTaskHint(shift: number, stock: number, lowStock: number, emptyShelves: number, basket: number, storeOpen: boolean): string
 	if shift == 0 then
 		return "Next: clock in at a time clock"
+	end
+	if not storeOpen then
+		return "Next: open the store when shelves and register are ready"
 	end
 	if stock == 0 and lowStock > 0 then
 		return "Next: grab stock from the stock room or loading pallet"
@@ -631,14 +642,16 @@ local function updateHud()
 	local occupiedParking = readStoreAttribute(store, "OccupiedParkingSpots")
 	local storeCash = readStoreAttribute(store, "StoreCashCents")
 	local storeCustomers = readStoreAttribute(store, "StoreCustomers")
+	local storeOpen = readStoreOpen(store)
+	local storeStatus = if storeOpen then "Open" else "Closed"
 	local basket = readStat("Basket")
 	local stock = readStat("Stock")
 	statsLabel.Text =
 		`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Basket {basket} ({RetailCurrency.formatCents(readStat("BasketValue"))}) | Stock {stock} | Shift {shiftText}`
 	messageLabel.Text = player:GetAttribute("RetailMessage") or "Ready for work"
 	storeLabel.Text =
-		`Store {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers} | Shoppers {activeShoppers} | Parking {occupiedParking}`
-	taskLabel.Text = getTaskHint(shift, stock, lowStock, emptyShelves, basket)
+		`Store {storeStatus} | Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers} | Shoppers {activeShoppers} | Parking {occupiedParking}`
+	taskLabel.Text = getTaskHint(shift, stock, lowStock, emptyShelves, basket, storeOpen)
 	if playerMenu.Visible and renderPlayerMenu then
 		renderPlayerMenu()
 	end
@@ -1060,6 +1073,7 @@ local function connectStoreStatus(store: Instance)
 		"OccupiedParkingSpots",
 		"StoreCashCents",
 		"StoreCustomers",
+		"StoreOpen",
 	} do
 		table.insert(storeConnections, store:GetAttributeChangedSignal(attributeName):Connect(updateHud))
 	end

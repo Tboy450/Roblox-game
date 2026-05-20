@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 35
+local BLUEPRINT_VERSION = 36
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -76,6 +76,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local store = Instance.new("Model")
 	store.Name = storeName
 	store:SetAttribute("BlueprintVersion", BLUEPRINT_VERSION)
+	store:SetAttribute("StoreOpen", true)
 	store.Parent = parent
 
 	-- Walk surface top is always floorY + 0.5 (1-stud-thick floors at floorY)
@@ -1100,6 +1101,18 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		parent = teamStation,
 	})
 	addPrompt(frontTaskBoard, "InspectTasks", "Review", "Task Board", 0.1)
+	local storeStatusControl = storePart({
+		name = "StoreStatusControl",
+		size = Vector3.new(3.6, 1.1, 0.55),
+		position = Vector3.new(-32.5, floorY + 2.35, halfD - 14.45),
+		color = Color3.fromRGB(56, 116, 74),
+		material = Enum.Material.SmoothPlastic,
+		parent = teamStation,
+	})
+	storeStatusControl:SetAttribute("StoreOpenControl", true)
+	addPrompt(storeStatusControl, "ToggleStoreOpen", "Close", "Store Open", 0.25)
+	local storeStatusSign = addSign(teamStation, "StoreStatusSign", -32.5, floorY + 6.05, halfD - 14.75, 7, "OPEN", Color3.fromRGB(52, 120, 72))
+	storeStatusSign:SetAttribute("StoreStatusDisplay", true)
 	storePart({
 		name = "TeamShelf",
 		size = Vector3.new(8.4, 0.35, 1.5),
@@ -2099,16 +2112,29 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	trafficMarker("DriveCenter", 0, halfD + 38, "CarPath")
 	trafficMarker("StoreEntryOutside", 0, halfD + 10, "CustomerPath")
 	trafficMarker("StoreEntryInside", 0, halfD - 8, "CustomerPath")
+	trafficMarker("AisleHub", 0, 24, "CustomerPath")
 	trafficMarker("ShopProduce", -28, -18, "Shop")
+	trafficMarker("ShopDairy", -18, 2, "Shop")
+	trafficMarker("ShopFrozen", 18, -4, "Shop")
 	trafficMarker("ShopPantry", 0, 10, "Shop")
 	trafficMarker("ShopHousehold", 28, 24, "Shop")
+	trafficMarker("ShopBakery", -42, 12, "Shop")
 	trafficMarker("NpcRegisterQueue", 30, halfD - 15, "Register")
 	trafficMarker("NpcRegisterSpot", 30, halfD - 18, "Register")
 	trafficMarker("CashierSpot", 30, halfD - 28, "Staff")
 	trafficMarker("RoadExit", 86, halfD + 88, "CarPath")
 
-	for index, x in { -14, 0, 14, 28 } do
-		local spot = trafficMarker(`ParkingSpot{index}`, x, halfD + 56, "Parking")
+	for index, spotDef in {
+		{ x = -42, z = halfD + 18 },
+		{ x = -28, z = halfD + 18 },
+		{ x = -14, z = halfD + 18 },
+		{ x = 0, z = halfD + 18 },
+		{ x = 14, z = halfD + 56 },
+		{ x = 28, z = halfD + 56 },
+		{ x = 42, z = halfD + 56 },
+		{ x = 56, z = halfD + 56 },
+	} do
+		local spot = trafficMarker(`ParkingSpot{index}`, spotDef.x, spotDef.z, "Parking")
 		spot:SetAttribute("ParkingIndex", index)
 	end
 

@@ -101,6 +101,7 @@ local ACTION_COOLDOWNS = {
 	QueueCustomer = 2,
 	OpenPlayerRegister = 0.5,
 	OpenPetMenu = 0.5,
+	ToggleStoreOpen = 1,
 }
 local SHIFT_REQUIRED_ACTIONS: { [string]: boolean } = {
 	CollectItem = true,
@@ -204,6 +205,24 @@ local function updatePromptText(part: BasePart, text: string)
 	for _, child in part:GetChildren() do
 		if child:IsA("ProximityPrompt") then
 			child.ObjectText = text
+		end
+	end
+end
+
+local function updateStoreOpenVisuals(store: Instance)
+	local storeOpen = store:GetAttribute("StoreOpen") ~= false
+	for _, desc in store:GetDescendants() do
+		if desc:IsA("BasePart") and desc:GetAttribute("StoreOpenControl") == true then
+			desc.Color = if storeOpen then Color3.fromRGB(56, 116, 74) else Color3.fromRGB(132, 72, 62)
+			for _, child in desc:GetChildren() do
+				if child:IsA("ProximityPrompt") then
+					child.ActionText = if storeOpen then "Close" else "Open"
+					child.ObjectText = if storeOpen then "Store Open" else "Store Closed"
+				end
+			end
+		elseif desc:IsA("BasePart") and desc:GetAttribute("StoreStatusDisplay") == true then
+			desc.Color = if storeOpen then Color3.fromRGB(52, 120, 72) else Color3.fromRGB(132, 72, 62)
+			updateSignText(desc, if storeOpen then "OPEN" else "CLOSED")
 		end
 	end
 end
@@ -625,7 +644,8 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 	elseif action == "InspectTasks" then
 		local store = Workspace:FindFirstChild("RetailStore")
 		local lowStock = if store then store:GetAttribute("LowStockShelves") or 0 else 0
-		message(player, `Tasks: restock {lowStock} low shelves, run register, clean spills, help customers`)
+		local status = if store and store:GetAttribute("StoreOpen") == false then "closed" else "open"
+		message(player, `Store {status}. Tasks: restock {lowStock} low shelves, run register, clean spills, help customers`)
 	elseif action == "InspectSign" then
 		message(player, "Parking, pickup, and store entrance are open")
 	elseif action == "InspectDisplay" then
@@ -748,6 +768,16 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		openRegisterPanel:FireClient(player, registerPayload(registerId, state))
 	elseif action == "OpenPetMenu" then
 		openPlayerMenu:FireClient(player, "pets")
+	elseif action == "ToggleStoreOpen" then
+		local store = target:FindFirstAncestor("RetailStore") or Workspace:FindFirstChild("RetailStore")
+		if not store then
+			return
+		end
+
+		local nextOpen = store:GetAttribute("StoreOpen") == false
+		store:SetAttribute("StoreOpen", nextOpen)
+		updateStoreOpenVisuals(store)
+		message(player, if nextOpen then "Store opened - shoppers can enter" else "Store closed - shoppers will leave and new arrivals pause")
 	else
 		warn(`[RetailMechanics] Unknown action '{action}' on {target:GetFullName()}`)
 	end
@@ -1004,6 +1034,13 @@ end
 
 local function connectStore(store: Instance)
 	table.clear(registerStates)
+	if store:GetAttribute("StoreOpen") == nil then
+		store:SetAttribute("StoreOpen", true)
+	end
+	updateStoreOpenVisuals(store)
+	store:GetAttributeChangedSignal("StoreOpen"):Connect(function()
+		updateStoreOpenVisuals(store)
+	end)
 
 	for _, desc in store:GetDescendants() do
 		if desc:IsA("Model") and desc:GetAttribute("ShelfId") ~= nil then

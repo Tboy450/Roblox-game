@@ -43,6 +43,34 @@ local VEHICLE_STYLES = {
 		cabinSize = Vector3.new(6.8, 2.8, 6.2),
 		bodyColor = Color3.fromRGB(182, 184, 188),
 	},
+	{
+		name = "Pickup",
+		bodySize = Vector3.new(8, 2.4, 12.8),
+		cabinSize = Vector3.new(5.2, 2.4, 4.4),
+		bodyColor = Color3.fromRGB(166, 96, 54),
+		bed = true,
+	},
+	{
+		name = "Coupe",
+		bodySize = Vector3.new(6.8, 1.9, 10.4),
+		cabinSize = Vector3.new(4.2, 1.8, 3.8),
+		bodyColor = Color3.fromRGB(42, 44, 52),
+		spoiler = true,
+	},
+	{
+		name = "DeliveryTruck",
+		bodySize = Vector3.new(8.5, 2.8, 13.6),
+		cabinSize = Vector3.new(5.5, 2.7, 4),
+		bodyColor = Color3.fromRGB(230, 226, 210),
+		cargoBox = true,
+	},
+	{
+		name = "RoofRackSUV",
+		bodySize = Vector3.new(8, 2.9, 12),
+		cabinSize = Vector3.new(6.1, 2.6, 5.8),
+		bodyColor = Color3.fromRGB(82, 92, 126),
+		roofRack = true,
+	},
 }
 
 local currentStore: Model? = nil
@@ -96,10 +124,14 @@ local function tweenModelTo(model: Model, targetPosition: Vector3, speed: number
 	model:PivotTo(targetCFrame)
 end
 
-local function moveModelAlong(model: Model, waypoints: { Vector3 }, speed: number)
+local function moveModelAlong(model: Model, waypoints: { Vector3 }, speed: number): boolean
 	for _, waypoint in waypoints do
+		if not model.Parent then
+			return false
+		end
 		tweenModelTo(model, waypoint, speed)
 	end
+	return model.Parent ~= nil
 end
 
 local function createNpc(name: string, shirtColor: Color3, position: Vector3): Model
@@ -142,6 +174,19 @@ local function createVehicle(style, cframe: CFrame): Model
 	createPart(vehicle, "Body", style.bodySize, CFrame.new(0, 1.5, 0), style.bodyColor, Enum.Material.Metal)
 	createPart(vehicle, "Cabin", style.cabinSize, CFrame.new(0, 3.2, 0.6), Color3.fromRGB(160, 180, 192), Enum.Material.Glass)
 	createPart(vehicle, "FrontGlass", Vector3.new(style.cabinSize.X - 0.8, 1.5, 0.25), CFrame.new(0, 3.35, -style.cabinSize.Z / 2 + 0.25), Color3.fromRGB(120, 145, 160), Enum.Material.Glass)
+	createPart(vehicle, "Headlights", Vector3.new(style.bodySize.X - 1.2, 0.35, 0.2), CFrame.new(0, 1.85, -style.bodySize.Z / 2 - 0.05), Color3.fromRGB(245, 235, 170), Enum.Material.Neon)
+	createPart(vehicle, "TailLights", Vector3.new(style.bodySize.X - 1.2, 0.3, 0.2), CFrame.new(0, 1.75, style.bodySize.Z / 2 + 0.05), Color3.fromRGB(210, 48, 40), Enum.Material.Neon)
+	if style.bed then
+		createPart(vehicle, "OpenBed", Vector3.new(style.bodySize.X - 0.8, 0.7, 4.8), CFrame.new(0, 2.75, 3.3), Color3.fromRGB(42, 42, 46), Enum.Material.Metal)
+		createPart(vehicle, "Tailgate", Vector3.new(style.bodySize.X - 0.5, 1.2, 0.25), CFrame.new(0, 2.45, style.bodySize.Z / 2 + 0.15), style.bodyColor, Enum.Material.Metal)
+	elseif style.cargoBox then
+		createPart(vehicle, "CargoBox", Vector3.new(style.bodySize.X + 0.5, 4.2, 6.8), CFrame.new(0, 4.25, 2.8), Color3.fromRGB(236, 234, 224), Enum.Material.SmoothPlastic)
+		createPart(vehicle, "CargoLogoPanel", Vector3.new(style.bodySize.X + 0.7, 1.9, 0.18), CFrame.new(0, 4.25, 6.25), Color3.fromRGB(58, 112, 156), Enum.Material.SmoothPlastic)
+	elseif style.roofRack then
+		createPart(vehicle, "RoofRack", Vector3.new(style.cabinSize.X + 0.5, 0.18, style.cabinSize.Z + 0.5), CFrame.new(0, 4.75, 0.6), Color3.fromRGB(32, 34, 38), Enum.Material.Metal)
+	elseif style.spoiler then
+		createPart(vehicle, "Spoiler", Vector3.new(style.bodySize.X - 1, 0.3, 0.55), CFrame.new(0, 2.75, style.bodySize.Z / 2 - 0.7), style.bodyColor, Enum.Material.Metal)
+	end
 	for _, x in { -style.bodySize.X / 2 + 0.7, style.bodySize.X / 2 - 0.7 } do
 		for _, z in { -style.bodySize.Z / 2 + 1.8, style.bodySize.Z / 2 - 1.8 } do
 			createPart(vehicle, "Wheel", Vector3.new(0.8, 1.5, 1.5), CFrame.new(x, 0.8, z), Color3.fromRGB(30, 30, 32), Enum.Material.Rubber)
@@ -159,6 +204,32 @@ end
 
 local function randomBetween(range: { number }): number
 	return math.random(range[1] * 10, range[2] * 10) / 10
+end
+
+local function trafficStillActive(generation: number): boolean
+	return generation == visitGeneration and currentStore ~= nil and currentStore.Parent ~= nil
+end
+
+local function storeIsOpen(): boolean
+	return currentStore ~= nil and currentStore:GetAttribute("StoreOpen") ~= false
+end
+
+local function waitTraffic(range: { number }, generation: number, requireOpen: boolean): boolean
+	local remaining = randomBetween(range)
+	while remaining > 0 do
+		if not trafficStillActive(generation) then
+			return false
+		end
+		if requireOpen and not storeIsOpen() then
+			return false
+		end
+
+		local step = math.min(0.25, remaining)
+		task.wait(step)
+		remaining -= step
+	end
+
+	return trafficStillActive(generation) and (not requireOpen or storeIsOpen())
 end
 
 local function getFreeSpot(): BasePart?
@@ -196,10 +267,10 @@ local function getCarExitPath(spot: BasePart): { Vector3 }
 end
 
 local function waitForNpcRegister(generation: number): boolean
-	while npcRegisterBusy and generation == visitGeneration do
+	while npcRegisterBusy and trafficStillActive(generation) and storeIsOpen() do
 		task.wait(0.2)
 	end
-	if generation ~= visitGeneration then
+	if not trafficStillActive(generation) or not storeIsOpen() then
 		return false
 	end
 
@@ -214,6 +285,7 @@ end
 local function updateTrafficSummary()
 	if currentStore then
 		currentStore:SetAttribute("ActiveShoppers", activeCustomers)
+		currentStore:SetAttribute("TrafficAcceptingCustomers", storeIsOpen())
 		local occupiedCount = 0
 		for _, occupied in occupiedSpots do
 			if occupied then
@@ -224,20 +296,63 @@ local function updateTrafficSummary()
 	end
 end
 
+local function getShopMarkers(): { BasePart }
+	local shops = {}
+	for _, name in { "ShopProduce", "ShopDairy", "ShopFrozen", "ShopPantry", "ShopHousehold", "ShopBakery" } do
+		local marker = markers[name]
+		if marker then
+			table.insert(shops, marker)
+		end
+	end
+	return shops
+end
+
+local function moveCustomerToParking(npc: Model, spot: BasePart, groupOffset: number)
+	local outsideEntry = getMarker("StoreEntryOutside").Position
+	local insideEntry = getMarker("StoreEntryInside").Position
+	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -6)
+	moveModelAlong(npc, {
+		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
+		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
+		parkingExit,
+		spot.Position + Vector3.new(groupOffset * 1.8, 0, 0),
+	}, CUSTOMER_SPEED)
+end
+
 local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, generation: number)
-	local shopMarkers = { getMarker("ShopProduce"), getMarker("ShopPantry"), getMarker("ShopHousehold") }
+	local shopMarkers = getShopMarkers()
+	if #shopMarkers == 0 then
+		return
+	end
 	local shopMarker = shopMarkers[math.random(1, #shopMarkers)]
+	local secondShopMarker = shopMarkers[math.random(1, #shopMarkers)]
+	local aisleHub = getMarker("AisleHub")
 	local outsideEntry = getMarker("StoreEntryOutside").Position
 	local insideEntry = getMarker("StoreEntryInside").Position
 	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -6)
 
-	moveModelAlong(npc, {
+	if not storeIsOpen() then
+		moveModelAlong(npc, { spot.Position + Vector3.new(groupOffset * 1.8, 0, 0) }, CUSTOMER_SPEED)
+		return
+	end
+
+	local shoppingPath = {
 		parkingExit,
 		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
 		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
-		shopMarker.Position + Vector3.new(groupOffset * 1.1, 0, 0),
-	}, CUSTOMER_SPEED)
-	task.wait(randomBetween(SHOP_WAIT))
+	}
+	if aisleHub then
+		table.insert(shoppingPath, aisleHub.Position + Vector3.new(groupOffset * 0.9, 0, 0))
+	end
+	table.insert(shoppingPath, shopMarker.Position + Vector3.new(groupOffset * 1.1, 0, 0))
+	if secondShopMarker ~= shopMarker then
+		table.insert(shoppingPath, secondShopMarker.Position + Vector3.new(groupOffset * 0.9, 0, 0))
+	end
+	moveModelAlong(npc, shoppingPath, CUSTOMER_SPEED)
+	if not waitTraffic(SHOP_WAIT, generation, true) then
+		moveCustomerToParking(npc, spot, groupOffset)
+		return
+	end
 	local ok, order = pcall(function()
 		return createNpcOrder:Invoke()
 	end)
@@ -246,16 +361,12 @@ local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, 
 		order = nil
 	end
 	if not order then
-		moveModelAlong(npc, {
-			insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
-			outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
-			parkingExit,
-			spot.Position + Vector3.new(groupOffset * 1.8, 0, 0),
-		}, CUSTOMER_SPEED)
+		moveCustomerToParking(npc, spot, groupOffset)
 		return
 	end
 
 	if not waitForNpcRegister(generation) then
+		moveCustomerToParking(npc, spot, groupOffset)
 		return
 	end
 
@@ -263,7 +374,11 @@ local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, 
 		getMarker("NpcRegisterQueue").Position,
 		getMarker("NpcRegisterSpot").Position,
 	}, CUSTOMER_SPEED)
-	task.wait(randomBetween(REGISTER_WAIT))
+	if not waitTraffic(REGISTER_WAIT, generation, true) then
+		releaseNpcRegister()
+		moveCustomerToParking(npc, spot, groupOffset)
+		return
+	end
 	local checkoutOk, checkoutResult = pcall(function()
 		return processNpcCheckout:Invoke(order)
 	end)
@@ -273,12 +388,7 @@ local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, 
 	addPurchaseBag(npc)
 	releaseNpcRegister()
 
-	moveModelAlong(npc, {
-		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
-		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
-		parkingExit,
-		spot.Position + Vector3.new(groupOffset * 1.8, 0, 0),
-	}, CUSTOMER_SPEED)
+	moveCustomerToParking(npc, spot, groupOffset)
 end
 
 local function runVisitGroup(spot: BasePart, groupSize: number, generation: number)
@@ -311,7 +421,7 @@ local function runVisitGroup(spot: BasePart, groupSize: number, generation: numb
 		task.wait(0.45)
 	end
 
-	while finished < groupSize and generation == visitGeneration do
+	while finished < groupSize and trafficStillActive(generation) do
 		task.wait(0.25)
 	end
 
@@ -322,6 +432,7 @@ local function runVisitGroup(spot: BasePart, groupSize: number, generation: numb
 
 	if generation == visitGeneration then
 		activeCustomers -= groupSize
+		activeCustomers = math.max(0, activeCustomers)
 		occupiedSpots[spot] = nil
 		updateTrafficSummary()
 	end
@@ -334,6 +445,9 @@ end
 
 local function configureStore(store: Model)
 	currentStore = store
+	if currentStore:GetAttribute("StoreOpen") == nil then
+		currentStore:SetAttribute("StoreOpen", true)
+	end
 	local outdoor = store:FindFirstChild("Outdoor")
 	trafficFolder = if outdoor then outdoor:FindFirstChild("NpcTraffic") :: Model? else nil
 	if not trafficFolder then
@@ -370,15 +484,20 @@ local function configureStore(store: Model)
 	end)
 
 	spawnCashier()
+	currentStore:GetAttributeChangedSignal("StoreOpen"):Connect(function()
+		updateTrafficSummary()
+	end)
 	updateTrafficSummary()
 	return true
 end
 
 local function runTrafficLoop(generation: number)
 	while generation == visitGeneration do
-		task.wait(randomBetween(ARRIVAL_GAP))
+		if not waitTraffic(ARRIVAL_GAP, generation, false) then
+			break
+		end
 
-		if not currentStore or not currentStore.Parent or activeCustomers >= MAX_ACTIVE_CUSTOMERS then
+		if not currentStore or not currentStore.Parent or activeCustomers >= MAX_ACTIVE_CUSTOMERS or not storeIsOpen() then
 			continue
 		end
 
