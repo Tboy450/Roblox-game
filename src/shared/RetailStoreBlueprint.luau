@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 39
+local BLUEPRINT_VERSION = 40
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1836,42 +1836,123 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 	local restroom = store:FindFirstChild("Restrooms")
 	if restroom then
-		for s = -1, 1 do
-			wallZ(`Stall{s}`, eastCx - 6, -16 + s * 6, 5, nil, restroom)
-		end
-		for s = -1, 1 do
-			storePart({
-				name = `Sink{s}`,
-				size = Vector3.new(2, 1, 1.2),
-				position = Vector3.new(eastCx - 2, floorY + 1.5, -16 + s * 8),
-				color = Color3.fromRGB(195, 195, 200),
-				material = Enum.Material.Marble,
+		decorFloor("RestroomEntryMat", Vector3.new(5, 0.08, 6), Vector3.new(eastCx - 7, walkTop + 0.08, -16), Color3.fromRGB(120, 130, 138), restroom)
+		decorFloor("RestroomSinkZone", Vector3.new(9, 0.08, 4), Vector3.new(eastCx - 3.5, walkTop + 0.09, -7.2), Color3.fromRGB(150, 158, 164), restroom)
+		decorFloor("RestroomStallZone", Vector3.new(7, 0.08, 16), Vector3.new(eastCx + 4, walkTop + 0.09, -18.5), Color3.fromRGB(130, 138, 146), restroom)
+
+		for _, dividerZ in { -26.2, -21.3, -16.4, -11.5 } do
+			detailPart({
+				name = `StallDivider{dividerZ}`,
+				size = Vector3.new(6.2, 5.8, 0.35),
+				position = Vector3.new(eastCx + 5.3, floorY + 3.9, dividerZ),
+				color = Color3.fromRGB(112, 122, 132),
+				material = Enum.Material.Metal,
 				parent = restroom,
 			})
 		end
-		for s = -1, 1 do
-			storePart({
-				name = `StallDoor{s}`,
-				size = Vector3.new(0.4, 5, 3),
-				position = Vector3.new(eastCx - 3, floorY + 3.5, -16 + s * 6),
-				color = Color3.fromRGB(105, 115, 125),
+		for stallIndex, z in { -23.8, -18.9, -14 } do
+			detailPart({
+				name = `StallDoor{stallIndex}`,
+				size = Vector3.new(0.35, 4.8, 3.2),
+				position = Vector3.new(eastCx + 2.3, floorY + 3.45, z),
+				color = Color3.fromRGB(92, 102, 112),
 				material = Enum.Material.Metal,
+				parent = restroom,
+			})
+			detailPart({
+				name = `StallGap{stallIndex}`,
+				size = Vector3.new(0.42, 0.22, 3.2),
+				position = Vector3.new(eastCx + 2.15, walkTop + 0.25, z),
+				color = Color3.fromRGB(36, 38, 42),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = restroom,
+			})
+			storePart({
+				name = `ToiletBase{stallIndex}`,
+				size = Vector3.new(1.8, 1.1, 1.8),
+				position = Vector3.new(eastCx + 7, floorY + 1.1, z),
+				color = Color3.fromRGB(232, 234, 236),
+				material = Enum.Material.SmoothPlastic,
+				parent = restroom,
+			})
+			detailPart({
+				name = `ToiletTank{stallIndex}`,
+				size = Vector3.new(1.8, 1.2, 0.6),
+				position = Vector3.new(eastCx + 7, floorY + 2, z + 1.05),
+				color = Color3.fromRGB(228, 230, 232),
+				material = Enum.Material.SmoothPlastic,
+				parent = restroom,
+			})
+		end
+
+		local sinkCounter = storePart({
+			name = "SinkCounter",
+			size = Vector3.new(8, 1.2, 1.6),
+			position = Vector3.new(eastCx - 3.5, floorY + 1.45, -7.4),
+			color = Color3.fromRGB(204, 204, 208),
+			material = Enum.Material.Marble,
+			parent = restroom,
+		})
+		addPrompt(sinkCounter, "CleanSpill", "Clean", "Sink Counter", 0.2)
+		for sinkIndex, x in { eastCx - 6, eastCx - 3.5, eastCx - 1 } do
+			detailPart({
+				name = `SinkBasin{sinkIndex}`,
+				size = Vector3.new(1.5, 0.32, 1),
+				position = Vector3.new(x, floorY + 2.15, -7.4),
+				color = Color3.fromRGB(230, 232, 236),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = restroom,
+			})
+			detailPart({
+				name = `SinkFaucet{sinkIndex}`,
+				size = Vector3.new(0.28, 0.8, 0.28),
+				position = Vector3.new(x, floorY + 2.75, -8.05),
+				color = Color3.fromRGB(120, 126, 132),
+				material = Enum.Material.Metal,
+				parent = restroom,
+			})
+			detailPart({
+				name = `Mirror{sinkIndex}`,
+				size = Vector3.new(1.8, 2.8, 0.18),
+				position = Vector3.new(x, floorY + 4.15, -6.25),
+				color = Color3.fromRGB(170, 202, 218),
+				material = Enum.Material.Glass,
+				transparency = 0.25,
+				canCollide = false,
 				parent = restroom,
 			})
 		end
 		storePart({
 			name = "HandDryer",
-			size = Vector3.new(2, 2, 1),
-			position = Vector3.new(eastCx - 2, floorY + 4, -24),
+			size = Vector3.new(1.6, 2, 0.7),
+			position = Vector3.new(eastCx - 7.2, floorY + 4, -10.2),
 			color = Color3.fromRGB(210, 210, 215),
 			material = Enum.Material.Metal,
 			parent = restroom,
 		})
 		storePart({
-			name = "PrivacyScreen",
-			size = Vector3.new(0.6, 6, 8),
-			position = Vector3.new(eastCx - 1, floorY + 4, -16),
-			color = Color3.fromRGB(125, 132, 140),
+			name = "BabyChangingStation",
+			size = Vector3.new(0.8, 3, 4),
+			position = Vector3.new(eastCx - 7.6, floorY + 3.2, -23.2),
+			color = Color3.fromRGB(185, 192, 198),
+			material = Enum.Material.SmoothPlastic,
+			parent = restroom,
+		})
+		detailPart({
+			name = "RestroomVestibuleScreen",
+			size = Vector3.new(0.45, 5.6, 4.8),
+			position = Vector3.new(eastCx - 4.6, floorY + 3.8, -22.2),
+			color = Color3.fromRGB(118, 128, 138),
+			material = Enum.Material.Metal,
+			parent = restroom,
+		})
+		storePart({
+			name = "RestroomTrashCan",
+			size = Vector3.new(1.3, 2.1, 1.3),
+			position = Vector3.new(eastCx - 7, floorY + 1.55, -7.2),
+			color = Color3.fromRGB(55, 58, 62),
 			material = Enum.Material.Metal,
 			parent = restroom,
 		})
@@ -1879,36 +1960,151 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 	local office = store:FindFirstChild("AdminNook")
 	if office then
+		decorFloor("AdminOfficeWorkZone", Vector3.new(9, 0.08, 8), Vector3.new(eastCx + 2.5, walkTop + 0.08, 30.5), Color3.fromRGB(146, 142, 136), office)
+		decorFloor("AdminOfficeEntryMat", Vector3.new(4.5, 0.08, 5), Vector3.new(eastCx - 7, walkTop + 0.09, 30), Color3.fromRGB(112, 120, 128), office)
+		detailPart({
+			name = "AdminBackWall",
+			size = Vector3.new(16, 9.5, 0.55),
+			position = Vector3.new(eastCx, floorY + 5.25, 23),
+			color = Color3.fromRGB(205, 203, 198),
+			material = Enum.Material.SmoothPlastic,
+			parent = office,
+		})
+		detailPart({
+			name = "AdminFrontWall",
+			size = Vector3.new(16, 9.5, 0.55),
+			position = Vector3.new(eastCx, floorY + 5.25, 37),
+			color = Color3.fromRGB(205, 203, 198),
+			material = Enum.Material.SmoothPlastic,
+			parent = office,
+		})
+		for segment, z in { South = 24.8, North = 35.2 } do
+			detailPart({
+				name = `AdminWestWall{segment}`,
+				size = Vector3.new(0.55, 9.5, 4.4),
+				position = Vector3.new(eastCx - 8, floorY + 5.25, z),
+				color = Color3.fromRGB(205, 203, 198),
+				material = Enum.Material.SmoothPlastic,
+				parent = office,
+			})
+		end
+		detailPart({
+			name = "AdminDoorHeader",
+			size = Vector3.new(0.55, 0.7, 6.1),
+			position = Vector3.new(eastCx - 8, floorY + 8.1, 30),
+			color = Color3.fromRGB(92, 98, 104),
+			material = Enum.Material.Metal,
+			parent = office,
+		})
+		for frameZ in { 27.1, 32.9 } do
+			detailPart({
+				name = `AdminDoorFrame{frameZ}`,
+				size = Vector3.new(0.75, 7, 0.35),
+				position = Vector3.new(eastCx - 8, floorY + 4.55, frameZ),
+				color = Color3.fromRGB(92, 98, 104),
+				material = Enum.Material.Metal,
+				parent = office,
+			})
+		end
+		addSign(office, "AdminOfficeSign", eastCx - 4.5, floorY + 8.4, 36.7, 8, "MANAGER", Color3.fromRGB(62, 76, 84))
+
+		local managerDesk = storePart({
+			name = "ManagerDesk",
+			size = Vector3.new(7, 1.2, 3),
+			position = Vector3.new(eastCx + 2.5, floorY + 1.55, 31),
+			color = Color3.fromRGB(94, 70, 50),
+			material = Enum.Material.Wood,
+			parent = office,
+		})
+		addPrompt(managerDesk, "InspectTasks", "Review", "Manager Desk", 0.15)
 		storePart({
-			name = "Desk",
-			size = Vector3.new(6, 1, 3),
-			position = Vector3.new(eastCx + 2, floorY + 1.5, 31),
-			color = Color3.fromRGB(92, 68, 48),
+			name = "DeskReturn",
+			size = Vector3.new(2.2, 1.2, 5),
+			position = Vector3.new(eastCx + 5.2, floorY + 1.55, 28.2),
+			color = Color3.fromRGB(94, 70, 50),
 			material = Enum.Material.Wood,
 			parent = office,
 		})
 		storePart({
-			name = "Chair",
-			size = Vector3.new(2, 2, 2),
-			position = Vector3.new(eastCx + 5, floorY + 1.5, 29),
-			color = Color3.fromRGB(55, 55, 60),
+			name = "ManagerChair",
+			size = Vector3.new(2, 2.2, 2),
+			position = Vector3.new(eastCx - 3.5, floorY + 1.6, 31),
+			color = Color3.fromRGB(52, 56, 62),
 			material = Enum.Material.Plastic,
 			parent = office,
 		})
-		storePart({
-			name = "Monitor",
-			size = Vector3.new(2.4, 1.6, 0.25),
-			position = Vector3.new(eastCx, floorY + 2.4, 31),
-			color = Color3.fromRGB(25, 28, 34),
+		for monitorIndex, x in { eastCx + 0.6, eastCx + 2.4, eastCx + 4.2 } do
+			detailPart({
+				name = `SecurityMonitor{monitorIndex}`,
+				size = Vector3.new(1.5, 1.1, 0.2),
+				position = Vector3.new(x, floorY + 3.05, 30),
+				color = Color3.fromRGB(22, 26, 32),
+				material = Enum.Material.SmoothPlastic,
+				parent = office,
+			})
+			detailPart({
+				name = `SecurityMonitorGlow{monitorIndex}`,
+				size = Vector3.new(1.2, 0.75, 0.08),
+				position = Vector3.new(x, floorY + 3.08, 29.87),
+				color = Color3.fromRGB(80, 180, 210),
+				material = Enum.Material.Neon,
+				canCollide = false,
+				parent = office,
+			})
+		end
+		detailPart({
+			name = "Keyboard",
+			size = Vector3.new(2.2, 0.15, 0.65),
+			position = Vector3.new(eastCx + 2.5, floorY + 2.25, 32.1),
+			color = Color3.fromRGB(34, 36, 40),
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = office,
+		})
+		detailPart({
+			name = "PaperworkStack",
+			size = Vector3.new(1.8, 0.18, 1.2),
+			position = Vector3.new(eastCx + 5.2, floorY + 2.3, 30.8),
+			color = Color3.fromRGB(236, 228, 194),
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = office,
+		})
+		for cabinetIndex, z in { 25, 26.9 } do
+			detailPart({
+				name = `FilingCabinet{cabinetIndex}`,
+				size = Vector3.new(2.3, 3.6, 1.5),
+				position = Vector3.new(eastCx + 6.2, floorY + 2.3, z),
+				color = Color3.fromRGB(110, 115, 120),
+				material = Enum.Material.Metal,
+				parent = office,
+			})
+		end
+		detailPart({
+			name = "OfficeSafe",
+			size = Vector3.new(2.6, 3.2, 2),
+			position = Vector3.new(eastCx + 5.8, floorY + 2.1, 34.5),
+			color = Color3.fromRGB(64, 68, 74),
+			material = Enum.Material.Metal,
+			parent = office,
+		})
+		local officeTaskBoard = detailPart({
+			name = "ManagerTaskBoard",
+			size = Vector3.new(6, 3.5, 0.35),
+			position = Vector3.new(eastCx - 2.5, floorY + 5.8, 23.35),
+			color = Color3.fromRGB(44, 80, 70),
 			material = Enum.Material.SmoothPlastic,
 			parent = office,
 		})
-		storePart({
-			name = "FilingCabinet",
-			size = Vector3.new(3, 4, 2),
-			position = Vector3.new(eastCx + 6, floorY + 2.5, 35),
-			color = Color3.fromRGB(110, 115, 120),
-			material = Enum.Material.Metal,
+		addPrompt(officeTaskBoard, "InspectTasks", "Review", "Office Tasks", 0.1)
+		detailPart({
+			name = "OfficeWindow",
+			size = Vector3.new(5.5, 3.5, 0.18),
+			position = Vector3.new(eastCx - 3, floorY + 5.1, 36.65),
+			color = Color3.fromRGB(170, 202, 218),
+			material = Enum.Material.Glass,
+			transparency = 0.35,
+			canCollide = false,
 			parent = office,
 		})
 	end
