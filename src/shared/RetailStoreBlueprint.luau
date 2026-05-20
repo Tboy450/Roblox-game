@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 38
+local BLUEPRINT_VERSION = 39
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1969,7 +1969,12 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 	local loading = store:FindFirstChild("LoadingDock")
 	if loading then
-		detailPart({
+		decorFloor("DockReceivingLane", Vector3.new(14, 0.08, 5), Vector3.new(28, walkTop + 0.08, backZ + 7), Color3.fromRGB(186, 142, 62), loading)
+		decorFloor("DockShippingLane", Vector3.new(14, 0.08, 5), Vector3.new(46, walkTop + 0.08, backZ + 7), Color3.fromRGB(86, 118, 150), loading)
+		decorFloor("DockForkliftPath", Vector3.new(26, 0.08, 5), Vector3.new(36, walkTop + 0.09, backZ - 1), Color3.fromRGB(82, 84, 88), loading)
+		addSign(loading, "ReceivingLaneSign", 28, floorY + 8, backZ + 6.7, 10, "RECEIVING", Color3.fromRGB(88, 78, 58))
+		addSign(loading, "ShippingLaneSign", 46, floorY + 8, backZ + 6.7, 10, "SHIPPING", Color3.fromRGB(50, 76, 104))
+		local rollDoor = detailPart({
 			name = "RollDoor",
 			size = Vector3.new(18, 10, 0.2),
 			position = Vector3.new(36, floorY + 5.5, -halfD + 1.7),
@@ -1977,6 +1982,56 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.CorrodedMetal,
 			parent = loading,
 		})
+		addPrompt(rollDoor, "OpenDock", "Open", "Roll Door", 0.2)
+		for panel = 1, 5 do
+			detailPart({
+				name = `RollDoorPanel{panel}`,
+				size = Vector3.new(17.2, 0.18, 0.08),
+				position = Vector3.new(36, floorY + 1.5 + panel * 1.65, -halfD + 1.55),
+				color = Color3.fromRGB(126, 130, 134),
+				material = Enum.Material.Metal,
+				canCollide = false,
+				parent = loading,
+			})
+		end
+		detailPart({
+			name = "DockSealTop",
+			size = Vector3.new(21, 1.2, 1),
+			position = Vector3.new(36, floorY + 11.1, -halfD + 1.2),
+			color = Color3.fromRGB(36, 38, 42),
+			material = Enum.Material.Rubber,
+			parent = loading,
+		})
+		for side, x in { Left = 25.2, Right = 46.8 } do
+			detailPart({
+				name = `DockSeal{side}`,
+				size = Vector3.new(1.1, 9.8, 1),
+				position = Vector3.new(x, floorY + 5.8, -halfD + 1.2),
+				color = Color3.fromRGB(36, 38, 42),
+				material = Enum.Material.Rubber,
+				parent = loading,
+			})
+		end
+		local dockPlate = storePart({
+			name = "DockLevelerPlate",
+			size = Vector3.new(14, 0.35, 6),
+			position = Vector3.new(36, floorY + 1.05, backZ - 8),
+			color = Color3.fromRGB(82, 86, 92),
+			material = Enum.Material.DiamondPlate,
+			parent = loading,
+		})
+		addPrompt(dockPlate, "OpenDock", "Set leveler", "Dock Plate", 0.2)
+		for stripe = -1, 1 do
+			detailPart({
+				name = `DockHazardStripe{stripe}`,
+				size = Vector3.new(13, 0.08, 0.28),
+				position = Vector3.new(36, walkTop + 0.16, backZ - 5.4 + stripe * 2.1),
+				color = if stripe == 0 then Color3.fromRGB(230, 190, 56) else Color3.fromRGB(48, 50, 54),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = loading,
+			})
+		end
 		for i = -1, 1 do
 			storePart({
 				name = `DockBox{i}`,
@@ -1987,6 +2042,32 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				parent = loading,
 			})
 		end
+		for palletIndex, pallet in {
+			{ name = "ReceivingPallet", x = 27, z = backZ + 7, color = Color3.fromRGB(150, 104, 72) },
+			{ name = "ShippingPallet", x = 45, z = backZ + 7, color = Color3.fromRGB(104, 122, 146) },
+		} do
+			local dockPallet = storePart({
+				name = pallet.name,
+				size = Vector3.new(5, 2, 5),
+				position = Vector3.new(pallet.x, floorY + 1.8, pallet.z),
+				color = pallet.color,
+				material = Enum.Material.Wood,
+				parent = loading,
+			})
+			if palletIndex == 1 then
+				addPrompt(dockPallet, "CollectStock", "Grab stock", "Receiving Pallet", 0.2)
+			end
+			for case = 1, 3 do
+				detailPart({
+					name = `{pallet.name}Case{case}`,
+					size = Vector3.new(3.7, 1.05, 1.35),
+					position = Vector3.new(pallet.x, floorY + 2.7 + case * 0.5, pallet.z - 1.8 + case * 0.9),
+					color = if case == 2 then Color3.fromRGB(188, 144, 82) else Color3.fromRGB(174, 132, 86),
+					material = Enum.Material.SmoothPlastic,
+					parent = loading,
+				})
+			end
+		end
 		local dockControl = storePart({
 			name = "DockControl",
 			size = Vector3.new(2, 3, 0.5),
@@ -1996,6 +2077,16 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			parent = loading,
 		})
 		addPrompt(dockControl, "OpenDock", "Operate", "Dock Controls", 0.2)
+		local scheduleBoard = storePart({
+			name = "DockScheduleBoard",
+			size = Vector3.new(7, 4, 0.45),
+			position = Vector3.new(23, floorY + 6.2, backZ - 6),
+			color = Color3.fromRGB(38, 64, 74),
+			material = Enum.Material.SmoothPlastic,
+			parent = loading,
+		})
+		addPrompt(scheduleBoard, "InspectTasks", "Review", "Dock Schedule", 0.15)
+		addSign(loading, "DockScheduleSign", 23, floorY + 9.2, backZ - 5.6, 7, "TRUCKS", Color3.fromRGB(50, 64, 78))
 		storePart({
 			name = "PalletJack",
 			size = Vector3.new(5, 1, 3),
@@ -2004,47 +2095,168 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Metal,
 			parent = loading,
 		})
+		local forkliftBase = storePart({
+			name = "ForkliftBase",
+			size = Vector3.new(5, 2.2, 6),
+			position = Vector3.new(36, floorY + 1.9, backZ + 2),
+			color = Color3.fromRGB(214, 158, 38),
+			material = Enum.Material.Metal,
+			parent = loading,
+		})
+		addPrompt(forkliftBase, "OpenDock", "Stage", "Forklift", 0.2)
+		storePart({
+			name = "ForkliftMast",
+			size = Vector3.new(0.7, 6, 3.4),
+			position = Vector3.new(33, floorY + 4.2, backZ - 1),
+			color = Color3.fromRGB(50, 54, 58),
+			material = Enum.Material.Metal,
+			parent = loading,
+		})
+		for fork, x in { 32, 34 } do
+			detailPart({
+				name = `ForkliftFork{fork}`,
+				size = Vector3.new(0.45, 0.25, 5),
+				position = Vector3.new(x, floorY + 1.15, backZ - 4.5),
+				color = Color3.fromRGB(56, 58, 62),
+				material = Enum.Material.Metal,
+				parent = loading,
+			})
+		end
+		for cone, x in { 20.8, 51.2 } do
+			storePart({
+				name = `DockSafetyCone{cone}`,
+				size = Vector3.new(1.3, 2, 1.3),
+				position = Vector3.new(x, floorY + 1.5, backZ + 1),
+				color = Color3.fromRGB(230, 100, 42),
+				material = Enum.Material.SmoothPlastic,
+				parent = loading,
+			})
+		end
 	end
 
 	local cooler = store:FindFirstChild("WalkInCooler")
 	if cooler then
+		decorFloor("CoolerColdLane", Vector3.new(8, 0.08, 17), Vector3.new(0, walkTop + 0.08, backZ - 2), Color3.fromRGB(104, 146, 170), cooler)
+		decorFloor("CoolerPullZone", Vector3.new(10, 0.08, 5), Vector3.new(0, walkTop + 0.09, backZ + 7), Color3.fromRGB(136, 174, 190), cooler)
+		addSign(cooler, "CoolerTempSign", 0, floorY + 10, backZ - 10.4, 11, "36 F  HOLD", Color3.fromRGB(42, 82, 104))
 		for i = -1, 1 do
 			storePart({
 				name = `CoolerShelf{i}`,
-				size = Vector3.new(6, 6, 2),
-				position = Vector3.new(i * 8, floorY + 3.5, backZ - 5),
+				size = Vector3.new(5, 6.5, 2),
+				position = Vector3.new(i * 8, floorY + 3.75, backZ - 7),
 				color = Color3.fromRGB(190, 200, 210),
 				material = Enum.Material.Metal,
 				parent = cooler,
 			})
-			storePart({
-				name = `CoolerProduct{i}`,
-				size = Vector3.new(5, 1.4, 1.5),
-				position = Vector3.new(i * 8, floorY + 6.6, backZ - 4),
-				color = Color3.fromRGB(185, 220, 240),
-				material = Enum.Material.Plastic,
-				parent = cooler,
-			})
+			for tier = 1, 4 do
+				detailPart({
+					name = `CoolerShelf{i}_Wire{tier}`,
+					size = Vector3.new(5.4, 0.18, 2.2),
+					position = Vector3.new(i * 8, floorY + 1.5 + tier * 1.45, backZ - 7),
+					color = Color3.fromRGB(150, 164, 174),
+					material = Enum.Material.Metal,
+					parent = cooler,
+				})
+			end
+			for productIndex, product in {
+				{ y = 2.5, z = backZ - 7.4, color = Color3.fromRGB(210, 235, 245) },
+				{ y = 3.95, z = backZ - 6.5, color = Color3.fromRGB(190, 220, 240) },
+				{ y = 5.4, z = backZ - 7.4, color = Color3.fromRGB(230, 238, 220) },
+				{ y = 6.85, z = backZ - 6.5, color = Color3.fromRGB(220, 205, 178) },
+			} do
+				detailPart({
+					name = `CoolerProduct{i}_{productIndex}`,
+					size = Vector3.new(3.8, 0.75, 1),
+					position = Vector3.new(i * 8, floorY + product.y, product.z),
+					color = product.color,
+					material = Enum.Material.Plastic,
+					parent = cooler,
+				})
+			end
 		end
 		local coolerCase = storePart({
-			name = "CoolerCase",
-			size = Vector3.new(10, 7, 2),
-			position = Vector3.new(0, floorY + 4, backZ + 6),
+			name = "CoolerPullCase",
+			size = Vector3.new(7, 6.5, 2),
+			position = Vector3.new(9.2, floorY + 3.75, backZ + 4.5),
 			color = Color3.fromRGB(150, 180, 196),
 			material = Enum.Material.Glass,
 			transparency = 0.35,
 			parent = cooler,
 		})
-		addPrompt(coolerCase, "CheckTemperature", "Check", "Cooler Case", 0.2)
+		addPrompt(coolerCase, "CheckTemperature", "Check", "Cooler Pull Case", 0.2)
+		for crate, x in { -10, -7, 7, 10 } do
+			local cratePart = storePart({
+				name = `CoolerCrate{crate}`,
+				size = Vector3.new(3, 2, 3),
+				position = Vector3.new(x, floorY + 1.5, backZ + 6.5),
+				color = if x < 0 then Color3.fromRGB(100, 156, 190) else Color3.fromRGB(120, 172, 136),
+				material = Enum.Material.Plastic,
+				parent = cooler,
+			})
+			if x == -10 then
+				addPrompt(cratePart, "CheckTemperature", "Inspect", "Cold Crate", 0.2)
+			end
+		end
+		local tempPanel = detailPart({
+			name = "CoolerThermostat",
+			size = Vector3.new(2.1, 2.8, 0.35),
+			position = Vector3.new(12.7, floorY + 5, backZ + 3.5),
+			color = Color3.fromRGB(35, 50, 62),
+			material = Enum.Material.SmoothPlastic,
+			parent = cooler,
+		})
+		addPrompt(tempPanel, "CheckTemperature", "Check", "Thermostat", 0.2)
+		detailPart({
+			name = "ThermostatScreen",
+			size = Vector3.new(1.4, 0.75, 0.12),
+			position = Vector3.new(12.5, floorY + 5.35, backZ + 3.5),
+			color = Color3.fromRGB(115, 210, 235),
+			material = Enum.Material.Neon,
+			canCollide = false,
+			parent = cooler,
+		})
+		for strip = -3, 3 do
+			detailPart({
+				name = `CoolerDoorStrip{strip}`,
+				size = Vector3.new(0.75, 6, 0.12),
+				position = Vector3.new(strip * 0.85, floorY + 4.3, backZ + 10.65),
+				color = Color3.fromRGB(170, 220, 238),
+				material = Enum.Material.Glass,
+				transparency = 0.45,
+				canCollide = false,
+				parent = cooler,
+			})
+		end
+		storePart({
+			name = "CoolerFloorDrain",
+			size = Vector3.new(2, 0.12, 2),
+			position = Vector3.new(10, walkTop + 0.15, backZ - 1),
+			color = Color3.fromRGB(62, 72, 78),
+			material = Enum.Material.Metal,
+			canCollide = false,
+			parent = cooler,
+		})
 		storePart({
 			name = "CoolerLight",
-			size = Vector3.new(18, 0.3, 1),
-			position = Vector3.new(0, floorY + 10.8, backZ + 8),
+			size = Vector3.new(20, 0.3, 1),
+			position = Vector3.new(0, floorY + 10.8, backZ + 2),
 			color = Color3.fromRGB(185, 220, 255),
 			material = Enum.Material.Neon,
 			canCollide = false,
 			parent = cooler,
 		})
+		for light = -1, 1 do
+			detailPart({
+				name = `CoolerMistLine{light}`,
+				size = Vector3.new(0.2, 0.2, 16),
+				position = Vector3.new(light * 6, floorY + 9.6, backZ - 1),
+				color = Color3.fromRGB(210, 238, 248),
+				material = Enum.Material.Neon,
+				transparency = 0.25,
+				canCollide = false,
+				parent = cooler,
+			})
+		end
 	end
 
 	-- ========== INTERIOR PROPS ==========
