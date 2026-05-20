@@ -107,6 +107,7 @@ local ACTION_COOLDOWNS = {
 	CheckLostFound = 1.5,
 	OpenPlayerRegister = 0.5,
 	OpenPetMenu = 0.5,
+	CarePet = 6,
 	ToggleStoreOpen = 1,
 }
 local SHIFT_REQUIRED_ACTIONS: { [string]: boolean } = {
@@ -134,6 +135,7 @@ local SHIFT_REQUIRED_ACTIONS: { [string]: boolean } = {
 	CheckLostFound = true,
 	Checkout = true,
 	OpenPlayerRegister = true,
+	CarePet = true,
 }
 local lastActionAt: { [Player]: { [string]: number } } = {}
 
@@ -974,6 +976,16 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		openRegisterPanel:FireClient(player, registerPayload(registerId, state))
 	elseif action == "OpenPetMenu" then
 		openPlayerMenu:FireClient(player, "pets")
+	elseif action == "CarePet" then
+		local currentDiscount = math.max(0, math.floor(player:GetAttribute("PetRollDiscountCents") or 0))
+		local bonus = if player:GetAttribute("EquippedPetName") then 150 else 100
+		local nextDiscount = math.min(300, currentDiscount + bonus)
+		player:SetAttribute("PetRollDiscountCents", nextDiscount)
+		awardCash(player, 75)
+		tasks.Value += 1
+		local petName = player:GetAttribute("EquippedPetName")
+		local petText = if typeof(petName) == "string" then ` for {petName}` else ""
+		message(player, `Prepared pet care{petText}. Next pet roll discount {RetailCurrency.formatCents(nextDiscount)}`)
 	elseif action == "ToggleStoreOpen" then
 		local store = target:FindFirstAncestor("RetailStore") or Workspace:FindFirstChild("RetailStore")
 		if not store then

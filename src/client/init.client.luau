@@ -781,6 +781,25 @@ local function rarityColor(rarity: string?): Color3
 	return Color3.fromRGB(205, 218, 232)
 end
 
+local function getPetRollDiscountCents(): number
+	local attributeDiscount = player:GetAttribute("PetRollDiscountCents")
+	if typeof(attributeDiscount) == "number" and attributeDiscount > 0 then
+		return math.max(0, math.floor(attributeDiscount))
+	end
+	if petInventory and petInventory.rollDiscountCents then
+		return math.max(0, math.floor(petInventory.rollDiscountCents))
+	end
+	return 0
+end
+
+local function getPetRollCostCents(): number
+	local discount = getPetRollDiscountCents()
+	if discount > 0 then
+		return math.max(100, RetailAssets.petLottery.rollCostCents - discount)
+	end
+	return if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
+end
+
 local function createPetSlot(pet)
 	local owned = math.max(0, math.floor(pet.count or 0))
 	local selected = selectedPetId == pet.id
@@ -848,12 +867,14 @@ local function createPetSlot(pet)
 end
 
 renderPlayerMenu = function()
-	local cost = if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
+	local cost = getPetRollCostCents()
+	local discount = getPetRollDiscountCents()
 	local rollsUntilRare = if petInventory and petInventory.rollsUntilRare then petInventory.rollsUntilRare else RetailAssets.petLottery.rarePityRolls
 	local perkText = if petInventory and petInventory.equippedPerk then petInventory.equippedPerk else "No pet equipped"
+	local discountText = if discount > 0 then ` | Care discount {RetailCurrency.formatCents(discount)}` else ""
 	playerMenuStats.Text =
 		`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Pets {readStat("Pets")}
-Roll {RetailCurrency.formatCents(cost)} | Rare safety in {rollsUntilRare} | {perkText}`
+Roll {RetailCurrency.formatCents(cost)}{discountText} | Rare safety in {rollsUntilRare} | {perkText}`
 
 	rollPetButtonLabel.Text = `Roll {RetailCurrency.formatCents(cost)}`
 	setResourceButtonEnabled(rollPetButton, readStat("Cash") >= cost, Color3.fromRGB(70, 116, 82))
@@ -1101,6 +1122,12 @@ player.ChildAdded:Connect(function(child)
 	end
 end)
 player:GetAttributeChangedSignal("RetailMessage"):Connect(updateHud)
+player:GetAttributeChangedSignal("PetRollDiscountCents"):Connect(function()
+	if playerMenu.Visible and renderPlayerMenu then
+		renderPlayerMenu()
+	end
+	updateHud()
+end)
 local existingStore = Workspace:FindFirstChild("RetailStore")
 if existingStore then
 	connectStoreStatus(existingStore)
@@ -1212,7 +1239,7 @@ closePlayerMenuButton.Activated:Connect(function()
 end)
 
 local function requestPetRoll()
-	local cost = if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
+	local cost = getPetRollCostCents()
 	showPlayerMenu("pets")
 	if readStat("Cash") < cost then
 		lotteryResult.Text = `Need {RetailCurrency.formatCents(cost)} to roll`

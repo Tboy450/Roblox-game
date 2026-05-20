@@ -104,6 +104,14 @@ local function setPetCountStat(player: Player)
 	getStat(player, "Pets").Value = total
 end
 
+local function getPetRollDiscountCents(player: Player): number
+	return math.clamp(math.floor(player:GetAttribute("PetRollDiscountCents") or 0), 0, 300)
+end
+
+local function getPetRollCostCents(player: Player): number
+	return math.max(100, RetailAssets.petLottery.rollCostCents - getPetRollDiscountCents(player))
+end
+
 local function buildInventoryPayload(player: Player)
 	local state = getState(player)
 	local pets = {}
@@ -122,7 +130,8 @@ local function buildInventoryPayload(player: Player)
 
 	local pityTarget = RetailAssets.petLottery.rarePityRolls
 	return {
-		rollCostCents = RetailAssets.petLottery.rollCostCents,
+		rollCostCents = getPetRollCostCents(player),
+		rollDiscountCents = getPetRollDiscountCents(player),
 		rarePityRolls = pityTarget,
 		rollsSinceRare = state.rollsSinceRare,
 		rollsUntilRare = math.max(0, pityTarget - state.rollsSinceRare),
@@ -278,7 +287,7 @@ end
 
 requestPetLottery.OnServerEvent:Connect(function(player)
 	local cash = getStat(player, "Cash")
-	local cost = RetailAssets.petLottery.rollCostCents
+	local cost = getPetRollCostCents(player)
 	if cash.Value < cost then
 		message(player, `Need {RetailCurrency.formatCents(cost)} to roll the pet lottery`)
 		sendInventory(player)
@@ -286,6 +295,7 @@ requestPetLottery.OnServerEvent:Connect(function(player)
 	end
 
 	cash.Value -= cost
+	player:SetAttribute("PetRollDiscountCents", 0)
 	awardPet(player)
 end)
 
@@ -323,6 +333,7 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	getState(player)
 	applyPetAttributes(player)
+	player:SetAttribute("PetRollDiscountCents", math.max(0, math.floor(player:GetAttribute("PetRollDiscountCents") or 0)))
 	getStat(player, "Pets").Value = 0
 
 	player.CharacterAdded:Connect(function()
@@ -343,6 +354,7 @@ end)
 for _, player in Players:GetPlayers() do
 	getState(player)
 	applyPetAttributes(player)
+	player:SetAttribute("PetRollDiscountCents", math.max(0, math.floor(player:GetAttribute("PetRollDiscountCents") or 0)))
 	sendInventory(player)
 	if player.Character then
 		attachPetToCharacter(player)
