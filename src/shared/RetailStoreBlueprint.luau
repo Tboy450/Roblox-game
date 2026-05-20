@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 40
+local BLUEPRINT_VERSION = 41
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1956,6 +1956,63 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Metal,
 			parent = restroom,
 		})
+		for tile, z in { North = -26.6, South = -5.4 } do
+			detailPart({
+				name = `RestroomWallTileBand{tile}`,
+				size = Vector3.new(14, 2.4, 0.18),
+				position = Vector3.new(eastCx + 1, floorY + 2.6, z),
+				color = Color3.fromRGB(184, 194, 200),
+				material = Enum.Material.SmoothPlastic,
+				parent = restroom,
+			})
+		end
+		for line, x in { eastCx - 5.6, eastCx - 3.4, eastCx - 1.2 } do
+			detailPart({
+				name = `RestroomSinkDivider{line}`,
+				size = Vector3.new(0.12, 0.35, 1.4),
+				position = Vector3.new(x, floorY + 2.35, -7.4),
+				color = Color3.fromRGB(128, 134, 140),
+				material = Enum.Material.Metal,
+				canCollide = false,
+				parent = restroom,
+			})
+		end
+		for holder, z in { -23.8, -18.9, -14 } do
+			detailPart({
+				name = `ToiletPaperHolder{holder}`,
+				size = Vector3.new(0.25, 0.55, 0.9),
+				position = Vector3.new(eastCx + 4.05, floorY + 2.3, z - 1.1),
+				color = Color3.fromRGB(232, 232, 226),
+				material = Enum.Material.SmoothPlastic,
+				parent = restroom,
+			})
+			detailPart({
+				name = `OccupiedIndicator{holder}`,
+				size = Vector3.new(0.16, 0.28, 0.5),
+				position = Vector3.new(eastCx + 2.05, floorY + 5.4, z - 1.15),
+				color = Color3.fromRGB(178, 68, 58),
+				material = Enum.Material.Neon,
+				canCollide = false,
+				parent = restroom,
+			})
+		end
+		detailPart({
+			name = "PaperTowelDispenser",
+			size = Vector3.new(2, 1.6, 0.45),
+			position = Vector3.new(eastCx - 5.2, floorY + 4.3, -6.25),
+			color = Color3.fromRGB(205, 208, 212),
+			material = Enum.Material.Metal,
+			parent = restroom,
+		})
+		detailPart({
+			name = "SoapDispenser",
+			size = Vector3.new(1.2, 1.1, 0.35),
+			position = Vector3.new(eastCx - 2.2, floorY + 3.45, -6.25),
+			color = Color3.fromRGB(84, 118, 132),
+			material = Enum.Material.SmoothPlastic,
+			parent = restroom,
+		})
+		addSign(restroom, "RestroomWashSign", eastCx - 3.5, floorY + 7.4, -5.8, 7, "WASH", Color3.fromRGB(70, 82, 92))
 	end
 
 	local office = store:FindFirstChild("AdminNook")
@@ -2111,18 +2168,68 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 	local breakRoom = store:FindFirstChild("BreakRoom")
 	if breakRoom then
-		storePart({
-			name = "Table",
-			size = Vector3.new(6, 1, 4),
-			position = Vector3.new(eastCx + 1, floorY + 1.5, 8),
-			color = Color3.fromRGB(105, 80, 55),
-			material = Enum.Material.Wood,
+		decorFloor("BreakRoomEntryMat", Vector3.new(5, 0.08, 6), Vector3.new(eastCx - 7, walkTop + 0.08, 8), Color3.fromRGB(112, 118, 124), breakRoom)
+		decorFloor("BreakRoomLoungeZone", Vector3.new(7.5, 0.08, 7), Vector3.new(eastCx + 3.2, walkTop + 0.09, 8.5), Color3.fromRGB(136, 128, 116), breakRoom)
+		decorFloor("BreakRoomKitchenZone", Vector3.new(12, 0.08, 4), Vector3.new(eastCx + 1, walkTop + 0.1, 14.5), Color3.fromRGB(156, 152, 146), breakRoom)
+
+		local timeClock = detailPart({
+			name = "TimeClock",
+			size = Vector3.new(1.8, 3, 0.45),
+			position = Vector3.new(eastCx - 7.6, floorY + 4, 4.2),
+			color = Color3.fromRGB(42, 48, 58),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		addPrompt(timeClock, "ClockIn", "Clock in", "Time Clock", 0.15)
+		local taskBoard = detailPart({
+			name = "TaskBoard",
+			size = Vector3.new(6, 3.6, 0.35),
+			position = Vector3.new(eastCx - 2.2, floorY + 5.2, -0.65),
+			color = Color3.fromRGB(38, 88, 68),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		addPrompt(taskBoard, "InspectTasks", "Review", "Task Board", 0.1)
+		addSign(breakRoom, "BreakRoomRulesSign", eastCx + 4.2, floorY + 7.2, -0.7, 7, "STAFF", Color3.fromRGB(74, 80, 86))
+
+		local kitchenette = detailPart({
+			name = "KitchenetteCounter",
+			size = Vector3.new(9.5, 2.2, 1.6),
+			position = Vector3.new(eastCx + 1.8, floorY + 1.6, 15.6),
+			color = Color3.fromRGB(185, 182, 178),
+			material = Enum.Material.Marble,
+			parent = breakRoom,
+		})
+		addPrompt(kitchenette, "CleanSpill", "Clean", "Break Counter", 0.2)
+		detailPart({
+			name = "Microwave",
+			size = Vector3.new(2.2, 1.25, 1.15),
+			position = Vector3.new(eastCx - 1.6, floorY + 3.25, 15.35),
+			color = Color3.fromRGB(38, 42, 48),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		detailPart({
+			name = "CoffeeMaker",
+			size = Vector3.new(1.4, 1.7, 1.1),
+			position = Vector3.new(eastCx + 1.2, floorY + 3.45, 15.35),
+			color = Color3.fromRGB(48, 42, 36),
+			material = Enum.Material.SmoothPlastic,
+			parent = breakRoom,
+		})
+		detailPart({
+			name = "BreakSink",
+			size = Vector3.new(1.8, 0.35, 1.1),
+			position = Vector3.new(eastCx + 4.2, floorY + 2.9, 15.35),
+			color = Color3.fromRGB(214, 216, 220),
+			material = Enum.Material.Metal,
+			canCollide = false,
 			parent = breakRoom,
 		})
 		storePart({
 			name = "Fridge",
 			size = Vector3.new(3, 6, 3),
-			position = Vector3.new(eastCx + 5, floorY + 3.5, 4),
+			position = Vector3.new(eastCx + 6, floorY + 3.5, 3),
 			color = Color3.fromRGB(225, 228, 232),
 			material = Enum.Material.Metal,
 			parent = breakRoom,
@@ -2130,37 +2237,63 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "VendingMachine",
 			size = Vector3.new(3, 6, 2),
-			position = Vector3.new(eastCx - 5, floorY + 3.5, 12),
+			position = Vector3.new(eastCx + 6, floorY + 3.5, 7),
 			color = Color3.fromRGB(40, 85, 150),
 			material = Enum.Material.SmoothPlastic,
 			parent = breakRoom,
 		})
-		local timeClock = storePart({
-			name = "TimeClock",
-			size = Vector3.new(2, 3, 0.5),
-			position = Vector3.new(eastCx - 6, floorY + 4, 4),
-			color = Color3.fromRGB(42, 48, 58),
-			material = Enum.Material.SmoothPlastic,
+		detailPart({
+			name = "VendingGlass",
+			size = Vector3.new(2.2, 4.2, 0.18),
+			position = Vector3.new(eastCx + 4.85, floorY + 4.1, 7),
+			color = Color3.fromRGB(120, 186, 210),
+			material = Enum.Material.Glass,
+			transparency = 0.35,
+			canCollide = false,
 			parent = breakRoom,
 		})
-		addPrompt(timeClock, "ClockIn", "Clock in", "Time Clock", 0.15)
-		local taskBoard = storePart({
-			name = "TaskBoard",
-			size = Vector3.new(7, 4, 0.5),
-			position = Vector3.new(eastCx + 1, floorY + 5, 0),
-			color = Color3.fromRGB(38, 88, 68),
-			material = Enum.Material.SmoothPlastic,
+
+		local breakTable = detailPart({
+			name = "CafeTable",
+			size = Vector3.new(4, 1, 3),
+			position = Vector3.new(eastCx + 1.8, floorY + 1.5, 8.8),
+			color = Color3.fromRGB(105, 80, 55),
+			material = Enum.Material.Wood,
 			parent = breakRoom,
 		})
-		addPrompt(taskBoard, "InspectTasks", "Review", "Task Board", 0.1)
-		storePart({
-			name = "Countertop",
-			size = Vector3.new(6, 2.4, 2),
-			position = Vector3.new(eastCx + 3, floorY + 1.7, 14),
-			color = Color3.fromRGB(185, 182, 178),
-			material = Enum.Material.Marble,
+		addPrompt(breakTable, "InspectTasks", "Review", "Staff Notes", 0.1)
+		for chairName, chair in {
+			North = Vector3.new(eastCx + 1.8, floorY + 1.45, 5.9),
+			South = Vector3.new(eastCx + 1.8, floorY + 1.45, 11.7),
+			East = Vector3.new(eastCx + 4.5, floorY + 1.45, 8.8),
+		} do
+			detailPart({
+				name = `BreakChair{chairName}`,
+				size = Vector3.new(1.5, 1.8, 1.5),
+				position = chair,
+				color = Color3.fromRGB(78, 76, 72),
+				material = Enum.Material.SmoothPlastic,
+				parent = breakRoom,
+			})
+		end
+		detailPart({
+			name = "BreakBench",
+			size = Vector3.new(5, 1.6, 1.4),
+			position = Vector3.new(eastCx - 4.5, floorY + 1.3, 14.2),
+			color = Color3.fromRGB(92, 78, 68),
+			material = Enum.Material.Wood,
 			parent = breakRoom,
 		})
+		for lockerIndex, z in { 0.8, 2.6, 4.4 } do
+			detailPart({
+				name = `StaffLocker{lockerIndex}`,
+				size = Vector3.new(1.3, 4.8, 1.2),
+				position = Vector3.new(eastCx - 7.4, floorY + 3.1, z),
+				color = Color3.fromRGB(94, 104, 114),
+				material = Enum.Material.Metal,
+				parent = breakRoom,
+			})
+		end
 	end
 
 	local loading = store:FindFirstChild("LoadingDock")
