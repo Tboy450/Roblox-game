@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 36
+local BLUEPRINT_VERSION = 37
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1029,6 +1029,120 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		parent = frontEnd,
 	})
 	addPrompt(serviceDesk, "ServiceCustomer", "Help", "Customer Service", 0.2)
+	serviceDesk:SetAttribute("ServiceDesk", true)
+	local serviceStatusSign = addSign(frontEnd, "ServiceStatusSign", -46, floorY + 8.8, halfD - 15, 11, "QUEUE 0 | RETURNS 3", Color3.fromRGB(54, 92, 118))
+	serviceStatusSign:SetAttribute("ServiceStatusDisplay", true)
+	local serviceBell = detailPart({
+		name = "ServiceBell",
+		size = Vector3.new(0.9, 0.35, 0.9),
+		position = Vector3.new(-46, floorY + 3.7, halfD - 16.3),
+		color = Color3.fromRGB(230, 196, 92),
+		material = Enum.Material.Metal,
+		canCollide = false,
+		parent = frontEnd,
+	})
+	addPrompt(serviceBell, "QueueServiceCustomer", "Ring", "Service Bell", 0.1)
+	local complaintClipboard = detailPart({
+		name = "ComplaintClipboard",
+		size = Vector3.new(1.4, 0.12, 1.8),
+		position = Vector3.new(-49.2, floorY + 3.62, halfD - 16.2),
+		color = Color3.fromRGB(238, 228, 194),
+		material = Enum.Material.SmoothPlastic,
+		canCollide = false,
+		parent = frontEnd,
+	})
+	addPrompt(complaintClipboard, "ResolveComplaint", "Resolve", "Service Issue", 0.25)
+	local serviceBagRack = storePart({
+		name = "ServiceBagRack",
+		size = Vector3.new(2.2, 2.5, 0.65),
+		position = Vector3.new(-42.5, floorY + 2.9, halfD - 16.4),
+		color = Color3.fromRGB(210, 212, 206),
+		material = Enum.Material.Metal,
+		parent = frontEnd,
+	})
+	serviceBagRack:SetAttribute("ServiceBagRack", true)
+	addPrompt(serviceBagRack, "RestockServiceBags", "Restock", "Service Bags", 0.2)
+	local returnBin = storePart({
+		name = "ReturnBin",
+		size = Vector3.new(3.4, 1.7, 2.4),
+		position = Vector3.new(-52.5, floorY + 1.35, halfD - 19.5),
+		color = Color3.fromRGB(116, 88, 64),
+		material = Enum.Material.Wood,
+		parent = frontEnd,
+	})
+	returnBin:SetAttribute("ServiceReturnBin", true)
+	addPrompt(returnBin, "ProcessReturn", "Process", "Returns", 0.25)
+	for i = 1, 3 do
+		detailPart({
+			name = `ReturnPackage{i}`,
+			size = Vector3.new(0.9, 0.55, 0.8),
+			position = Vector3.new(-53.2 + i * 0.7, floorY + 2.45, halfD - 19.4),
+			color = Color3.fromRGB(190, 148, 98),
+			material = Enum.Material.Cardboard,
+			canCollide = false,
+			parent = frontEnd,
+		})
+	end
+	local pickupLockers = storePart({
+		name = "PickupLockers",
+		size = Vector3.new(4.6, 5.2, 1.2),
+		position = Vector3.new(-39.5, floorY + 3.1, halfD - 19.8),
+		color = Color3.fromRGB(58, 72, 92),
+		material = Enum.Material.Metal,
+		parent = frontEnd,
+	})
+	pickupLockers:SetAttribute("ServicePickupLockers", true)
+	addPrompt(pickupLockers, "ServicePickup", "Hand off", "Pickup Locker", 0.25)
+	for row = 1, 3 do
+		for col = 1, 2 do
+			detailPart({
+				name = `LockerDoor{row}_{col}`,
+				size = Vector3.new(1.7, 1.1, 0.08),
+				position = Vector3.new(-40.65 + col * 1.45, floorY + 1.45 + row * 1.1, halfD - 19.15),
+				color = Color3.fromRGB(82, 102, 126),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = frontEnd,
+			})
+		end
+	end
+	local lostFoundShelf = storePart({
+		name = "LostAndFoundShelf",
+		size = Vector3.new(4.8, 4.6, 1.2),
+		position = Vector3.new(-54.8, floorY + 3.0, halfD - 14.8),
+		color = Color3.fromRGB(94, 78, 62),
+		material = Enum.Material.Wood,
+		parent = frontEnd,
+	})
+	lostFoundShelf:SetAttribute("ServiceLostFoundShelf", true)
+	addPrompt(lostFoundShelf, "CheckLostFound", "Check", "Lost and Found", 0.15)
+	for i, z in { halfD - 22.5, halfD - 18.5, halfD - 14.5 } do
+		local postA = detailPart({
+			name = `ServiceQueuePostA{i}`,
+			size = Vector3.new(0.3, 2.3, 0.3),
+			position = Vector3.new(-58, floorY + 1.65, z),
+			color = Color3.fromRGB(65, 68, 74),
+			material = Enum.Material.Metal,
+			parent = frontEnd,
+		})
+		local postB = detailPart({
+			name = `ServiceQueuePostB{i}`,
+			size = Vector3.new(0.3, 2.3, 0.3),
+			position = Vector3.new(-55, floorY + 1.65, z),
+			color = Color3.fromRGB(65, 68, 74),
+			material = Enum.Material.Metal,
+			parent = frontEnd,
+		})
+		detailPart({
+			name = `ServiceQueueRail{i}`,
+			size = Vector3.new((postB.Position - postA.Position).Magnitude, 0.16, 0.16),
+			position = (postA.Position + postB.Position) / 2 + Vector3.new(0, 0.8, 0),
+			color = Color3.fromRGB(92, 112, 132),
+			material = Enum.Material.Metal,
+			canCollide = false,
+			parent = frontEnd,
+		})
+	end
 
 	local petKiosk = Instance.new("Model")
 	petKiosk.Name = "PetLotteryKiosk"

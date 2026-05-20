@@ -99,6 +99,12 @@ local ACTION_COOLDOWNS = {
 	ServiceCustomer = 3,
 	ServeCustomer = 2,
 	QueueCustomer = 2,
+	QueueServiceCustomer = 1.5,
+	ProcessReturn = 2,
+	ResolveComplaint = 3,
+	ServicePickup = 2,
+	RestockServiceBags = 1,
+	CheckLostFound = 1.5,
 	OpenPlayerRegister = 0.5,
 	OpenPetMenu = 0.5,
 	ToggleStoreOpen = 1,
@@ -120,6 +126,12 @@ local SHIFT_REQUIRED_ACTIONS: { [string]: boolean } = {
 	ServiceCustomer = true,
 	ServeCustomer = true,
 	QueueCustomer = true,
+	QueueServiceCustomer = true,
+	ProcessReturn = true,
+	ResolveComplaint = true,
+	ServicePickup = true,
+	RestockServiceBags = true,
+	CheckLostFound = true,
 	Checkout = true,
 	OpenPlayerRegister = true,
 }
@@ -225,6 +237,63 @@ local function updateStoreOpenVisuals(store: Instance)
 			updateSignText(desc, if storeOpen then "OPEN" else "CLOSED")
 		end
 	end
+end
+
+local SERVICE_ATTRIBUTE_DEFAULTS = {
+	ServiceQueue = 0,
+	ServiceReturns = 3,
+	ServicePickupOrders = 2,
+	ServiceBags = 6,
+	ServiceSatisfaction = 75,
+	ServiceTicketsHandled = 0,
+}
+
+local function getRetailStoreFromTarget(target: BasePart): Instance?
+	return target:FindFirstAncestor("RetailStore") or Workspace:FindFirstChild("RetailStore")
+end
+
+local function readServiceAttribute(store: Instance, attributeName: string): number
+	local defaultValue = SERVICE_ATTRIBUTE_DEFAULTS[attributeName] or 0
+	local value = store:GetAttribute(attributeName)
+	if typeof(value) ~= "number" then
+		value = defaultValue
+		store:SetAttribute(attributeName, value)
+	end
+	return value
+end
+
+local function setServiceAttribute(store: Instance, attributeName: string, value: number)
+	store:SetAttribute(attributeName, math.max(0, math.floor(value)))
+end
+
+local function updateServiceAreaVisuals(store: Instance)
+	local queue = readServiceAttribute(store, "ServiceQueue")
+	local returns = readServiceAttribute(store, "ServiceReturns")
+	local pickups = readServiceAttribute(store, "ServicePickupOrders")
+	local bags = readServiceAttribute(store, "ServiceBags")
+	local satisfaction = readServiceAttribute(store, "ServiceSatisfaction")
+
+	for _, desc in store:GetDescendants() do
+		if desc:IsA("BasePart") and desc:GetAttribute("ServiceStatusDisplay") == true then
+			local color = if queue > 3 or returns > 3 then Color3.fromRGB(136, 94, 58) else Color3.fromRGB(54, 92, 118)
+			desc.Color = color
+			updateSignText(desc, `QUEUE {queue} | RETURNS {returns} | PICKUP {pickups}`)
+		elseif desc:IsA("BasePart") and desc:GetAttribute("ServiceDesk") == true then
+			desc.Color = if queue > 0 then Color3.fromRGB(98, 98, 104) else Color3.fromRGB(88, 88, 92)
+			updatePromptText(desc, if queue > 0 then `Queue {queue}` else "Customer Service")
+		elseif desc:IsA("BasePart") and desc:GetAttribute("ServiceReturnBin") == true then
+			desc.Color = if returns > 0 then Color3.fromRGB(128, 92, 62) else Color3.fromRGB(84, 76, 68)
+			updatePromptText(desc, if returns > 0 then `Returns {returns}` else "Returns Empty")
+		elseif desc:IsA("BasePart") and desc:GetAttribute("ServicePickupLockers") == true then
+			desc.Color = if pickups > 0 then Color3.fromRGB(58, 72, 92) else Color3.fromRGB(54, 58, 66)
+			updatePromptText(desc, if pickups > 0 then `Pickup Orders {pickups}` else "Pickup Empty")
+		elseif desc:IsA("BasePart") and desc:GetAttribute("ServiceBagRack") == true then
+			desc.Color = if bags <= 2 then Color3.fromRGB(132, 72, 62) else Color3.fromRGB(210, 212, 206)
+			updatePromptText(desc, `Bags {bags}/12`)
+		end
+	end
+
+	store:SetAttribute("ServiceSatisfaction", math.clamp(satisfaction, 0, 100))
 end
 
 local function awardCash(player: Player, cents: number)
@@ -645,7 +714,9 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		local store = Workspace:FindFirstChild("RetailStore")
 		local lowStock = if store then store:GetAttribute("LowStockShelves") or 0 else 0
 		local status = if store and store:GetAttribute("StoreOpen") == false then "closed" else "open"
-		message(player, `Store {status}. Tasks: restock {lowStock} low shelves, run register, clean spills, help customers`)
+		local serviceQueue = if store then readServiceAttribute(store, "ServiceQueue") else 0
+		local serviceReturns = if store then readServiceAttribute(store, "ServiceReturns") else 0
+		message(player, `Store {status}. Tasks: restock {lowStock} low shelves, service queue {serviceQueue}, returns {serviceReturns}, run register`)
 	elseif action == "InspectSign" then
 		message(player, "Parking, pickup, and store entrance are open")
 	elseif action == "InspectDisplay" then
@@ -729,14 +800,149 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 			getShelfCapacity(unit)
 		)
 	elseif action == "ServiceCustomer" then
-		awardCash(player, 200)
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+
+		local queue = readServiceAttribute(store, "ServiceQueue")
+		local bags = readServiceAttribute(store, "ServiceBags")
+		local satisfaction = readServiceAttribute(store, "ServiceSatisfaction")
+		if queue > 0 then
+			setServiceAttribute(store, "ServiceQueue", queue - 1)
+			if bags > 0 then
+				setServiceAttribute(store, "ServiceBags", bags - 1)
+			end
+			setServiceAttribute(store, "ServiceSatisfaction", math.clamp(satisfaction + 3, 0, 100))
+			setServiceAttribute(store, "ServiceTicketsHandled", readServiceAttribute(store, "ServiceTicketsHandled") + 1)
+			awardCash(player, 350)
+			customers.Value += 1
+			message(player, `Helped service ticket. Queue now {math.max(0, queue - 1)}`)
+		else
+			setServiceAttribute(store, "ServiceSatisfaction", math.clamp(satisfaction + 1, 0, 100))
+			awardCash(player, 125)
+			message(player, "Handled a quick service question")
+		end
 		tasks.Value += 1
-		message(player, "Helped a customer at service")
+		updateServiceAreaVisuals(store)
 	elseif action == "ServeCustomer" or action == "QueueCustomer" then
 		awardCash(player, 400)
 		tasks.Value += 1
 		customers.Value += 1
 		message(player, "Helped a waiting customer")
+	elseif action == "QueueServiceCustomer" then
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+		if store:GetAttribute("StoreOpen") == false then
+			message(player, "Open the store before calling service customers")
+			return
+		end
+
+		local queue = readServiceAttribute(store, "ServiceQueue")
+		if queue >= 8 then
+			message(player, "Service queue is full")
+			return
+		end
+
+		setServiceAttribute(store, "ServiceQueue", queue + 1)
+		if math.random(1, 3) == 1 then
+			setServiceAttribute(store, "ServiceReturns", readServiceAttribute(store, "ServiceReturns") + 1)
+		end
+		updateServiceAreaVisuals(store)
+		message(player, `Called next service ticket. Queue now {queue + 1}`)
+	elseif action == "ProcessReturn" then
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+
+		local returns = readServiceAttribute(store, "ServiceReturns")
+		if returns <= 0 then
+			message(player, "No returns waiting at the service desk")
+			return
+		end
+
+		setServiceAttribute(store, "ServiceReturns", returns - 1)
+		setServiceAttribute(store, "ServiceSatisfaction", math.clamp(readServiceAttribute(store, "ServiceSatisfaction") + 2, 0, 100))
+		awardCash(player, 250)
+		tasks.Value += 1
+		updateServiceAreaVisuals(store)
+		message(player, `Processed a return. Returns left {math.max(0, returns - 1)}`)
+	elseif action == "ResolveComplaint" then
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+
+		local queue = readServiceAttribute(store, "ServiceQueue")
+		if queue > 0 then
+			setServiceAttribute(store, "ServiceQueue", queue - 1)
+			customers.Value += 1
+		end
+		setServiceAttribute(store, "ServiceSatisfaction", math.clamp(readServiceAttribute(store, "ServiceSatisfaction") + 5, 0, 100))
+		awardCash(player, 300)
+		tasks.Value += 1
+		updateServiceAreaVisuals(store)
+		message(player, if queue > 0 then "Resolved a customer service issue" else "Filed the complaint log")
+	elseif action == "ServicePickup" then
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+
+		local pickups = readServiceAttribute(store, "ServicePickupOrders")
+		if pickups <= 0 then
+			message(player, "No pickup orders staged at service")
+			return
+		end
+
+		setServiceAttribute(store, "ServicePickupOrders", pickups - 1)
+		awardCash(player, 275)
+		tasks.Value += 1
+		customers.Value += 1
+		updateServiceAreaVisuals(store)
+		message(player, `Handed off a pickup order. Orders left {math.max(0, pickups - 1)}`)
+	elseif action == "RestockServiceBags" then
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+
+		local bags = readServiceAttribute(store, "ServiceBags")
+		if bags >= 12 then
+			message(player, "Service bags are already full")
+			return
+		end
+		if stock.Value <= 0 then
+			message(player, "Need stock before refilling service bags")
+			return
+		end
+
+		local moved = math.min(4, stock.Value, 12 - bags)
+		stock.Value -= moved
+		setServiceAttribute(store, "ServiceBags", bags + moved)
+		awardCash(player, moved * 35)
+		tasks.Value += 1
+		updateServiceAreaVisuals(store)
+		message(player, `Restocked service bags +{moved} ({bags + moved}/12)`)
+	elseif action == "CheckLostFound" then
+		local store = getRetailStoreFromTarget(target)
+		if not store then
+			return
+		end
+
+		local foundPickup = math.random(1, 2) == 1
+		if foundPickup then
+			setServiceAttribute(store, "ServicePickupOrders", readServiceAttribute(store, "ServicePickupOrders") + 1)
+		else
+			setServiceAttribute(store, "ServiceReturns", readServiceAttribute(store, "ServiceReturns") + 1)
+		end
+		awardCash(player, 100)
+		tasks.Value += 1
+		updateServiceAreaVisuals(store)
+		message(player, if foundPickup then "Found a pickup order tag in lost and found" else "Found a return item in lost and found")
 	elseif action == "Checkout" then
 		if basket.Value <= 0 then
 			message(player, "Basket is empty")
@@ -1037,10 +1243,27 @@ local function connectStore(store: Instance)
 	if store:GetAttribute("StoreOpen") == nil then
 		store:SetAttribute("StoreOpen", true)
 	end
+	for attributeName, defaultValue in SERVICE_ATTRIBUTE_DEFAULTS do
+		if typeof(store:GetAttribute(attributeName)) ~= "number" then
+			store:SetAttribute(attributeName, defaultValue)
+		end
+	end
 	updateStoreOpenVisuals(store)
+	updateServiceAreaVisuals(store)
 	store:GetAttributeChangedSignal("StoreOpen"):Connect(function()
 		updateStoreOpenVisuals(store)
 	end)
+	for attributeName in {
+		"ServiceQueue",
+		"ServiceReturns",
+		"ServicePickupOrders",
+		"ServiceBags",
+		"ServiceSatisfaction",
+	} do
+		store:GetAttributeChangedSignal(attributeName):Connect(function()
+			updateServiceAreaVisuals(store)
+		end)
+	end
 
 	for _, desc in store:GetDescendants() do
 		if desc:IsA("Model") and desc:GetAttribute("ShelfId") ~= nil then
