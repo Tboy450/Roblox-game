@@ -9,7 +9,7 @@ local Workspace = game:GetService("Workspace")
 local STORE_NAME = "RetailStore"
 local BLUEPRINT_NAME = "RetailStoreBlueprint"
 local CATALOG_NAME = "RetailCatalog"
-local BLUEPRINT_VERSION = 37
+local BLUEPRINT_VERSION = 38
 
 local autoUpdateEnabled = false
 local autoUpdateQueued = false
@@ -185,7 +185,7 @@ local toolbar = plugin:CreateToolbar("Retail Game")
 
 local updateButton = toolbar:CreateButton(
 	"Update Map",
-	"Rebuild RetailStore v37 in Workspace using the latest Rojo-synced blueprint.",
+	"Rebuild RetailStore v38 in Workspace using the latest Rojo-synced blueprint.",
 	"rbxassetid://6031075938"
 )
 

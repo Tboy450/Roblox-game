@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 32
+local BLUEPRINT_VERSION = 38
 ```
 
 When making major map changes, bump this number and also update:

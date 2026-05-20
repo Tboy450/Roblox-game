@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 37
+local BLUEPRINT_VERSION = 38
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -1411,10 +1411,17 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	-- Stock / cooler / loading props (inside room centers)
 	local stock = store:FindFirstChild("StockRoom")
 	if stock then
+		decorFloor("StockReceivingZone", Vector3.new(14, 0.08, 5), Vector3.new(-46, walkTop + 0.08, backZ + 7), Color3.fromRGB(196, 156, 74), stock)
+		decorFloor("StockPickLane", Vector3.new(8, 0.08, 18), Vector3.new(-36, walkTop + 0.09, backZ - 3), Color3.fromRGB(190, 190, 196), stock)
+		decorFloor("StockBackstockZone", Vector3.new(14, 0.08, 5), Vector3.new(-25, walkTop + 0.08, backZ + 7), Color3.fromRGB(104, 142, 112), stock)
+		addSign(stock, "ReceivingSign", -47, floorY + 8, backZ + 6.5, 10, "RECEIVING", Color3.fromRGB(88, 82, 65))
+		addSign(stock, "PickListSign", -30, floorY + 10, backZ - 10.2, 9, "PICK LIST", Color3.fromRGB(70, 76, 86))
+		addSign(stock, "BackstockSign", -25, floorY + 8, backZ + 6.5, 10, "BACKSTOCK", Color3.fromRGB(62, 92, 72))
+
 		for _, rack in {
-			{ name = "RackWest", x = -50 },
-			{ name = "RackNorth", x = -36 },
-			{ name = "RackEast", x = -22 },
+			{ name = "RackWest", x = -50, zone = "Case" },
+			{ name = "RackNorth", x = -36, zone = "Bulk" },
+			{ name = "RackEast", x = -22, zone = "Promo" },
 		} do
 			storePart({
 				name = rack.name,
@@ -1434,39 +1441,131 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 					parent = stock,
 				})
 			end
+			for itemIndex, item in {
+				{ y = 2.1, z = backZ - 8.6, color = Color3.fromRGB(174, 120, 72) },
+				{ y = 2.1, z = backZ - 4.2, color = Color3.fromRGB(150, 130, 95) },
+				{ y = 4.4, z = backZ - 6.2, color = Color3.fromRGB(86, 126, 156) },
+				{ y = 6.8, z = backZ - 1.5, color = Color3.fromRGB(145, 154, 104) },
+				{ y = 6.8, z = backZ + 2.8, color = Color3.fromRGB(132, 108, 88) },
+			} do
+				detailPart({
+					name = `{rack.zone}Box{itemIndex}`,
+					size = Vector3.new(2.4, 1.1, 1.6),
+					position = Vector3.new(rack.x, floorY + item.y, item.z),
+					color = item.color,
+					material = Enum.Material.SmoothPlastic,
+					parent = stock,
+				})
+			end
 		end
-		for i, x in { -46, -36, -26 } do
+		for i, x in { -48, -24 } do
 			local pallet = storePart({
 				name = `StockPallet{i}`,
-				size = Vector3.new(5, 3, 5),
+				size = Vector3.new(5, 2.4, 5),
 				position = Vector3.new(x, floorY + 2, backZ + 7),
 				color = Color3.fromRGB(125, 95, 68),
 				material = Enum.Material.Wood,
 				parent = stock,
 			})
 			addPrompt(pallet, "CollectStock", "Grab stock", "Stock Pallet", 0.2)
+			for stack = 1, 3 do
+				detailPart({
+					name = `StockPallet{i}_Case{stack}`,
+					size = Vector3.new(3.8, 1.1, 1.3),
+					position = Vector3.new(x, floorY + 3.25 + stack * 0.55, backZ + 5.2 + stack * 0.85),
+					color = if stack == 2 then Color3.fromRGB(168, 128, 76) else Color3.fromRGB(188, 146, 94),
+					material = Enum.Material.SmoothPlastic,
+					parent = stock,
+				})
+			end
 		end
-		storePart({
+		local workTable = storePart({
 			name = "StockWorkTable",
 			size = Vector3.new(8, 2.4, 3),
-			position = Vector3.new(-36, floorY + 1.7, backZ + 1),
+			position = Vector3.new(-30, floorY + 1.7, backZ - 9),
 			color = Color3.fromRGB(110, 112, 116),
 			material = Enum.Material.Metal,
+			parent = stock,
+		})
+		addPrompt(workTable, "InspectTasks", "Review", "Pick List", 0.15)
+		storePart({
+			name = "InventoryBoard",
+			size = Vector3.new(8, 4, 0.35),
+			position = Vector3.new(-30, floorY + 6.2, backZ - 10.4),
+			color = Color3.fromRGB(42, 58, 52),
+			material = Enum.Material.SmoothPlastic,
+			parent = stock,
+		})
+		detailPart({
+			name = "ClipboardStack",
+			size = Vector3.new(2.2, 0.18, 1.4),
+			position = Vector3.new(-32, floorY + 3.05, backZ - 8.8),
+			color = Color3.fromRGB(236, 228, 192),
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			parent = stock,
+		})
+		for rail, x in { -52.8, -19.2 } do
+			storePart({
+				name = `StockWallBumper{rail}`,
+				size = Vector3.new(1.4, 1.2, 17),
+				position = Vector3.new(x, floorY + 1.8, backZ - 1),
+				color = Color3.fromRGB(236, 184, 72),
+				material = Enum.Material.Metal,
+				parent = stock,
+			})
+		end
+		storePart({
+			name = "PalletJackBase",
+			size = Vector3.new(5.5, 0.45, 1.1),
+			position = Vector3.new(-30, floorY + 0.85, backZ + 6),
+			color = Color3.fromRGB(214, 170, 45),
+			material = Enum.Material.Metal,
+			parent = stock,
+		})
+		detailPart({
+			name = "PalletJackHandle",
+			size = Vector3.new(0.35, 3.4, 0.35),
+			position = Vector3.new(-27.1, floorY + 2.5, backZ + 6),
+			color = Color3.fromRGB(55, 58, 62),
+			material = Enum.Material.Metal,
+			parent = stock,
+		})
+		storePart({
+			name = "ShrinkWrapRolls",
+			size = Vector3.new(2, 3.5, 2),
+			position = Vector3.new(-52, floorY + 2.25, backZ + 1),
+			color = Color3.fromRGB(225, 232, 238),
+			material = Enum.Material.Plastic,
+			transparency = 0.15,
 			parent = stock,
 		})
 	end
 
 	local pharmacy = store:FindFirstChild("Pharmacy")
 	if pharmacy then
+		decorFloor("PharmacyQueueMat", Vector3.new(5.5, 0.08, 10), Vector3.new(westCx + 5.2, walkTop + 0.08, -18), Color3.fromRGB(92, 126, 158), pharmacy)
+		decorFloor("PharmacyConsultZone", Vector3.new(7, 0.08, 7), Vector3.new(westCx - 4.5, walkTop + 0.09, -20), Color3.fromRGB(150, 174, 184), pharmacy)
 		local pharmacyCounter = storePart({
 			name = "ServiceCounter",
-			size = Vector3.new(10, 3, 2.5),
-			position = Vector3.new(westCx + 1, floorY + 2, -8),
+			size = Vector3.new(11, 3, 2.5),
+			position = Vector3.new(westCx - 0.5, floorY + 2, -8),
 			color = Color3.fromRGB(220, 222, 226),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
 		})
 		addPrompt(pharmacyCounter, "FillPrescription", "Fill", "Pharmacy Counter", 0.25)
+		local dropoffCounter = storePart({
+			name = "DropoffWindowCounter",
+			size = Vector3.new(6, 2.2, 1.8),
+			position = Vector3.new(westCx + 3, floorY + 1.6, -14),
+			color = Color3.fromRGB(204, 212, 218),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+		addPrompt(dropoffCounter, "FillPrescription", "Drop off", "Prescription Dropoff", 0.25)
+		addSign(pharmacy, "PharmacyDropoffSign", westCx + 3, floorY + 6.5, -14.7, 7, "DROP OFF", Color3.fromRGB(52, 86, 120))
+		addSign(pharmacy, "PharmacyPickupSign", westCx - 3, floorY + 6.5, -7.2, 7, "PICK UP", Color3.fromRGB(52, 100, 86))
 		for shelf, z in { -22, -6 } do
 			storePart({
 				name = `MedicineShelf{shelf}`,
@@ -1484,12 +1583,59 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				material = Enum.Material.Plastic,
 				parent = pharmacy,
 			})
+			for row = 1, 3 do
+				for bottle = 1, 4 do
+					detailPart({
+						name = `MedicineBottle{shelf}_{row}_{bottle}`,
+						size = Vector3.new(0.45, 0.75, 0.45),
+						position = Vector3.new(westCx - 6.6 + bottle * 0.65, floorY + 2.3 + row * 1.25, z + 0.75),
+						color = if (row + bottle) % 2 == 0 then Color3.fromRGB(230, 236, 242) else Color3.fromRGB(86, 132, 178),
+						material = Enum.Material.Plastic,
+						canCollide = false,
+						parent = pharmacy,
+					})
+				end
+			end
 		end
 		storePart({
 			name = "PharmacyMonitor",
 			size = Vector3.new(2.2, 1.6, 0.3),
 			position = Vector3.new(westCx + 2, floorY + 4.1, -8),
 			color = Color3.fromRGB(24, 28, 34),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+		detailPart({
+			name = "PrescriptionScanner",
+			size = Vector3.new(1.1, 0.3, 1.2),
+			position = Vector3.new(westCx + 2.8, floorY + 3.65, -7.6),
+			color = Color3.fromRGB(36, 44, 52),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+		storePart({
+			name = "LockedMedsCabinet",
+			size = Vector3.new(4, 6, 1.4),
+			position = Vector3.new(westCx - 7, floorY + 3.8, -13.5),
+			color = Color3.fromRGB(105, 118, 130),
+			material = Enum.Material.Metal,
+			parent = pharmacy,
+		})
+		detailPart({
+			name = "LockedMedsWindow",
+			size = Vector3.new(3.2, 3.8, 0.2),
+			position = Vector3.new(westCx - 7, floorY + 4.3, -12.75),
+			color = Color3.fromRGB(174, 206, 220),
+			material = Enum.Material.Glass,
+			transparency = 0.35,
+			canCollide = false,
+			parent = pharmacy,
+		})
+		storePart({
+			name = "VaccineFridge",
+			size = Vector3.new(3, 5, 2),
+			position = Vector3.new(westCx - 7, floorY + 3.25, -3.5),
+			color = Color3.fromRGB(235, 240, 244),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
 		})
@@ -1509,10 +1655,30 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
 		})
+		storePart({
+			name = "ConsultTable",
+			size = Vector3.new(3.5, 1.5, 2.4),
+			position = Vector3.new(westCx - 5, floorY + 1.25, -19),
+			color = Color3.fromRGB(212, 214, 214),
+			material = Enum.Material.SmoothPlastic,
+			parent = pharmacy,
+		})
+		for chair, x in { westCx - 7.2, westCx - 2.8 } do
+			storePart({
+				name = `ConsultChair{chair}`,
+				size = Vector3.new(1.8, 2, 1.8),
+				position = Vector3.new(x, floorY + 1.5, -19),
+				color = Color3.fromRGB(78, 104, 126),
+				material = Enum.Material.SmoothPlastic,
+				parent = pharmacy,
+			})
+		end
 	end
 
 	local bakery = store:FindFirstChild("Bakery")
 	if bakery then
+		decorFloor("BakeryCustomerMat", Vector3.new(7, 0.08, 11), Vector3.new(westCx + 5, walkTop + 0.08, 16), Color3.fromRGB(142, 92, 66), bakery)
+		decorFloor("BakeryPrepZone", Vector3.new(12, 0.08, 7), Vector3.new(westCx - 1, walkTop + 0.09, 25), Color3.fromRGB(198, 182, 152), bakery)
 		for i, z in { 8, 14, 20 } do
 			storePart({
 				name = `Display{i}`,
@@ -1532,6 +1698,17 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				canCollide = false,
 				parent = bakery,
 			})
+			for pastry = 1, 3 do
+				detailPart({
+					name = `PastryTray{i}_{pastry}`,
+					size = Vector3.new(1, 0.35, 0.75),
+					position = Vector3.new(westCx - 6.1 + pastry * 0.8, floorY + 3.15, z - 0.3),
+					color = if pastry == 2 then Color3.fromRGB(235, 196, 126) else Color3.fromRGB(200, 142, 82),
+					material = Enum.Material.SmoothPlastic,
+					canCollide = false,
+					parent = bakery,
+				})
+			end
 		end
 		storePart({
 			name = "Oven",
@@ -1541,6 +1718,17 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Metal,
 			parent = bakery,
 		})
+		for slot = 1, 3 do
+			detailPart({
+				name = `OvenGlow{slot}`,
+				size = Vector3.new(4.8, 0.45, 0.22),
+				position = Vector3.new(westCx - 4, floorY + 1.8 + slot * 1.1, 25.05),
+				color = Color3.fromRGB(230, 132, 52),
+				material = Enum.Material.Neon,
+				canCollide = false,
+				parent = bakery,
+			})
+		end
 		local prepCounter = storePart({
 			name = "PrepCounter",
 			size = Vector3.new(8, 2.4, 2),
@@ -1550,6 +1738,43 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			parent = bakery,
 		})
 		addPrompt(prepCounter, "BakeBatch", "Prepare", "Bakery Counter", 0.25)
+		detailPart({
+			name = "DoughBoard",
+			size = Vector3.new(3.5, 0.16, 1.4),
+			position = Vector3.new(westCx + 1, floorY + 3, 24.4),
+			color = Color3.fromRGB(205, 168, 108),
+			material = Enum.Material.Wood,
+			canCollide = false,
+			parent = bakery,
+		})
+		for dough = 1, 3 do
+			detailPart({
+				name = `DoughRound{dough}`,
+				size = Vector3.new(0.9, 0.35, 0.9),
+				position = Vector3.new(westCx - 0.6 + dough * 0.75, floorY + 3.25, 24.35),
+				color = Color3.fromRGB(230, 205, 156),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = bakery,
+			})
+		end
+		local mixer = storePart({
+			name = "StandMixer",
+			size = Vector3.new(2.2, 2.4, 2),
+			position = Vector3.new(westCx + 4.5, floorY + 2.2, 22),
+			color = Color3.fromRGB(210, 214, 218),
+			material = Enum.Material.Metal,
+			parent = bakery,
+		})
+		addPrompt(mixer, "BakeBatch", "Mix", "Dough Mixer", 0.25)
+		detailPart({
+			name = "MixerBowl",
+			size = Vector3.new(1.3, 0.8, 1.3),
+			position = Vector3.new(westCx + 4.5, floorY + 3.8, 22),
+			color = Color3.fromRGB(162, 170, 176),
+			material = Enum.Material.Metal,
+			parent = bakery,
+		})
 		storePart({
 			name = "BreadRack",
 			size = Vector3.new(3, 6, 2),
@@ -1558,6 +1783,46 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Wood,
 			parent = bakery,
 		})
+		for shelf = 1, 4 do
+			detailPart({
+				name = `BreadRackLoaves{shelf}`,
+				size = Vector3.new(2.2, 0.45, 1.1),
+				position = Vector3.new(westCx + 3, floorY + 1.5 + shelf * 1.05, 8.2),
+				color = Color3.fromRGB(202, 138, 72),
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				parent = bakery,
+			})
+		end
+		for bin, z in { 10, 12.5 } do
+			storePart({
+				name = `IngredientBin{bin}`,
+				size = Vector3.new(2.5, 2, 2),
+				position = Vector3.new(westCx + 3.8, floorY + 1.5, z),
+				color = if z == 10 then Color3.fromRGB(238, 232, 214) else Color3.fromRGB(186, 166, 130),
+				material = Enum.Material.SmoothPlastic,
+				parent = bakery,
+			})
+		end
+		storePart({
+			name = "CoolingRack",
+			size = Vector3.new(3, 6, 2),
+			position = Vector3.new(westCx - 7, floorY + 3.5, 26.2),
+			color = Color3.fromRGB(130, 132, 136),
+			material = Enum.Material.Metal,
+			parent = bakery,
+		})
+		for tray = 1, 4 do
+			detailPart({
+				name = `CoolingTray{tray}`,
+				size = Vector3.new(2.4, 0.18, 1.5),
+				position = Vector3.new(westCx - 7, floorY + 1.4 + tray * 1.15, 26.2),
+				color = Color3.fromRGB(190, 192, 194),
+				material = Enum.Material.Metal,
+				canCollide = false,
+				parent = bakery,
+			})
+		end
 		storePart({
 			name = "PastrySign",
 			size = Vector3.new(7, 2, 0.4),
@@ -1566,6 +1831,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Wood,
 			parent = bakery,
 		})
+		addSign(bakery, "BakeryMenuBoard", westCx + 1.5, floorY + 7.5, 20.8, 9, "BREAD  CAKES", Color3.fromRGB(92, 64, 44))
 	end
 
 	local restroom = store:FindFirstChild("Restrooms")
