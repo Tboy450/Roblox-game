@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 41
+local BLUEPRINT_VERSION = 42
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -155,11 +155,13 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		cz: number,
 		w: number,
 		text: string,
-		color: Color3
+		color: Color3,
+		height: number?
 	): Part
+		local signHeight = height or math.clamp(w * 0.18, 1.25, 2.25)
 		local sign = storePart({
 			name = name,
-			size = Vector3.new(w, 2.5, 0.35),
+			size = Vector3.new(w, signHeight, 0.35),
 			position = Vector3.new(cx, cy, cz),
 			color = color,
 			parent = parent,
@@ -170,7 +172,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				gui.Face = face
 				gui.LightInfluence = 0.2
 				gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-				gui.PixelsPerStud = 60
+				gui.PixelsPerStud = 72
 				gui.Parent = sign
 
 				local label = Instance.new("TextLabel")
@@ -364,7 +366,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		end
 
 		if opts.sign then
-			addSign(room, "Sign", cx, floorY + 5, southZ + 0.8, math.min(w - 4, 12), opts.sign, Color3.fromRGB(65, 65, 70))
+			addSign(room, "Sign", cx, floorY + 5, southZ + 0.8, math.min(w - 5, 9), opts.sign, Color3.fromRGB(65, 65, 70), 1.55)
 		end
 
 		return room
@@ -1414,9 +1416,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		decorFloor("StockReceivingZone", Vector3.new(14, 0.08, 5), Vector3.new(-46, walkTop + 0.08, backZ + 7), Color3.fromRGB(196, 156, 74), stock)
 		decorFloor("StockPickLane", Vector3.new(8, 0.08, 18), Vector3.new(-36, walkTop + 0.09, backZ - 3), Color3.fromRGB(190, 190, 196), stock)
 		decorFloor("StockBackstockZone", Vector3.new(14, 0.08, 5), Vector3.new(-25, walkTop + 0.08, backZ + 7), Color3.fromRGB(104, 142, 112), stock)
-		addSign(stock, "ReceivingSign", -47, floorY + 8, backZ + 6.5, 10, "RECEIVING", Color3.fromRGB(88, 82, 65))
-		addSign(stock, "PickListSign", -30, floorY + 10, backZ - 10.2, 9, "PICK LIST", Color3.fromRGB(70, 76, 86))
-		addSign(stock, "BackstockSign", -25, floorY + 8, backZ + 6.5, 10, "BACKSTOCK", Color3.fromRGB(62, 92, 72))
+		addSign(stock, "ReceivingSign", -47, floorY + 7.7, backZ + 6.5, 7.2, "RECEIVING", Color3.fromRGB(88, 82, 65), 1.2)
+		addSign(stock, "PickListSign", -30, floorY + 9.7, backZ - 10.2, 6.6, "PICK LIST", Color3.fromRGB(70, 76, 86), 1.2)
+		addSign(stock, "BackstockSign", -25, floorY + 7.7, backZ + 6.5, 7.2, "BACKSTOCK", Color3.fromRGB(62, 92, 72), 1.2)
 
 		for _, rack in {
 			{ name = "RackWest", x = -50, zone = "Case" },
@@ -1564,8 +1566,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			parent = pharmacy,
 		})
 		addPrompt(dropoffCounter, "FillPrescription", "Drop off", "Prescription Dropoff", 0.25)
-		addSign(pharmacy, "PharmacyDropoffSign", westCx + 3, floorY + 6.5, -14.7, 7, "DROP OFF", Color3.fromRGB(52, 86, 120))
-		addSign(pharmacy, "PharmacyPickupSign", westCx - 3, floorY + 6.5, -7.2, 7, "PICK UP", Color3.fromRGB(52, 100, 86))
+		addSign(pharmacy, "PharmacyDropoffSign", westCx + 3, floorY + 6.15, -14.7, 5.5, "DROP OFF", Color3.fromRGB(52, 86, 120), 1.05)
+		addSign(pharmacy, "PharmacyPickupSign", westCx - 3, floorY + 6.15, -7.2, 5.5, "PICK UP", Color3.fromRGB(52, 100, 86), 1.05)
 		for shelf, z in { -22, -6 } do
 			storePart({
 				name = `MedicineShelf{shelf}`,
@@ -1831,7 +1833,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Wood,
 			parent = bakery,
 		})
-		addSign(bakery, "BakeryMenuBoard", westCx + 1.5, floorY + 7.5, 20.8, 9, "BREAD  CAKES", Color3.fromRGB(92, 64, 44))
+		addSign(bakery, "BakeryMenuBoard", westCx + 1.5, floorY + 7.25, 20.8, 7.2, "BREAD", Color3.fromRGB(92, 64, 44), 1.15)
 	end
 
 	local restroom = store:FindFirstChild("Restrooms")
@@ -2012,7 +2014,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.SmoothPlastic,
 			parent = restroom,
 		})
-		addSign(restroom, "RestroomWashSign", eastCx - 3.5, floorY + 7.4, -5.8, 7, "WASH", Color3.fromRGB(70, 82, 92))
+		addSign(restroom, "RestroomWashSign", eastCx - 3.5, floorY + 7.1, -5.8, 4.8, "WASH", Color3.fromRGB(70, 82, 92), 1.05)
 	end
 
 	local office = store:FindFirstChild("AdminNook")
@@ -2063,7 +2065,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				parent = office,
 			})
 		end
-		addSign(office, "AdminOfficeSign", eastCx - 4.5, floorY + 8.4, 36.7, 8, "MANAGER", Color3.fromRGB(62, 76, 84))
+		addSign(office, "AdminOfficeSign", eastCx - 4.5, floorY + 8.1, 36.7, 6.2, "MANAGER", Color3.fromRGB(62, 76, 84), 1.1)
 
 		local managerDesk = storePart({
 			name = "ManagerDesk",
@@ -2190,7 +2192,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			parent = breakRoom,
 		})
 		addPrompt(taskBoard, "InspectTasks", "Review", "Task Board", 0.1)
-		addSign(breakRoom, "BreakRoomRulesSign", eastCx + 4.2, floorY + 7.2, -0.7, 7, "STAFF", Color3.fromRGB(74, 80, 86))
+		addSign(breakRoom, "BreakRoomRulesSign", eastCx + 4.2, floorY + 6.95, -0.7, 5.2, "STAFF", Color3.fromRGB(74, 80, 86), 1.05)
 
 		local kitchenette = detailPart({
 			name = "KitchenetteCounter",
@@ -2301,8 +2303,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		decorFloor("DockReceivingLane", Vector3.new(14, 0.08, 5), Vector3.new(28, walkTop + 0.08, backZ + 7), Color3.fromRGB(186, 142, 62), loading)
 		decorFloor("DockShippingLane", Vector3.new(14, 0.08, 5), Vector3.new(46, walkTop + 0.08, backZ + 7), Color3.fromRGB(86, 118, 150), loading)
 		decorFloor("DockForkliftPath", Vector3.new(26, 0.08, 5), Vector3.new(36, walkTop + 0.09, backZ - 1), Color3.fromRGB(82, 84, 88), loading)
-		addSign(loading, "ReceivingLaneSign", 28, floorY + 8, backZ + 6.7, 10, "RECEIVING", Color3.fromRGB(88, 78, 58))
-		addSign(loading, "ShippingLaneSign", 46, floorY + 8, backZ + 6.7, 10, "SHIPPING", Color3.fromRGB(50, 76, 104))
+		addSign(loading, "ReceivingLaneSign", 28, floorY + 7.7, backZ + 6.7, 7.2, "RECEIVING", Color3.fromRGB(88, 78, 58), 1.2)
+		addSign(loading, "ShippingLaneSign", 46, floorY + 7.7, backZ + 6.7, 6.6, "SHIPPING", Color3.fromRGB(50, 76, 104), 1.2)
 		local rollDoor = detailPart({
 			name = "RollDoor",
 			size = Vector3.new(18, 10, 0.2),
@@ -2415,7 +2417,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			parent = loading,
 		})
 		addPrompt(scheduleBoard, "InspectTasks", "Review", "Dock Schedule", 0.15)
-		addSign(loading, "DockScheduleSign", 23, floorY + 9.2, backZ - 5.6, 7, "TRUCKS", Color3.fromRGB(50, 64, 78))
+		addSign(loading, "DockScheduleSign", 23, floorY + 8.95, backZ - 5.6, 5, "TRUCKS", Color3.fromRGB(50, 64, 78), 1.05)
 		storePart({
 			name = "PalletJack",
 			size = Vector3.new(5, 1, 3),
@@ -2467,7 +2469,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	if cooler then
 		decorFloor("CoolerColdLane", Vector3.new(8, 0.08, 17), Vector3.new(0, walkTop + 0.08, backZ - 2), Color3.fromRGB(104, 146, 170), cooler)
 		decorFloor("CoolerPullZone", Vector3.new(10, 0.08, 5), Vector3.new(0, walkTop + 0.09, backZ + 7), Color3.fromRGB(136, 174, 190), cooler)
-		addSign(cooler, "CoolerTempSign", 0, floorY + 10, backZ - 10.4, 11, "36 F  HOLD", Color3.fromRGB(42, 82, 104))
+		addSign(cooler, "CoolerTempSign", 0, floorY + 9.8, backZ - 10.4, 7.5, "36 F", Color3.fromRGB(42, 82, 104), 1.15)
 		for i = -1, 1 do
 			storePart({
 				name = `CoolerShelf{i}`,
