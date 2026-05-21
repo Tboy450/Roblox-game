@@ -6,6 +6,7 @@
     "ReplicatedStorage": {
       "Shared": { "$path": "src/shared" },
       "Packages": { "$path": "Packages" },
+      "RetailHudClientSource": { "$path": "src/client" },
       "RetailRemotes": { "$path": "src/replicatedstorage/RetailRemotes" }
     },
 
@@ -13,8 +14,12 @@
       "Server": { "$path": "src/server" }
     },
 
-    "StarterPlayer": {
-      "StarterPlayerScripts": {
+    "StarterGui": {
+      "RetailHudRunner": {
+        "$className": "ScreenGui",
+        "$properties": {
+          "ResetOnSpawn": false
+        },
         "Client": { "$path": "src/client" }
       }
     },

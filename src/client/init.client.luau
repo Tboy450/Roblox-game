@@ -1,52 +1,120 @@
 print("[Client] roblox-game loaded")
 
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Hello = require(Shared:WaitForChild("Hello"))
-local RetailAssets = require(Shared:WaitForChild("RetailAssets"))
-local RetailCatalog = require(Shared:WaitForChild("RetailCatalog"))
-local RetailCurrency = require(Shared:WaitForChild("RetailCurrency"))
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local retailRemotes = ReplicatedStorage:WaitForChild("RetailRemotes", 3)
-local usingFallbackRemotes = false
-if not retailRemotes then
-	warn("[Client] RetailRemotes did not replicate yet; HUD will still load with local fallback remotes.")
-	retailRemotes = Instance.new("Folder")
-	retailRemotes.Name = "RetailRemotes"
-	usingFallbackRemotes = true
+local oldBootGui = playerGui:FindFirstChild("RetailHudBoot")
+if oldBootGui then
+	oldBootGui:Destroy()
 end
 
-local function getRemoteEvent(name: string): RemoteEvent
-	local remote = if usingFallbackRemotes then nil else retailRemotes:FindFirstChild(name) or retailRemotes:WaitForChild(name, 0.35)
+local bootGui = Instance.new("ScreenGui")
+bootGui.Name = "RetailHudBoot"
+bootGui.ResetOnSpawn = false
+bootGui.Parent = playerGui
+
+local bootLabel = Instance.new("TextLabel")
+bootLabel.Name = "Status"
+bootLabel.Size = UDim2.fromOffset(220, 32)
+bootLabel.Position = UDim2.fromOffset(18, 18)
+bootLabel.BackgroundColor3 = Color3.fromRGB(22, 24, 28)
+bootLabel.BackgroundTransparency = 0.08
+bootLabel.BorderSizePixel = 0
+bootLabel.Font = Enum.Font.GothamBold
+bootLabel.Text = "Retail HUD loading..."
+bootLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
+bootLabel.TextSize = 13
+bootLabel.Parent = bootGui
+
+bootLabel.Text = "Retail HUD: waiting for Shared"
+local Shared = ReplicatedStorage:WaitForChild("Shared", 15)
+if not Shared then
+	bootLabel.Text = "Retail HUD missing ReplicatedStorage.Shared"
+	error("[Client] ReplicatedStorage.Shared did not replicate.")
+end
+
+local function requireSharedModule(name: string)
+	bootLabel.Text = `Retail HUD: loading {name}`
+	local module = Shared:WaitForChild(name, 15)
+	if not module then
+		bootLabel.Text = `Retail HUD missing {name}`
+		error(`[Client] ReplicatedStorage.Shared.{name} did not replicate.`)
+	end
+
+	local ok, result = pcall(require, module)
+	if not ok then
+		bootLabel.Text = `Retail HUD error in {name}`
+		error(result)
+	end
+	return result
+end
+
+local Hello = requireSharedModule("Hello")
+local RetailAssets = requireSharedModule("RetailAssets")
+local RetailCatalog = requireSharedModule("RetailCatalog")
+local RetailCurrency = requireSharedModule("RetailCurrency")
+bootLabel.Text = "Retail HUD building..."
+
+local REMOTE_WAIT_SECONDS = 5
+
+local function findRetailRemotes(timeoutSeconds: number?): Instance?
+	local retailRemotes = ReplicatedStorage:FindFirstChild("RetailRemotes")
+	if retailRemotes then
+		return retailRemotes
+	end
+
+	return ReplicatedStorage:WaitForChild("RetailRemotes", timeoutSeconds or 0)
+end
+
+local function resolveRemoteEvent(name: string, timeoutSeconds: number?): RemoteEvent?
+	local retailRemotes = findRetailRemotes(timeoutSeconds)
+	if not retailRemotes then
+		return nil
+	end
+
+	local remote = retailRemotes:FindFirstChild(name)
+	if not remote then
+		remote = retailRemotes:WaitForChild(name, timeoutSeconds or 0)
+	end
 	if remote and remote:IsA("RemoteEvent") then
 		return remote
 	end
 
-	warn(`[Client] Missing RetailRemotes.{name}; UI will stay visible but this action needs server sync.`)
-	local fallback = Instance.new("RemoteEvent")
-	fallback.Name = name
-	return fallback
+	if remote then
+		warn(`[Client] RetailRemotes.{name} is a {remote.ClassName}, not a RemoteEvent.`)
+	end
+	return nil
 end
 
-local openShelfEditor = getRemoteEvent("OpenShelfEditor")
-local selectShelfProduct = getRemoteEvent("SelectShelfProduct")
-local openRegisterPanel = getRemoteEvent("OpenRegisterPanel")
-local updateRegisterPanel = getRemoteEvent("UpdateRegisterPanel")
-local adjustRegisterChange = getRemoteEvent("AdjustRegisterChange")
-local resetRegisterChange = getRemoteEvent("ResetRegisterChange")
-local finishRegisterSale = getRemoteEvent("FinishRegisterSale")
-local openPlayerMenu = getRemoteEvent("OpenPlayerMenu")
-local requestPetLottery = getRemoteEvent("RequestPetLottery")
-local requestEquipPet = getRemoteEvent("RequestEquipPet")
-local petInventoryUpdate = getRemoteEvent("PetInventoryUpdate")
-local petLotteryResult = getRemoteEvent("PetLotteryResult")
+local function fireServerRemote(name: string, ...)
+	local remote = resolveRemoteEvent(name, REMOTE_WAIT_SECONDS)
+	if not remote then
+		warn(`[Client] RetailRemotes.{name} is unavailable; action was not sent.`)
+		return
+	end
+
+	remote:FireServer(...)
+end
+
+local function connectClientRemote(name: string, callback)
+	task.spawn(function()
+		local remote = resolveRemoteEvent(name, REMOTE_WAIT_SECONDS)
+		while not remote do
+			warn(`[Client] Waiting for RetailRemotes.{name}; related menu may not open yet.`)
+			task.wait(1)
+			remote = resolveRemoteEvent(name, REMOTE_WAIT_SECONDS)
+		end
+
+		remote.OnClientEvent:Connect(callback)
+	end)
+end
 
 print(Hello.greet("player"))
 
-local playerGui = player:WaitForChild("PlayerGui")
 local oldGui = playerGui:FindFirstChild("RetailHud")
 if oldGui then
 	oldGui:Destroy()
@@ -108,9 +176,22 @@ panelSize.MaxSize = Vector2.new(760, 112)
 panelSize.MinSize = Vector2.new(280, 112)
 panelSize.Parent = panel
 
+local closeHudButton = Instance.new("TextButton")
+closeHudButton.Name = "CloseHud"
+closeHudButton.Size = UDim2.fromOffset(26, 24)
+closeHudButton.Position = UDim2.new(1, -34, 0, 8)
+closeHudButton.BackgroundColor3 = Color3.fromRGB(52, 56, 64)
+closeHudButton.BorderSizePixel = 0
+closeHudButton.Font = Enum.Font.GothamBold
+closeHudButton.Text = "X"
+closeHudButton.TextColor3 = Color3.fromRGB(235, 235, 235)
+closeHudButton.TextSize = 13
+closeHudButton.Parent = panel
+styleButton(closeHudButton, 5)
+
 local statsLabel = Instance.new("TextLabel")
 statsLabel.Name = "Stats"
-statsLabel.Size = UDim2.new(1, -18, 0, 26)
+statsLabel.Size = UDim2.new(1, -54, 0, 26)
 statsLabel.Position = UDim2.fromOffset(9, 8)
 statsLabel.BackgroundTransparency = 1
 statsLabel.Font = Enum.Font.GothamBold
@@ -154,6 +235,9 @@ shelfPanel.BorderSizePixel = 0
 shelfPanel.Visible = false
 shelfPanel.Parent = gui
 stylePanel(shelfPanel)
+
+local shelfPanelScale = Instance.new("UIScale")
+shelfPanelScale.Parent = shelfPanel
 
 local shelfTitle = Instance.new("TextLabel")
 shelfTitle.Name = "Title"
@@ -253,6 +337,9 @@ registerPanel.BorderSizePixel = 0
 registerPanel.Visible = false
 registerPanel.Parent = gui
 stylePanel(registerPanel)
+
+local registerPanelScale = Instance.new("UIScale")
+registerPanelScale.Parent = registerPanel
 
 local registerTitle = Instance.new("TextLabel")
 registerTitle.Name = "Title"
@@ -386,7 +473,7 @@ clearChangeButton.Parent = registerButtons
 
 local actionDock = Instance.new("Frame")
 actionDock.Name = "ActionDock"
-actionDock.Size = UDim2.fromOffset(228, 78)
+actionDock.Size = UDim2.fromOffset(298, 78)
 actionDock.Position = UDim2.fromOffset(18, 138)
 actionDock.BackgroundColor3 = Color3.fromRGB(18, 20, 24)
 actionDock.BackgroundTransparency = 0.08
@@ -400,6 +487,23 @@ actionDockLayout.Padding = UDim.new(0, 8)
 actionDockLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 actionDockLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 actionDockLayout.Parent = actionDock
+
+local hudButton = Instance.new("ImageButton")
+hudButton.Name = "HudButton"
+hudButton.Size = UDim2.fromOffset(62, 62)
+hudButton.Parent = actionDock
+styleResourceButton(hudButton, "", 10, Color3.fromRGB(54, 68, 86))
+
+local hudButtonLabel = Instance.new("TextLabel")
+hudButtonLabel.Name = "Label"
+hudButtonLabel.Size = UDim2.new(1, 0, 0, 16)
+hudButtonLabel.Position = UDim2.new(0, 0, 1, -17)
+hudButtonLabel.BackgroundTransparency = 1
+hudButtonLabel.Font = Enum.Font.GothamBold
+hudButtonLabel.Text = "HUD"
+hudButtonLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
+hudButtonLabel.TextSize = 10
+hudButtonLabel.Parent = hudButton
 
 local menuButton = Instance.new("ImageButton")
 menuButton.Name = "PlayerMenuButton"
@@ -449,6 +553,15 @@ playerMenu.Visible = false
 playerMenu.Parent = gui
 stylePanel(playerMenu)
 
+local playerMenuAccent = Instance.new("Frame")
+playerMenuAccent.Name = "Accent"
+playerMenuAccent.Size = UDim2.new(1, -20, 0, 4)
+playerMenuAccent.Position = UDim2.fromOffset(10, 5)
+playerMenuAccent.BackgroundColor3 = Color3.fromRGB(88, 190, 146)
+playerMenuAccent.BorderSizePixel = 0
+playerMenuAccent.Parent = playerMenu
+addCorner(playerMenuAccent, 3)
+
 local playerMenuTitle = Instance.new("TextLabel")
 playerMenuTitle.Name = "Title"
 playerMenuTitle.Size = UDim2.new(1, -58, 0, 28)
@@ -490,14 +603,25 @@ lotteryPanel.BorderSizePixel = 0
 lotteryPanel.Parent = playerMenu
 stylePanel(lotteryPanel)
 
+local lotteryAccent = Instance.new("Frame")
+lotteryAccent.Name = "Accent"
+lotteryAccent.Size = UDim2.fromOffset(5, 96)
+lotteryAccent.Position = UDim2.fromOffset(0, 18)
+lotteryAccent.BackgroundColor3 = Color3.fromRGB(245, 205, 88)
+lotteryAccent.BorderSizePixel = 0
+lotteryAccent.Parent = lotteryPanel
+addCorner(lotteryAccent, 4)
+
 local lotteryIcon = Instance.new("ImageLabel")
 lotteryIcon.Name = "Icon"
 lotteryIcon.Size = UDim2.fromOffset(64, 64)
 lotteryIcon.Position = UDim2.fromOffset(12, 14)
-lotteryIcon.BackgroundTransparency = 1
-lotteryIcon.Image = RetailAssets.buttons.Lottery
+lotteryIcon.BackgroundTransparency = 0
+lotteryIcon.Image = ""
 lotteryIcon.ScaleType = Enum.ScaleType.Fit
 lotteryIcon.Parent = lotteryPanel
+addCorner(lotteryIcon, 10)
+addStroke(lotteryIcon, Color3.fromRGB(255, 255, 255), 0.82)
 
 local lotteryTitle = Instance.new("TextLabel")
 lotteryTitle.Name = "Title"
@@ -554,11 +678,16 @@ petHeader.TextSize = 14
 petHeader.TextXAlignment = Enum.TextXAlignment.Left
 petHeader.Parent = playerMenu
 
-local petGrid = Instance.new("Frame")
+local petGrid = Instance.new("ScrollingFrame")
 petGrid.Name = "PetGrid"
 petGrid.Size = UDim2.new(1, -28, 0, 112)
 petGrid.Position = UDim2.fromOffset(14, 264)
 petGrid.BackgroundTransparency = 1
+petGrid.BorderSizePixel = 0
+petGrid.CanvasSize = UDim2.fromOffset(0, 0)
+petGrid.AutomaticCanvasSize = Enum.AutomaticSize.Y
+petGrid.ScrollingDirection = Enum.ScrollingDirection.Y
+petGrid.ScrollBarThickness = 4
 petGrid.Parent = playerMenu
 
 local petGridLayout = Instance.new("UIGridLayout")
@@ -586,6 +715,102 @@ equipPetButtonLabel.TextXAlignment = Enum.TextXAlignment.Left
 equipPetButtonLabel.Parent = equipPetButton
 
 local renderPlayerMenu: (() -> ())? = nil
+
+local function fitPanelScale(baseWidth: number, baseHeight: number, viewport: Vector2, xPad: number, yPad: number): number
+	local widthScale = (viewport.X - xPad * 2) / baseWidth
+	local heightScale = (viewport.Y - yPad * 2) / baseHeight
+	return math.clamp(math.min(widthScale, heightScale, 1), 0.72, 1)
+end
+
+local function updateResponsiveLayout()
+	local camera = Workspace.CurrentCamera
+	local viewport = if camera then camera.ViewportSize else Vector2.new(1280, 720)
+	local topInset = GuiService:GetGuiInset()
+	local compact = viewport.X < 900 or viewport.Y < 720
+	local xPad = if viewport.X < 700 then 12 else 18
+	local yPad = if viewport.Y < 620 or topInset.Y > 48 then 12 else 18
+	local availableWidth = math.max(260, viewport.X - xPad * 2)
+
+	local panelWidth = math.min(760, availableWidth)
+	panel.Position = UDim2.fromOffset(xPad, yPad)
+	panel.Size = UDim2.fromOffset(panelWidth, 112)
+	closeHudButton.Position = UDim2.new(1, -34, 0, 8)
+
+	local dockButtonSize = if compact then 52 else 62
+	local dockPadding = if compact then 6 else 8
+	local dockHeight = dockButtonSize + 16
+	local dockWidth = dockButtonSize * 4 + dockPadding * 3 + 20
+	actionDock.Position = UDim2.fromOffset(xPad, yPad + 120)
+	actionDock.Size = UDim2.fromOffset(dockWidth, dockHeight)
+	actionDockLayout.Padding = UDim.new(0, dockPadding)
+	for _, button in { hudButton, menuButton, petsButton, quickRollButton } do
+		button.Size = UDim2.fromOffset(dockButtonSize, dockButtonSize)
+	end
+	for _, label in { hudButtonLabel, menuButtonLabel, petsButtonLabel, quickRollButtonLabel } do
+		label.Position = UDim2.new(0, 0, 1, -17)
+		label.TextSize = if compact then 9 else 10
+	end
+
+	local menuTop = yPad + 120 + dockHeight + 10
+	local menuWidth = math.min(if compact then 360 else 408, availableWidth)
+	local menuHeight = math.min(if compact then 430 else 448, math.max(320, viewport.Y - menuTop - yPad))
+	playerMenu.Position = UDim2.fromOffset(xPad, menuTop)
+	playerMenu.Size = UDim2.fromOffset(menuWidth, menuHeight)
+	playerMenuAccent.Size = UDim2.new(1, -20, 0, 4)
+	playerMenuTitle.TextSize = if compact then 16 else 17
+	closePlayerMenuButton.Position = UDim2.new(1, -44, 0, 10)
+	playerMenuStats.Position = UDim2.fromOffset(14, if compact then 44 else 48)
+	playerMenuStats.Size = UDim2.new(1, -28, 0, if compact then 34 else 40)
+	playerMenuStats.TextSize = if compact then 12 else 13
+
+	local lotteryTop = if compact then 84 else 94
+	local lotteryHeight = if compact then 108 else 132
+	local lotteryIconSize = if compact then 50 else 64
+	local lotteryTextX = if compact then 74 else 88
+	lotteryPanel.Position = UDim2.fromOffset(14, lotteryTop)
+	lotteryPanel.Size = UDim2.new(1, -28, 0, lotteryHeight)
+	lotteryAccent.Size = UDim2.fromOffset(5, math.max(64, lotteryHeight - 34))
+	lotteryAccent.Position = UDim2.fromOffset(0, 17)
+	lotteryIcon.Size = UDim2.fromOffset(lotteryIconSize, lotteryIconSize)
+	lotteryIcon.Position = UDim2.fromOffset(12, if compact then 12 else 14)
+	lotteryTitle.Position = UDim2.fromOffset(lotteryTextX, 12)
+	lotteryTitle.Size = UDim2.new(1, -(lotteryTextX + 10), 0, 22)
+	lotteryTitle.TextSize = if compact then 15 else 16
+	lotteryResult.Position = UDim2.fromOffset(lotteryTextX, if compact then 34 else 40)
+	lotteryResult.Size = UDim2.new(1, -(lotteryTextX + 12), 0, if compact then 30 else 36)
+	lotteryResult.TextSize = if compact then 12 else 13
+	rollPetButton.Position = UDim2.fromOffset(lotteryTextX, lotteryHeight - 42)
+	rollPetButton.Size = UDim2.fromOffset(math.min(152, math.max(128, menuWidth - lotteryTextX - 28)), 34)
+	rollPetButtonLabel.TextSize = if compact then 12 else 13
+
+	local petHeaderTop = lotteryTop + lotteryHeight + 8
+	local petGridTop = petHeaderTop + 24
+	local equipTop = menuHeight - (if compact then 48 else 56)
+	petHeader.Position = UDim2.fromOffset(14, petHeaderTop)
+	petHeader.TextSize = if compact then 13 else 14
+	petGrid.Position = UDim2.fromOffset(14, petGridTop)
+	petGrid.Size = UDim2.new(1, -28, 0, math.max(28, equipTop - petGridTop - 8))
+	petGridLayout.CellPadding = UDim2.fromOffset(if compact then 6 else 8, if compact then 6 else 8)
+	petGridLayout.CellSize = UDim2.fromOffset(if compact then 58 else 64, if compact then 88 else 104)
+	equipPetButton.Position = UDim2.fromOffset(14, equipTop)
+	equipPetButton.Size = UDim2.new(1, -28, 0, 40)
+	equipPetButtonLabel.TextSize = if compact then 13 else 14
+
+	local shelfScale = fitPanelScale(390, 322, viewport, xPad, yPad)
+	shelfPanelScale.Scale = shelfScale
+	shelfPanel.Position = UDim2.fromOffset(math.max(xPad, viewport.X - 390 * shelfScale - xPad), yPad)
+
+	local registerScale = fitPanelScale(420, 420, viewport, xPad, yPad)
+	registerPanelScale.Scale = registerScale
+	registerPanel.Position = UDim2.fromOffset(
+		math.max(xPad, viewport.X - 420 * registerScale - xPad),
+		math.max(yPad, math.min(250, viewport.Y - 420 * registerScale - yPad))
+	)
+
+	if playerMenu.Visible and renderPlayerMenu then
+		renderPlayerMenu()
+	end
+end
 
 local function readStat(name: string): number
 	local leaderstats = player:FindFirstChild("leaderstats")
@@ -748,6 +973,7 @@ local function getPetEntries()
 			rarity = pet.rarity,
 			image = pet.image,
 			color = pet.color,
+			accentColor = pet.accentColor,
 			perk = pet.perk,
 			count = 0,
 			equipped = false,
@@ -781,6 +1007,119 @@ local function rarityColor(rarity: string?): Color3
 	return Color3.fromRGB(205, 218, 232)
 end
 
+local function petInitials(name: string?): string
+	local initials = ""
+	for word in string.gmatch(name or "Pet", "%w+") do
+		initials ..= string.sub(word, 1, 1)
+		if string.len(initials) >= 2 then
+			break
+		end
+	end
+
+	if initials == "" then
+		return "?"
+	end
+	return string.upper(initials)
+end
+
+local function petBaseColor(pet): Color3
+	if pet and typeof(pet.color) == "Color3" then
+		return pet.color
+	end
+	return rarityColor(if pet then pet.rarity else nil)
+end
+
+local function petAccentColor(pet): Color3
+	if pet and typeof(pet.accentColor) == "Color3" then
+		return pet.accentColor
+	end
+	return petBaseColor(pet):Lerp(Color3.fromRGB(20, 22, 26), 0.58)
+end
+
+local function clearPetPortrait(container: GuiObject)
+	for _, child in container:GetChildren() do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+end
+
+local function renderPetPortrait(container: GuiObject, pet, owned: boolean, compact: boolean?, showRarityTag: boolean?)
+	clearPetPortrait(container)
+	if container:IsA("ImageButton") or container:IsA("ImageLabel") then
+		container.Image = ""
+	end
+
+	local baseColor = petBaseColor(pet)
+	local accentColor = petAccentColor(pet)
+	container.BackgroundColor3 = if owned then baseColor:Lerp(Color3.fromRGB(20, 22, 26), 0.2) else Color3.fromRGB(46, 48, 54)
+	container.BackgroundTransparency = if owned then 0 else 0.08
+
+	local shine = Instance.new("Frame")
+	shine.Name = "Shine"
+	shine.Size = UDim2.new(1, -12, 0, if compact then 14 else 18)
+	shine.Position = UDim2.fromOffset(6, 6)
+	shine.BackgroundColor3 = baseColor:Lerp(Color3.fromRGB(255, 255, 255), 0.38)
+	shine.BackgroundTransparency = if owned then 0.28 else 0.64
+	shine.BorderSizePixel = 0
+	shine.Parent = container
+	addCorner(shine, 8)
+
+	local face = Instance.new("Frame")
+	face.Name = "Face"
+	face.AnchorPoint = Vector2.new(0.5, 0)
+	face.Size = UDim2.new(0.68, 0, 0, if compact then 34 else 42)
+	face.Position = UDim2.new(0.5, 0, 0, if compact then 16 else 19)
+	face.BackgroundColor3 = if owned then baseColor else baseColor:Lerp(Color3.fromRGB(60, 62, 68), 0.55)
+	face.BorderSizePixel = 0
+	face.Parent = container
+	addCorner(face, 18)
+	addStroke(face, accentColor, if owned then 0.3 else 0.72)
+
+	local earLeft = Instance.new("Frame")
+	earLeft.Name = "EarLeft"
+	earLeft.Size = UDim2.fromOffset(if compact then 12 else 15, if compact then 12 else 15)
+	earLeft.Position = UDim2.new(0.2, 0, 0, if compact then 12 else 15)
+	earLeft.BackgroundColor3 = accentColor
+	earLeft.BackgroundTransparency = if owned then 0.08 else 0.48
+	earLeft.BorderSizePixel = 0
+	earLeft.Parent = container
+	addCorner(earLeft, 8)
+
+	local earRight = earLeft:Clone()
+	earRight.Name = "EarRight"
+	earRight.Position = UDim2.new(0.68, 0, 0, if compact then 12 else 15)
+	earRight.Parent = container
+
+	local initialsLabel = Instance.new("TextLabel")
+	initialsLabel.Name = "Initials"
+	initialsLabel.Size = UDim2.new(1, 0, 0, if compact then 28 else 34)
+	initialsLabel.Position = UDim2.new(0, 0, 0, if compact then 22 else 27)
+	initialsLabel.BackgroundTransparency = 1
+	initialsLabel.Font = Enum.Font.GothamBlack
+	initialsLabel.Text = petInitials(if pet then pet.name else "Pet")
+	initialsLabel.TextColor3 = if owned then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(168, 172, 180)
+	initialsLabel.TextSize = if compact then 18 else 23
+	initialsLabel.Parent = container
+
+	if showRarityTag ~= false then
+		local rarityTag = Instance.new("TextLabel")
+		rarityTag.Name = "Rarity"
+		rarityTag.AnchorPoint = Vector2.new(0.5, 1)
+		rarityTag.Size = UDim2.new(1, -10, 0, if compact then 14 else 16)
+		rarityTag.Position = UDim2.new(0.5, 0, 1, -5)
+		rarityTag.BackgroundColor3 = rarityColor(if pet then pet.rarity else nil):Lerp(Color3.fromRGB(18, 20, 24), 0.22)
+		rarityTag.BackgroundTransparency = if owned then 0.08 else 0.38
+		rarityTag.BorderSizePixel = 0
+		rarityTag.Font = Enum.Font.GothamBold
+		rarityTag.Text = string.upper(if pet and pet.rarity then pet.rarity else "PET")
+		rarityTag.TextColor3 = if owned then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(170, 174, 182)
+		rarityTag.TextSize = if compact then 8 else 9
+		rarityTag.Parent = container
+		addCorner(rarityTag, 5)
+	end
+end
+
 local function getPetRollDiscountCents(): number
 	local attributeDiscount = player:GetAttribute("PetRollDiscountCents")
 	if typeof(attributeDiscount) == "number" and attributeDiscount > 0 then
@@ -805,20 +1144,19 @@ local function createPetSlot(pet)
 	local selected = selectedPetId == pet.id
 	local button = Instance.new("ImageButton")
 	button.Name = pet.id
-	button.Image = pet.image
-	button.ImageColor3 = if owned > 0 then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(92, 96, 104)
-	button.ImageTransparency = if owned > 0 then 0 else 0.35
+	button.Image = ""
 	button.BackgroundColor3 = if selected then rarityColor(pet.rarity) else Color3.fromRGB(38, 42, 50)
 	button.BorderSizePixel = 0
 	button.ScaleType = Enum.ScaleType.Fit
 	button.Parent = petGrid
 	addCorner(button, 8)
 	addStroke(button, if selected then rarityColor(pet.rarity) else Color3.fromRGB(255, 255, 255), if selected then 0.2 else 0.78)
+	renderPetPortrait(button, pet, owned > 0, petGridLayout.CellSize.X.Offset <= 60, false)
 
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "Name"
-	nameLabel.Size = UDim2.new(1, -6, 0, 30)
-	nameLabel.Position = UDim2.new(0, 3, 1, -34)
+	nameLabel.Size = UDim2.new(1, -6, 0, 24)
+	nameLabel.Position = UDim2.new(0, 3, 1, -28)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.Text = pet.name
@@ -873,25 +1211,30 @@ renderPlayerMenu = function()
 	local perkText = if petInventory and petInventory.equippedPerk then petInventory.equippedPerk else "No pet equipped"
 	local discountText = if discount > 0 then ` | Care discount {RetailCurrency.formatCents(discount)}` else ""
 	playerMenuStats.Text =
-		`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Pets {readStat("Pets")}
-Roll {RetailCurrency.formatCents(cost)}{discountText} | Rare safety in {rollsUntilRare} | {perkText}`
+		`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Pets {readStat("Pets")}`
+		.. "\n"
+		.. `Roll {RetailCurrency.formatCents(cost)}{discountText} | Rare safety in {rollsUntilRare} | {perkText}`
 
 	rollPetButtonLabel.Text = `Roll {RetailCurrency.formatCents(cost)}`
 	setResourceButtonEnabled(rollPetButton, readStat("Cash") >= cost, Color3.fromRGB(70, 116, 82))
 
 	if lastPetResult then
-		lotteryIcon.Image = lastPetResult.image
+		renderPetPortrait(lotteryIcon, lastPetResult, true, false, true)
 		local refundText = if lastPetResult.duplicateRefundCents and lastPetResult.duplicateRefundCents > 0
 			then ` | Refund {RetailCurrency.formatCents(lastPetResult.duplicateRefundCents)}`
 			else ""
 		local safetyText = if lastPetResult.guaranteedRare then "Safety roll hit" else lastPetResult.perk or "Companion unlocked"
-		lotteryResult.Text = `{lastPetResult.rarity} | {lastPetResult.name} | Owned x{lastPetResult.count}{refundText}
-{safetyText}`
+		lotteryResult.Text =
+			`{lastPetResult.rarity} | {lastPetResult.name} | Owned x{lastPetResult.count}{refundText}` .. "\n" .. safetyText
 		lotteryResult.TextColor3 = rarityColor(lastPetResult.rarity)
 	else
-		lotteryIcon.Image = RetailAssets.buttons.Lottery
-		lotteryResult.Text = `Roll to discover a pet
-Rare safety in {rollsUntilRare}`
+		renderPetPortrait(lotteryIcon, {
+			name = "Pet Roll",
+			rarity = "Rare",
+			color = Color3.fromRGB(70, 116, 82),
+			accentColor = Color3.fromRGB(36, 72, 54),
+		}, true, false, true)
+		lotteryResult.Text = "Roll to discover a pet" .. "\n" .. `Rare safety in {rollsUntilRare}`
 		lotteryResult.TextColor3 = Color3.fromRGB(208, 220, 234)
 	end
 
@@ -932,6 +1275,23 @@ Rare safety in {rollsUntilRare}`
 	setResourceButtonEnabled(equipPetButton, canEquip, Color3.fromRGB(68, 94, 132))
 end
 
+local viewportLayoutConnection = nil
+local function bindResponsiveLayout()
+	if viewportLayoutConnection then
+		viewportLayoutConnection:Disconnect()
+		viewportLayoutConnection = nil
+	end
+
+	local camera = Workspace.CurrentCamera
+	if camera then
+		viewportLayoutConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveLayout)
+	end
+	updateResponsiveLayout()
+end
+
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindResponsiveLayout)
+bindResponsiveLayout()
+
 local function createTenderButton(parent: Instance, denomination)
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.fromScale(1, 1)
@@ -960,7 +1320,7 @@ local function createTenderButton(parent: Instance, denomination)
 				return
 			end
 
-			adjustRegisterChange:FireServer(currentRegisterId, denomination.cents)
+			fireServerRemote("AdjustRegisterChange", currentRegisterId, denomination.cents)
 		end
 	end)
 end
@@ -1007,9 +1367,11 @@ local function renderRegisterPanel(state)
 	currentRegisterState = state
 	currentRegisterId = state.registerId
 	registerTitle.Text = if state.completed then "Receipt Printed" else `Player Register #{state.receiptNumber or "--"}`
-	registerSummary.Text = `Items {state.itemCount} | Total {RetailCurrency.formatCents(state.totalCents)}
-Customer paid {RetailCurrency.formatCents(state.paidCents)} | Change due {RetailCurrency.formatCents(state.changeDueCents)}
-Change given {RetailCurrency.formatCents(state.changeGivenCents)}`
+	registerSummary.Text = `Items {state.itemCount} | Total {RetailCurrency.formatCents(state.totalCents)}`
+		.. "\n"
+		.. `Customer paid {RetailCurrency.formatCents(state.paidCents)} | Change due {RetailCurrency.formatCents(state.changeDueCents)}`
+		.. "\n"
+		.. `Change given {RetailCurrency.formatCents(state.changeGivenCents)}`
 	receiptPreviewText.Text = buildRegisterReceiptPreview(state)
 
 	local remaining = state.changeRemainingCents or math.max(0, state.changeDueCents - state.changeGivenCents)
@@ -1139,12 +1501,28 @@ Workspace.ChildAdded:Connect(function(child)
 end)
 connectStats()
 updateHud()
+if bootGui.Parent then
+	bootGui:Destroy()
+end
+
+local function setHudPanelVisible(visible: boolean)
+	panel.Visible = visible
+	hudButtonLabel.Text = if visible then "HIDE" else "HUD"
+end
+
+closeHudButton.Activated:Connect(function()
+	setHudPanelVisible(false)
+end)
+
+hudButton.Activated:Connect(function()
+	setHudPanelVisible(not panel.Visible)
+end)
 
 closeShelfButton.Activated:Connect(function()
 	shelfPanel.Visible = false
 end)
 
-openShelfEditor.OnClientEvent:Connect(function(shelfId: number, departmentIndex: number, productIndex: number, shelfStock: number?, shelfCapacity: number?)
+connectClientRemote("OpenShelfEditor", function(shelfId: number, departmentIndex: number, productIndex: number, shelfStock: number?, shelfCapacity: number?)
 	currentShelfId = shelfId
 	currentShelfStock = math.max(0, math.floor(shelfStock or 0))
 	currentShelfCapacity = math.max(0, math.floor(shelfCapacity or 0))
@@ -1153,6 +1531,7 @@ openShelfEditor.OnClientEvent:Connect(function(shelfId: number, departmentIndex:
 	selectedDepartmentIndex = appliedDepartmentIndex
 	selectedProductIndex = appliedProductIndex
 	shelfPanel.Visible = true
+	updateResponsiveLayout()
 	renderShelfEditor()
 end)
 
@@ -1164,7 +1543,7 @@ applyShelfButton.Activated:Connect(function()
 		return
 	end
 
-	selectShelfProduct:FireServer(currentShelfId, selectedDepartmentIndex, selectedProductIndex)
+	fireServerRemote("SelectShelfProduct", currentShelfId, selectedDepartmentIndex, selectedProductIndex)
 	appliedDepartmentIndex = selectedDepartmentIndex
 	appliedProductIndex = selectedProductIndex
 	currentShelfStock = 0
@@ -1182,7 +1561,7 @@ clearChangeButton.Activated:Connect(function()
 		return
 	end
 	if currentRegisterId then
-		resetRegisterChange:FireServer(currentRegisterId)
+		fireServerRemote("ResetRegisterChange", currentRegisterId)
 	end
 end)
 
@@ -1200,16 +1579,17 @@ finishSaleButton.Activated:Connect(function()
 			return
 		end
 
-		finishRegisterSale:FireServer(currentRegisterId)
+		fireServerRemote("FinishRegisterSale", currentRegisterId)
 	end
 end)
 
-openRegisterPanel.OnClientEvent:Connect(function(state)
+connectClientRemote("OpenRegisterPanel", function(state)
 	registerPanel.Visible = true
+	updateResponsiveLayout()
 	renderRegisterPanel(state)
 end)
 
-updateRegisterPanel.OnClientEvent:Connect(function(state)
+connectClientRemote("UpdateRegisterPanel", function(state)
 	if currentRegisterId == state.registerId then
 		renderRegisterPanel(state)
 	end
@@ -1218,6 +1598,7 @@ end)
 local function showPlayerMenu(focus: string?)
 	playerMenu.Visible = true
 	playerMenuTitle.Text = if focus == "pets" then "Pet Lottery" else "Player Menu"
+	updateResponsiveLayout()
 	if renderPlayerMenu then
 		renderPlayerMenu()
 	end
@@ -1246,7 +1627,7 @@ local function requestPetRoll()
 		lotteryResult.TextColor3 = Color3.fromRGB(244, 140, 118)
 		return
 	end
-	requestPetLottery:FireServer()
+	fireServerRemote("RequestPetLottery")
 end
 
 rollPetButton.Activated:Connect(function()
@@ -1264,13 +1645,13 @@ equipPetButton.Activated:Connect(function()
 	end
 
 	if selectedPet.equipped then
-		requestEquipPet:FireServer("")
+		fireServerRemote("RequestEquipPet", "")
 	else
-		requestEquipPet:FireServer(selectedPet.id)
+		fireServerRemote("RequestEquipPet", selectedPet.id)
 	end
 end)
 
-petInventoryUpdate.OnClientEvent:Connect(function(payload)
+connectClientRemote("PetInventoryUpdate", function(payload)
 	petInventory = payload
 	if playerMenu.Visible and renderPlayerMenu then
 		renderPlayerMenu()
@@ -1278,12 +1659,12 @@ petInventoryUpdate.OnClientEvent:Connect(function(payload)
 	updateHud()
 end)
 
-petLotteryResult.OnClientEvent:Connect(function(result)
+connectClientRemote("PetLotteryResult", function(result)
 	lastPetResult = result
 	selectedPetId = result.id
 	showPlayerMenu("pets")
 end)
 
-openPlayerMenu.OnClientEvent:Connect(function(focus: string?)
+connectClientRemote("OpenPlayerMenu", function(focus: string?)
 	showPlayerMenu(focus)
 end)

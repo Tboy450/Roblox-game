@@ -3192,7 +3192,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	spawn.Parent = parking
 
 	addSign(store, "WelcomeSign", 0, floorY + 9, halfD - 3, 26, "RETAIL STORE", Color3.fromRGB(22, 85, 145))
-	addSign(store, "VersionSign", 0, floorY + 10, halfD - 5, 6, `v{BLUEPRINT_VERSION}`, Color3.fromRGB(75, 75, 80))
+	addSign(store, "VersionSign", 0, floorY + 10, halfD - 5, 6, `v{BLUEPRINT_VERSION} test`, Color3.fromRGB(75, 75, 80))
 
 	local lighting = game:GetService("Lighting")
 	lighting.Brightness = 2

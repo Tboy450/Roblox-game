@@ -4,11 +4,16 @@
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Selection = game:GetService("Selection")
+local StarterGui = game:GetService("StarterGui")
+local StarterPlayer = game:GetService("StarterPlayer")
 local Workspace = game:GetService("Workspace")
 
 local STORE_NAME = "RetailStore"
 local BLUEPRINT_NAME = "RetailStoreBlueprint"
 local CATALOG_NAME = "RetailCatalog"
+local HUD_CLIENT_SOURCE_NAME = "RetailHudClientSource"
+local HUD_RUNNER_NAME = "RetailHudRunner"
+local CLIENT_SCRIPT_NAME = "Client"
 local BLUEPRINT_VERSION = 43
 
 local autoUpdateEnabled = false
@@ -94,6 +99,91 @@ local function countParts(model: Instance): number
 	return total
 end
 
+local function findStarterPlayerClient(): LocalScript?
+	local starterPlayerScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+	if not starterPlayerScripts then
+		return nil
+	end
+
+	local client = starterPlayerScripts:FindFirstChild(CLIENT_SCRIPT_NAME)
+	if client and client:IsA("LocalScript") then
+		return client
+	end
+	return nil
+end
+
+local function findReplicatedClientSource(): LocalScript?
+	local source = ReplicatedStorage:FindFirstChild(HUD_CLIENT_SOURCE_NAME)
+	if source and source:IsA("LocalScript") then
+		return source
+	end
+
+	if source then
+		local client = source:FindFirstChild(CLIENT_SCRIPT_NAME)
+		if client and client:IsA("LocalScript") then
+			return client
+		end
+	end
+
+	return nil
+end
+
+local function findHudClientSource(screenGui: ScreenGui): LocalScript?
+	local replicatedSource = findReplicatedClientSource()
+	if replicatedSource then
+		return replicatedSource
+	end
+
+	local starterGuiClient = StarterGui:FindFirstChild(CLIENT_SCRIPT_NAME)
+	if starterGuiClient and starterGuiClient:IsA("LocalScript") then
+		return starterGuiClient
+	end
+
+	local runnerClient = screenGui:FindFirstChild(CLIENT_SCRIPT_NAME)
+	if runnerClient and runnerClient:IsA("LocalScript") then
+		return runnerClient
+	end
+
+	return findStarterPlayerClient()
+end
+
+local function ensureHudRunner(): (boolean, string)
+	local runner = StarterGui:FindFirstChild(HUD_RUNNER_NAME)
+	if runner and not runner:IsA("ScreenGui") then
+		return false, `{HUD_RUNNER_NAME} exists in StarterGui but is a {runner.ClassName}, not a ScreenGui.`
+	end
+
+	if not runner then
+		runner = Instance.new("ScreenGui")
+		runner.Name = HUD_RUNNER_NAME
+		runner.Parent = StarterGui
+	end
+
+	local screenGui = runner :: ScreenGui
+	screenGui.ResetOnSpawn = false
+
+	local sourceClient = findHudClientSource(screenGui)
+	local existingClient = screenGui:FindFirstChild(CLIENT_SCRIPT_NAME)
+	if existingClient and existingClient:IsA("LocalScript") then
+		if sourceClient and sourceClient ~= existingClient and existingClient.Source ~= sourceClient.Source then
+			existingClient.Source = sourceClient.Source
+			return true, "HUD runner refreshed."
+		end
+		return true, "HUD runner ready."
+	elseif existingClient then
+		existingClient:Destroy()
+	end
+
+	if not sourceClient or not sourceClient:IsA("LocalScript") then
+		return false, "HUD Client script missing. Check Rojo synced ReplicatedStorage > RetailHudClientSource."
+	end
+
+	local clientClone = sourceClient:Clone()
+	clientClone.Name = CLIENT_SCRIPT_NAME
+	clientClone.Parent = screenGui
+	return true, "HUD runner repaired."
+end
+
 local function updateMap()
 	ChangeHistoryService:SetWaypoint("Before retail map update")
 
@@ -111,9 +201,15 @@ local function updateMap()
 		error("RetailStoreBlueprint.build did not return the RetailStore model.")
 	end
 
+	local hudReady, hudMessage = ensureHudRunner()
+
 	ChangeHistoryService:SetWaypoint("After retail map update")
 	Selection:Set({ store })
-	log(`Updated {STORE_NAME} v{store:GetAttribute("BlueprintVersion") or BLUEPRINT_VERSION} ({countParts(store)} parts).`)
+	if hudReady then
+		log(`Updated {STORE_NAME} v{store:GetAttribute("BlueprintVersion") or BLUEPRINT_VERSION} ({countParts(store)} parts). {hudMessage}`)
+	else
+		warnPlugin(`Updated map, but HUD setup needs attention: {hudMessage}`)
+	end
 end
 
 local function clearMap()
