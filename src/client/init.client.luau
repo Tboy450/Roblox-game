@@ -972,6 +972,8 @@ local function getPetEntries()
 			name = pet.name,
 			rarity = pet.rarity,
 			image = pet.image,
+			assetId = pet.assetId,
+			sourceName = pet.sourceName,
 			color = pet.color,
 			accentColor = pet.accentColor,
 			perk = pet.perk,
@@ -1102,6 +1104,19 @@ local function renderPetPortrait(container: GuiObject, pet, owned: boolean, comp
 	initialsLabel.TextSize = if compact then 18 else 23
 	initialsLabel.Parent = container
 
+	if pet and typeof(pet.image) == "string" and pet.image ~= "" then
+		local assetImage = Instance.new("ImageLabel")
+		assetImage.Name = "AssetImage"
+		assetImage.Size = UDim2.new(1, -10, 1, if showRarityTag ~= false then -22 else -10)
+		assetImage.Position = UDim2.fromOffset(5, 5)
+		assetImage.BackgroundTransparency = 1
+		assetImage.Image = pet.image
+		assetImage.ImageColor3 = if owned then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(150, 154, 162)
+		assetImage.ImageTransparency = if owned then 0 else 0.28
+		assetImage.ScaleType = Enum.ScaleType.Fit
+		assetImage.Parent = container
+	end
+
 	if showRarityTag ~= false then
 		local rarityTag = Instance.new("TextLabel")
 		rarityTag.Name = "Rarity"
@@ -1231,6 +1246,8 @@ renderPlayerMenu = function()
 		renderPetPortrait(lotteryIcon, {
 			name = "Pet Roll",
 			rarity = "Rare",
+			image = RetailAssets.petLottery.image,
+			assetId = RetailAssets.petLottery.assetId,
 			color = Color3.fromRGB(70, 116, 82),
 			accentColor = Color3.fromRGB(36, 72, 54),
 		}, true, false, true)
