@@ -15,6 +15,7 @@ end
 local bootGui = Instance.new("ScreenGui")
 bootGui.Name = "RetailHudBoot"
 bootGui.ResetOnSpawn = false
+bootGui.DisplayOrder = 49
 bootGui.Parent = playerGui
 
 local bootLabel = Instance.new("TextLabel")
@@ -159,6 +160,7 @@ end
 local gui = Instance.new("ScreenGui")
 gui.Name = "RetailHud"
 gui.ResetOnSpawn = false
+gui.DisplayOrder = 50
 gui.Parent = playerGui
 
 local panel = Instance.new("Frame")
@@ -488,59 +490,94 @@ actionDockLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 actionDockLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 actionDockLayout.Parent = actionDock
 
-local hudButton = Instance.new("ImageButton")
-hudButton.Name = "HudButton"
-hudButton.Size = UDim2.fromOffset(62, 62)
-hudButton.Parent = actionDock
-styleResourceButton(hudButton, "", 10, Color3.fromRGB(54, 68, 86))
+local actionButtons: { ImageButton } = {}
+local actionButtonLabels: { TextLabel } = {}
 
-local hudButtonLabel = Instance.new("TextLabel")
-hudButtonLabel.Name = "Label"
-hudButtonLabel.Size = UDim2.new(1, 0, 0, 16)
-hudButtonLabel.Position = UDim2.new(0, 0, 1, -17)
-hudButtonLabel.BackgroundTransparency = 1
-hudButtonLabel.Font = Enum.Font.GothamBold
-hudButtonLabel.Text = "HUD"
-hudButtonLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
-hudButtonLabel.TextSize = 10
-hudButtonLabel.Parent = hudButton
+local function createActionDockButton(name: string, labelText: string, image: string, color: Color3): (ImageButton, TextLabel)
+	local button = Instance.new("ImageButton")
+	button.Name = name
+	button.Size = UDim2.fromOffset(58, 58)
+	button.Parent = actionDock
+	styleResourceButton(button, image, 10, color)
 
-local menuButton = Instance.new("ImageButton")
-menuButton.Name = "PlayerMenuButton"
-menuButton.Size = UDim2.fromOffset(62, 62)
-menuButton.Parent = actionDock
-styleResourceButton(menuButton, RetailAssets.buttons.Menu, 10, Color3.fromRGB(34, 42, 52))
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(1, 0, 0, 16)
+	label.Position = UDim2.new(0, 0, 1, -17)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(245, 245, 245)
+	label.TextSize = 10
+	label.Parent = button
 
-local menuButtonLabel = Instance.new("TextLabel")
-menuButtonLabel.Name = "Label"
-menuButtonLabel.Size = UDim2.new(1, 0, 0, 16)
-menuButtonLabel.Position = UDim2.new(0, 0, 1, -17)
-menuButtonLabel.BackgroundTransparency = 1
-menuButtonLabel.Font = Enum.Font.GothamBold
-menuButtonLabel.Text = "MENU"
-menuButtonLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
-menuButtonLabel.TextSize = 10
-menuButtonLabel.Parent = menuButton
+	table.insert(actionButtons, button)
+	table.insert(actionButtonLabels, label)
+	return button, label
+end
 
-local petsButton = Instance.new("ImageButton")
-petsButton.Name = "PetsButton"
-petsButton.Size = UDim2.fromOffset(62, 62)
-petsButton.Parent = actionDock
-styleResourceButton(petsButton, RetailAssets.buttons.Pets, 10, Color3.fromRGB(68, 58, 116))
+local hudButton, hudButtonLabel = createActionDockButton("HudButton", "HUD", RetailAssets.buttons.Hud, Color3.fromRGB(54, 68, 86))
+local menuButton, menuButtonLabel =
+	createActionDockButton("PlayerMenuButton", "MENU", RetailAssets.buttons.Menu, Color3.fromRGB(34, 42, 52))
+local petsButton, petsButtonLabel = createActionDockButton("PetsButton", "PETS", RetailAssets.buttons.Pets, Color3.fromRGB(68, 58, 116))
+local stockButton, stockButtonLabel =
+	createActionDockButton("StockButton", "STOCK", RetailAssets.buttons.Stock, Color3.fromRGB(88, 112, 78))
+local storeButton, storeButtonLabel =
+	createActionDockButton("StoreButton", "CLOSE", RetailAssets.buttons.StoreOpen, Color3.fromRGB(56, 116, 74))
+local cashButton, cashButtonLabel = createActionDockButton("CashButton", "CASH", RetailAssets.buttons.Cash, Color3.fromRGB(104, 88, 58))
 
-local petsButtonLabel = menuButtonLabel:Clone()
-petsButtonLabel.Text = "PETS"
-petsButtonLabel.Parent = petsButton
+local quickPanel = Instance.new("Frame")
+quickPanel.Name = "QuickPanel"
+quickPanel.Size = UDim2.fromOffset(298, 112)
+quickPanel.Position = UDim2.fromOffset(18, 226)
+quickPanel.BackgroundColor3 = Color3.fromRGB(22, 24, 28)
+quickPanel.BackgroundTransparency = 0.06
+quickPanel.BorderSizePixel = 0
+quickPanel.Visible = false
+quickPanel.Parent = gui
+stylePanel(quickPanel)
 
-local quickRollButton = Instance.new("ImageButton")
-quickRollButton.Name = "QuickRollButton"
-quickRollButton.Size = UDim2.fromOffset(62, 62)
-quickRollButton.Parent = actionDock
-styleResourceButton(quickRollButton, RetailAssets.buttons.Lottery, 10, Color3.fromRGB(70, 116, 82))
+local quickPanelAccent = Instance.new("Frame")
+quickPanelAccent.Name = "Accent"
+quickPanelAccent.Size = UDim2.new(1, -20, 0, 4)
+quickPanelAccent.Position = UDim2.fromOffset(10, 5)
+quickPanelAccent.BackgroundColor3 = Color3.fromRGB(88, 190, 146)
+quickPanelAccent.BorderSizePixel = 0
+quickPanelAccent.Parent = quickPanel
+addCorner(quickPanelAccent, 3)
 
-local quickRollButtonLabel = menuButtonLabel:Clone()
-quickRollButtonLabel.Text = "ROLL"
-quickRollButtonLabel.Parent = quickRollButton
+local quickPanelTitle = Instance.new("TextLabel")
+quickPanelTitle.Name = "Title"
+quickPanelTitle.Size = UDim2.new(1, -58, 0, 24)
+quickPanelTitle.Position = UDim2.fromOffset(14, 14)
+quickPanelTitle.BackgroundTransparency = 1
+quickPanelTitle.Font = Enum.Font.GothamBold
+quickPanelTitle.TextColor3 = Color3.fromRGB(245, 245, 245)
+quickPanelTitle.TextSize = 15
+quickPanelTitle.TextXAlignment = Enum.TextXAlignment.Left
+quickPanelTitle.Parent = quickPanel
+
+local quickPanelClose = Instance.new("ImageButton")
+quickPanelClose.Name = "Close"
+quickPanelClose.Size = UDim2.fromOffset(30, 30)
+quickPanelClose.Position = UDim2.new(1, -42, 0, 10)
+quickPanelClose.Parent = quickPanel
+styleResourceButton(quickPanelClose, RetailAssets.buttons.Close, 7, Color3.fromRGB(58, 62, 70))
+
+local quickPanelBody = Instance.new("TextLabel")
+quickPanelBody.Name = "Body"
+quickPanelBody.Size = UDim2.new(1, -28, 0, 58)
+quickPanelBody.Position = UDim2.fromOffset(14, 44)
+quickPanelBody.BackgroundTransparency = 1
+quickPanelBody.Font = Enum.Font.Gotham
+quickPanelBody.TextColor3 = Color3.fromRGB(210, 222, 236)
+quickPanelBody.TextSize = 13
+quickPanelBody.TextWrapped = true
+quickPanelBody.TextXAlignment = Enum.TextXAlignment.Left
+quickPanelBody.TextYAlignment = Enum.TextYAlignment.Top
+quickPanelBody.Parent = quickPanel
+
+local quickPanelMode: string? = nil
 
 local playerMenu = Instance.new("Frame")
 playerMenu.Name = "PlayerMenu"
@@ -715,6 +752,7 @@ equipPetButtonLabel.TextXAlignment = Enum.TextXAlignment.Left
 equipPetButtonLabel.Parent = equipPetButton
 
 local renderPlayerMenu: (() -> ())? = nil
+local renderQuickPanel: (() -> ())? = nil
 
 local function fitPanelScale(baseWidth: number, baseHeight: number, viewport: Vector2, xPad: number, yPad: number): number
 	local widthScale = (viewport.X - xPad * 2) / baseWidth
@@ -736,22 +774,30 @@ local function updateResponsiveLayout()
 	panel.Size = UDim2.fromOffset(panelWidth, 112)
 	closeHudButton.Position = UDim2.new(1, -34, 0, 8)
 
-	local dockButtonSize = if compact then 52 else 62
-	local dockPadding = if compact then 6 else 8
+	local dockButtonSize = if compact then 42 else 58
+	local dockPadding = if compact then 5 else 7
 	local dockHeight = dockButtonSize + 16
-	local dockWidth = dockButtonSize * 4 + dockPadding * 3 + 20
+	local dockWidth = dockButtonSize * #actionButtons + dockPadding * math.max(0, #actionButtons - 1) + 20
 	actionDock.Position = UDim2.fromOffset(xPad, yPad + 120)
 	actionDock.Size = UDim2.fromOffset(dockWidth, dockHeight)
 	actionDockLayout.Padding = UDim.new(0, dockPadding)
-	for _, button in { hudButton, menuButton, petsButton, quickRollButton } do
+	for _, button in actionButtons do
 		button.Size = UDim2.fromOffset(dockButtonSize, dockButtonSize)
 	end
-	for _, label in { hudButtonLabel, menuButtonLabel, petsButtonLabel, quickRollButtonLabel } do
+	for _, label in actionButtonLabels do
 		label.Position = UDim2.new(0, 0, 1, -17)
 		label.TextSize = if compact then 9 else 10
 	end
 
 	local menuTop = yPad + 120 + dockHeight + 10
+	quickPanel.Position = UDim2.fromOffset(xPad, menuTop)
+	quickPanel.Size = UDim2.fromOffset(math.min(360, availableWidth), if compact then 104 else 112)
+	quickPanelAccent.Size = UDim2.new(1, -20, 0, 4)
+	quickPanelTitle.TextSize = if compact then 14 else 15
+	quickPanelClose.Position = UDim2.new(1, -42, 0, 10)
+	quickPanelBody.Size = UDim2.new(1, -28, 0, if compact then 52 else 58)
+	quickPanelBody.TextSize = if compact then 12 else 13
+
 	local menuWidth = math.min(if compact then 360 else 408, availableWidth)
 	local menuHeight = math.min(if compact then 430 else 448, math.max(320, viewport.Y - menuTop - yPad))
 	playerMenu.Position = UDim2.fromOffset(xPad, menuTop)
@@ -863,6 +909,43 @@ local function getTaskHint(shift: number, stock: number, lowStock: number, empty
 	return "Next: help shoppers, check departments, or run register"
 end
 
+renderQuickPanel = function()
+	local store = Workspace:FindFirstChild("RetailStore")
+	local lowStock = readStoreAttribute(store, "LowStockShelves")
+	local emptyShelves = readStoreAttribute(store, "EmptyShelves")
+	local storeCash = readStoreAttribute(store, "StoreCashCents")
+	local storeCustomers = readStoreAttribute(store, "StoreCustomers")
+	local serviceBags = readStoreAttribute(store, "ServiceBags")
+	local storeOpen = readStoreOpen(store)
+	local storeStatus = if storeOpen then "Open" else "Closed"
+
+	if quickPanelMode == "stock" then
+		quickPanelAccent.BackgroundColor3 = Color3.fromRGB(104, 142, 112)
+		quickPanelTitle.Text = "Stock"
+		quickPanelBody.Text =
+			`Carried {readStat("Stock")} | Low shelves {lowStock} | Empty shelves {emptyShelves}`
+			.. "\n"
+			.. `Service bags {serviceBags}/12 | Tasks {readStat("Tasks")}`
+	elseif quickPanelMode == "cash" then
+		quickPanelAccent.BackgroundColor3 = Color3.fromRGB(190, 150, 82)
+		quickPanelTitle.Text = "Cash"
+		quickPanelBody.Text =
+			`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Basket {RetailCurrency.formatCents(readStat("BasketValue"))}`
+			.. "\n"
+			.. `Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers}`
+	elseif quickPanelMode == "store" then
+		quickPanelAccent.BackgroundColor3 = if storeOpen then Color3.fromRGB(88, 190, 146) else Color3.fromRGB(210, 116, 92)
+		quickPanelTitle.Text = "Store"
+		quickPanelBody.Text =
+			`Status {storeStatus} | Shoppers {readStoreAttribute(store, "ActiveShoppers")} | Parking {readStoreAttribute(store, "OccupiedParkingSpots")}`
+			.. "\n"
+			.. `Traffic accepting customers: {if storeOpen then "yes" else "no"}`
+	else
+		quickPanelTitle.Text = "Quick Status"
+		quickPanelBody.Text = `Store {storeStatus} | Cash {RetailCurrency.formatCents(readStat("Cash"))}`
+	end
+end
+
 local function updateHud()
 	local shift = readStat("Shift")
 	local shiftText = if shift == 1 then "On" else "Off"
@@ -886,6 +969,12 @@ local function updateHud()
 	storeLabel.Text =
 		`Store {storeStatus} | Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers} | Shoppers {activeShoppers} | Service Q{serviceQueue}/R{serviceReturns}/S{serviceSatisfaction}`
 	taskLabel.Text = getTaskHint(shift, stock, lowStock, emptyShelves, basket, storeOpen, serviceQueue, serviceReturns)
+	storeButton.Image = if storeOpen then RetailAssets.buttons.StoreOpen else RetailAssets.buttons.StoreClosed
+	storeButton.BackgroundColor3 = if storeOpen then Color3.fromRGB(56, 116, 74) else Color3.fromRGB(132, 72, 62)
+	storeButtonLabel.Text = if storeOpen then "CLOSE" else "OPEN"
+	if quickPanel.Visible and renderQuickPanel then
+		renderQuickPanel()
+	end
 	if playerMenu.Visible and renderPlayerMenu then
 		renderPlayerMenu()
 	end
@@ -1613,11 +1702,23 @@ connectClientRemote("UpdateRegisterPanel", function(state)
 end)
 
 local function showPlayerMenu(focus: string?)
+	quickPanel.Visible = false
+	quickPanelMode = nil
 	playerMenu.Visible = true
 	playerMenuTitle.Text = if focus == "pets" then "Pet Lottery" else "Player Menu"
 	updateResponsiveLayout()
 	if renderPlayerMenu then
 		renderPlayerMenu()
+	end
+end
+
+local function showQuickPanel(mode: string)
+	quickPanelMode = mode
+	quickPanel.Visible = true
+	playerMenu.Visible = false
+	updateResponsiveLayout()
+	if renderQuickPanel then
+		renderQuickPanel()
 	end
 end
 
@@ -1630,6 +1731,24 @@ end)
 
 petsButton.Activated:Connect(function()
 	showPlayerMenu("pets")
+end)
+
+stockButton.Activated:Connect(function()
+	showQuickPanel("stock")
+end)
+
+storeButton.Activated:Connect(function()
+	showQuickPanel("store")
+	fireServerRemote("RequestStoreToggle")
+end)
+
+cashButton.Activated:Connect(function()
+	showQuickPanel("cash")
+end)
+
+quickPanelClose.Activated:Connect(function()
+	quickPanel.Visible = false
+	quickPanelMode = nil
 end)
 
 closePlayerMenuButton.Activated:Connect(function()
@@ -1648,10 +1767,6 @@ local function requestPetRoll()
 end
 
 rollPetButton.Activated:Connect(function()
-	requestPetRoll()
-end)
-
-quickRollButton.Activated:Connect(function()
 	requestPetRoll()
 end)
 

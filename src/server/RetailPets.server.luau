@@ -93,6 +93,7 @@ local function applyPetAttributes(player: Player)
 	player:SetAttribute("PetStockBonusUnits", if pet and pet.stockBonusUnits then pet.stockBonusUnits else 0)
 	player:SetAttribute("PetCheckoutBonusCents", if pet and pet.checkoutBonusCents then pet.checkoutBonusCents else 0)
 	player:SetAttribute("PetDuplicateRefundBonusCents", if pet and pet.duplicateRefundBonusCents then pet.duplicateRefundBonusCents else 0)
+	player:SetAttribute("PetCareBonusCents", if pet and pet.careBonusCents then pet.careBonusCents else 0)
 end
 
 local function setPetCountStat(player: Player)

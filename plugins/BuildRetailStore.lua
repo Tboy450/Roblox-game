@@ -14,7 +14,7 @@ local CATALOG_NAME = "RetailCatalog"
 local HUD_CLIENT_SOURCE_NAME = "RetailHudClientSource"
 local HUD_RUNNER_NAME = "RetailHudRunner"
 local CLIENT_SCRIPT_NAME = "Client"
-local BLUEPRINT_VERSION = 43
+local BLUEPRINT_VERSION = 44
 
 local autoUpdateEnabled = false
 local autoUpdateQueued = false
@@ -281,7 +281,7 @@ local toolbar = plugin:CreateToolbar("Retail Game")
 
 local updateButton = toolbar:CreateButton(
 	"Update Map",
-	"Rebuild RetailStore v43 in Workspace using the latest Rojo-synced blueprint.",
+	"Rebuild RetailStore v44 in Workspace using the latest Rojo-synced blueprint.",
 	"rbxassetid://6031075938"
 )
 

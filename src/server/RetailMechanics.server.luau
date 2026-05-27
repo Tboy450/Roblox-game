@@ -43,6 +43,7 @@ local adjustRegisterChange = getRemoteEvent("AdjustRegisterChange")
 local resetRegisterChange = getRemoteEvent("ResetRegisterChange")
 local finishRegisterSale = getRemoteEvent("FinishRegisterSale")
 local openPlayerMenu = getRemoteEvent("OpenPlayerMenu")
+local requestStoreToggle = getRemoteEvent("RequestStoreToggle")
 local processNpcCheckout = retailRemotes:FindFirstChild("ProcessNpcCheckout")
 if not processNpcCheckout then
 	processNpcCheckout = Instance.new("BindableFunction")
@@ -158,7 +159,7 @@ local function getStat(player: Player, name: string): IntValue
 end
 
 local function setupPlayer(player: Player)
-	getStat(player, "Cash").Value = 0
+	getStat(player, "Cash").Value = 1500
 	getStat(player, "Basket").Value = 0
 	getStat(player, "BasketValue").Value = 0
 	getStat(player, "Stock").Value = 0
@@ -238,6 +239,14 @@ local function updateStoreOpenVisuals(store: Instance)
 			desc.Color = if storeOpen then Color3.fromRGB(52, 120, 72) else Color3.fromRGB(132, 72, 62)
 			updateSignText(desc, if storeOpen then "OPEN" else "CLOSED")
 		end
+	end
+end
+
+local function setStoreOpenFromPlayer(player: Player?, store: Instance, nextOpen: boolean)
+	store:SetAttribute("StoreOpen", nextOpen)
+	updateStoreOpenVisuals(store)
+	if player then
+		message(player, if nextOpen then "Store opened - shoppers can enter" else "Store closed - shoppers will leave and new arrivals pause")
 	end
 end
 
@@ -979,6 +988,7 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 	elseif action == "CarePet" then
 		local currentDiscount = math.max(0, math.floor(player:GetAttribute("PetRollDiscountCents") or 0))
 		local bonus = if player:GetAttribute("EquippedPetName") then 150 else 100
+		bonus += math.max(0, math.floor(player:GetAttribute("PetCareBonusCents") or 0))
 		local nextDiscount = math.min(300, currentDiscount + bonus)
 		player:SetAttribute("PetRollDiscountCents", nextDiscount)
 		awardCash(player, 75)
@@ -993,9 +1003,7 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		end
 
 		local nextOpen = store:GetAttribute("StoreOpen") == false
-		store:SetAttribute("StoreOpen", nextOpen)
-		updateStoreOpenVisuals(store)
-		message(player, if nextOpen then "Store opened - shoppers can enter" else "Store closed - shoppers will leave and new arrivals pause")
+		setStoreOpenFromPlayer(player, store, nextOpen)
 	else
 		warn(`[RetailMechanics] Unknown action '{action}' on {target:GetFullName()}`)
 	end
@@ -1220,6 +1228,16 @@ selectShelfProduct.OnServerEvent:Connect(function(player, shelfId, departmentInd
 	applyShelfSelection(unit)
 	setShelfStock(unit, 0)
 	message(player, `Set {unit:GetAttribute("ShelfProductName")} in {unit:GetAttribute("ShelfDepartmentName")} - shelf needs stock`)
+end)
+
+requestStoreToggle.OnServerEvent:Connect(function(player)
+	local store = Workspace:FindFirstChild("RetailStore")
+	if not store then
+		return
+	end
+
+	local nextOpen = store:GetAttribute("StoreOpen") == false
+	setStoreOpenFromPlayer(player, store, nextOpen)
 end)
 
 local function connectPrompt(prompt: ProximityPrompt)

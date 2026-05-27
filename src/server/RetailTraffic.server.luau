@@ -485,6 +485,9 @@ local function configureStore(store: Model)
 
 	spawnCashier()
 	currentStore:GetAttributeChangedSignal("StoreOpen"):Connect(function()
+		if not storeIsOpen() then
+			npcRegisterBusy = false
+		end
 		updateTrafficSummary()
 	end)
 	updateTrafficSummary()

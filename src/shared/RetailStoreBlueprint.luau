@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 43
+local BLUEPRINT_VERSION = 44
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -68,7 +68,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	end
 
 	for _, child in parent:GetChildren() do
-		if child:IsA("BasePart") and (child.Name:find("MapHint") or child.Name:find("Rojo Synced")) then
+		local lowerName = string.lower(child.Name)
+		local isRojoBaseplate = lowerName:find("rojo") ~= nil and lowerName:find("baseplate") ~= nil
+		if child:IsA("BasePart") and (child.Name:find("MapHint") or child.Name:find("Rojo Synced") or isRojoBaseplate) then
 			child:Destroy()
 		end
 	end
@@ -158,7 +160,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		color: Color3,
 		height: number?
 	): Part
-		local signHeight = height or math.clamp(w * 0.18, 1.25, 2.25)
+		local signHeight = height or math.clamp(w * 0.15, 1.0, 1.9)
 		local sign = storePart({
 			name = name,
 			size = Vector3.new(w, signHeight, 0.35),
@@ -172,7 +174,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				gui.Face = face
 				gui.LightInfluence = 0.2
 				gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-				gui.PixelsPerStud = 72
+				gui.PixelsPerStud = 88
 				gui.Parent = sign
 
 				local label = Instance.new("TextLabel")
@@ -1032,7 +1034,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	})
 	addPrompt(serviceDesk, "ServiceCustomer", "Help", "Customer Service", 0.2)
 	serviceDesk:SetAttribute("ServiceDesk", true)
-	local serviceStatusSign = addSign(frontEnd, "ServiceStatusSign", -46, floorY + 8.8, halfD - 15, 11, "QUEUE 0 | RETURNS 3", Color3.fromRGB(54, 92, 118))
+	local serviceStatusSign = addSign(frontEnd, "ServiceStatusSign", -46, floorY + 8.35, halfD - 15, 9.2, "QUEUE 0 | RETURNS 3", Color3.fromRGB(54, 92, 118), 1.25)
 	serviceStatusSign:SetAttribute("ServiceStatusDisplay", true)
 	local serviceBell = detailPart({
 		name = "ServiceBell",
@@ -1185,7 +1187,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		canCollide = false,
 		parent = petKiosk,
 	})
-	addSign(petKiosk, "PetLotterySign", -17, floorY + 8.1, halfD - 15.1, 8, "PETS", Color3.fromRGB(96, 58, 132))
+	addSign(petKiosk, "PetLotterySign", -17, floorY + 7.8, halfD - 15.1, 6.4, "PETS", Color3.fromRGB(96, 58, 132), 1.2)
 	local petCareStation = storePart({
 		name = "PetCareStation",
 		size = Vector3.new(4.2, 1.4, 2.8),
@@ -1227,7 +1229,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		material = Enum.Material.SmoothPlastic,
 		parent = teamStation,
 	})
-	addSign(teamStation, "TeamSign", -32, floorY + 7.6, halfD - 14.8, 8, "TEAM", Color3.fromRGB(42, 92, 118))
+	addSign(teamStation, "TeamSign", -32, floorY + 7.4, halfD - 14.8, 6.4, "TEAM", Color3.fromRGB(42, 92, 118), 1.15)
 	local frontTimeClock = storePart({
 		name = "FrontTimeClock",
 		size = Vector3.new(2.2, 3, 0.45),
@@ -1256,7 +1258,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	})
 	storeStatusControl:SetAttribute("StoreOpenControl", true)
 	addPrompt(storeStatusControl, "ToggleStoreOpen", "Close", "Store Open", 0.25)
-	local storeStatusSign = addSign(teamStation, "StoreStatusSign", -32.5, floorY + 6.05, halfD - 14.75, 7, "OPEN", Color3.fromRGB(52, 120, 72))
+	local storeStatusSign = addSign(teamStation, "StoreStatusSign", -32.5, floorY + 5.95, halfD - 14.75, 5.6, "OPEN", Color3.fromRGB(52, 120, 72), 1.05)
 	storeStatusSign:SetAttribute("StoreStatusDisplay", true)
 	storePart({
 		name = "TeamShelf",
@@ -1399,8 +1401,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			canCollide = false,
 			parent = lane,
 		})
-		addSign(lane, "LaneSign", x, floorY + 8.4, halfD - 25.2, 11.5, label, signColor)
-		local statusDisplay = addSign(lane, "StatusDisplay", x, floorY + 5.9, halfD - 18.7, 7.8, "READY", Color3.fromRGB(48, 52, 58))
+		addSign(lane, "LaneSign", x, floorY + 8.15, halfD - 25.2, 9.4, label, signColor, 1.3)
+		local statusDisplay = addSign(lane, "StatusDisplay", x, floorY + 5.75, halfD - 18.7, 6.2, "READY", Color3.fromRGB(48, 52, 58), 1.05)
 		statusDisplay:SetAttribute("RegisterStatusDisplay", true)
 
 		if kind == "Player" then
@@ -1597,8 +1599,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			parent = pharmacy,
 		})
 		addPrompt(dropoffCounter, "FillPrescription", "Drop off", "Prescription Dropoff", 0.25)
-		addSign(pharmacy, "PharmacyDropoffSign", westCx - 5, floorY + 6.15, -17.7, 4.8, "DROP", Color3.fromRGB(52, 86, 120), 1.0)
-		addSign(pharmacy, "PharmacyPickupSign", westCx - 5, floorY + 6.15, -8.7, 4.8, "PICKUP", Color3.fromRGB(52, 100, 86), 1.0)
+		addSign(pharmacy, "PharmacyDropoffSign", westCx - 5, floorY + 5.9, -17.7, 3.8, "DROP", Color3.fromRGB(52, 86, 120), 0.82)
+		addSign(pharmacy, "PharmacyPickupSign", westCx - 5, floorY + 5.9, -8.7, 3.8, "PICKUP", Color3.fromRGB(52, 100, 86), 0.82)
 		for shelf, z in { -22, -6 } do
 			storePart({
 				name = `MedicineShelf{shelf}`,
@@ -3013,8 +3015,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		})
 		local pickupSign = storePart({
 			name = `PickupSign{i}`,
-			size = Vector3.new(7, 3, 0.5),
-			position = Vector3.new(pickupX - 6 + i * 12, floorY + 7, pickupZ - 7),
+			size = Vector3.new(5.8, 2.2, 0.5),
+			position = Vector3.new(pickupX - 6 + i * 12, floorY + 6.7, pickupZ - 7),
 			color = Color3.fromRGB(20, 105, 155),
 			material = Enum.Material.SmoothPlastic,
 			parent = pickup,
@@ -3192,7 +3194,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	spawn.Parent = parking
 
 	addSign(store, "WelcomeSign", 0, floorY + 9, halfD - 3, 26, "RETAIL STORE", Color3.fromRGB(22, 85, 145))
-	addSign(store, "VersionSign", 0, floorY + 10, halfD - 5, 6, `v{BLUEPRINT_VERSION} test`, Color3.fromRGB(75, 75, 80))
+	addSign(store, "VersionSign", 0, floorY + 9.65, halfD - 5, 4.8, `v{BLUEPRINT_VERSION} test`, Color3.fromRGB(75, 75, 80), 0.85)
 
 	local lighting = game:GetService("Lighting")
 	lighting.Brightness = 2
