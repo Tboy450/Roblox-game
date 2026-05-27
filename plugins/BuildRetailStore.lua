@@ -14,7 +14,7 @@ local CATALOG_NAME = "RetailCatalog"
 local HUD_CLIENT_SOURCE_NAME = "RetailHudClientSource"
 local HUD_RUNNER_NAME = "RetailHudRunner"
 local CLIENT_SCRIPT_NAME = "Client"
-local BLUEPRINT_VERSION = 47
+local BLUEPRINT_VERSION = 48
 
 local autoUpdateEnabled = false
 local autoUpdateQueued = false
@@ -66,7 +66,35 @@ local function getCatalogModule(): ModuleScript
 	return moduleScript
 end
 
-local function requireFreshBlueprint()
+local function readModuleBlueprintVersion(moduleScript: ModuleScript): number?
+	local ok, source = pcall(function()
+		return moduleScript.Source
+	end)
+	if not ok or typeof(source) ~= "string" then
+		return nil
+	end
+
+	local versionText = source:match("BLUEPRINT_VERSION%s*=%s*(%d+)")
+	return if versionText then tonumber(versionText) else nil
+end
+
+local function versionLabel(version: number?): string
+	return if version then `v{version}` else "unknown"
+end
+
+local function checkSync()
+	local moduleScript = getBlueprintModule()
+	local syncedVersion = readModuleBlueprintVersion(moduleScript)
+	if syncedVersion == BLUEPRINT_VERSION then
+		log(`Plugin v{BLUEPRINT_VERSION}; Rojo blueprint {versionLabel(syncedVersion)}. Sync OK.`)
+	else
+		warnPlugin(
+			`Version mismatch: plugin v{BLUEPRINT_VERSION}, Rojo blueprint {versionLabel(syncedVersion)}. Reconnect Rojo to localhost:34872, then click Update Map.`
+		)
+	end
+end
+
+local function requireFreshBlueprint(blueprintModule: ModuleScript?)
 	local runtimeFolder = Instance.new("Folder")
 	runtimeFolder.Name = "RetailMapBuildRuntime"
 	runtimeFolder.Parent = ReplicatedStorage
@@ -75,7 +103,7 @@ local function requireFreshBlueprint()
 	catalogClone.Name = CATALOG_NAME
 	catalogClone.Parent = runtimeFolder
 
-	local blueprintClone = getBlueprintModule():Clone()
+	local blueprintClone = (blueprintModule or getBlueprintModule()):Clone()
 	blueprintClone.Name = BLUEPRINT_NAME
 	blueprintClone.Parent = runtimeFolder
 
@@ -187,7 +215,15 @@ end
 local function updateMap()
 	ChangeHistoryService:SetWaypoint("Before retail map update")
 
-	local blueprint = requireFreshBlueprint()
+	local blueprintModule = getBlueprintModule()
+	local syncedVersion = readModuleBlueprintVersion(blueprintModule)
+	if syncedVersion ~= BLUEPRINT_VERSION then
+		error(
+			`Version mismatch before build: plugin v{BLUEPRINT_VERSION}, Rojo blueprint {versionLabel(syncedVersion)}. Reconnect Rojo to localhost:34872 or restart Studio, then Update Map again.`
+		)
+	end
+
+	local blueprint = requireFreshBlueprint(blueprintModule)
 	if typeof(blueprint) ~= "table" or typeof(blueprint.build) ~= "function" then
 		error("RetailStoreBlueprint did not return a table with a build function.")
 	end
@@ -205,10 +241,14 @@ local function updateMap()
 
 	ChangeHistoryService:SetWaypoint("After retail map update")
 	Selection:Set({ store })
+	local builtVersionAttribute = store:GetAttribute("BlueprintVersion")
+	local builtVersion = if typeof(builtVersionAttribute) == "number" then builtVersionAttribute else nil
 	if hudReady then
-		log(`Updated {STORE_NAME} v{store:GetAttribute("BlueprintVersion") or BLUEPRINT_VERSION} ({countParts(store)} parts). {hudMessage}`)
+		log(
+			`Updated {STORE_NAME} {versionLabel(builtVersion)} ({countParts(store)} parts). Plugin v{BLUEPRINT_VERSION}; Rojo {versionLabel(syncedVersion)}. {hudMessage}`
+		)
 	else
-		warnPlugin(`Updated map, but HUD setup needs attention: {hudMessage}`)
+		warnPlugin(`Updated map, but HUD setup needs attention: {hudMessage}. Plugin v{BLUEPRINT_VERSION}; Rojo {versionLabel(syncedVersion)}.`)
 	end
 end
 
@@ -281,8 +321,14 @@ local toolbar = plugin:CreateToolbar("Retail Game")
 
 local updateButton = toolbar:CreateButton(
 	"Update Map",
-	"Rebuild RetailStore v47 in Workspace using the latest Rojo-synced blueprint.",
+	"Rebuild RetailStore v48 in Workspace using the latest Rojo-synced blueprint.",
 	"rbxassetid://6031075938"
+)
+
+local checkButton = toolbar:CreateButton(
+	"Check Sync",
+	"Show updater plugin version and Rojo-synced blueprint version.",
+	"rbxassetid://6031280882"
 )
 
 local clearButton = toolbar:CreateButton(
@@ -308,7 +354,7 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 	false,
 	false,
 	360,
-	120,
+	150,
 	280,
 	100
 )
@@ -337,12 +383,17 @@ lastStatusLabel.TextWrapped = true
 lastStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 lastStatusLabel.TextYAlignment = Enum.TextYAlignment.Top
 lastStatusLabel.Size = UDim2.fromScale(1, 1)
-lastStatusLabel.Text = "Ready. Connect Rojo, then click Update Map."
+lastStatusLabel.Text = `Plugin v{BLUEPRINT_VERSION} ready. Connect Rojo, then click Check Sync or Update Map.`
 lastStatusLabel.Parent = statusFrame
 
 updateButton.Click:Connect(function()
 	statusWidget.Enabled = true
 	runSafely("Update map", updateMap)
+end)
+
+checkButton.Click:Connect(function()
+	statusWidget.Enabled = true
+	runSafely("Check sync", checkSync)
 end)
 
 clearButton.Click:Connect(function()
@@ -389,4 +440,4 @@ autoButton.Click:Connect(function()
 	end
 end)
 
-log("Loaded. Use Retail Game -> Update Map after Rojo connects.")
+log(`Loaded plugin v{BLUEPRINT_VERSION}. Use Retail Game -> Check Sync after Rojo connects.`)

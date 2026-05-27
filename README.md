@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 47
+local BLUEPRINT_VERSION = 48
 ```
 
 When making major map changes, bump this number and also update:
@@ -230,6 +230,7 @@ In Studio, it appears under **Plugins -> Retail Game**.
 Buttons:
 
 - **Update Map**: rebuilds `Workspace.RetailStore` from the latest Rojo-synced blueprint.
+- **Check Sync**: shows the updater plugin version and the Rojo-synced blueprint version.
 - **Clear Map**: deletes the generated `RetailStore`.
 - **Select Map**: selects `RetailStore` in Explorer.
 - **Auto Update**: watches blueprint/catalog changes and rebuilds after Rojo syncs.
@@ -286,6 +287,7 @@ Then connect Rojo in Studio and click **Retail Game -> Update Map**.
 ### Update Map Uses Old Code
 
 - Make sure Rojo is connected.
+- Click **Check Sync**. The plugin version and Rojo blueprint version should match.
 - Save the file in your editor.
 - Restart Studio if the plugin itself was changed.
 - Check the map version sign in front of the store.
