@@ -330,6 +330,15 @@ requestEquipPet.OnServerEvent:Connect(function(player, petId)
 		return
 	end
 
+	if state.equippedPetId == petId then
+		state.equippedPetId = nil
+		applyPetAttributes(player)
+		clearPetModel(player)
+		message(player, `{pet.name} unequipped`)
+		sendInventory(player)
+		return
+	end
+
 	state.equippedPetId = petId
 	applyPetAttributes(player)
 	attachPetToCharacter(player)

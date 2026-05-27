@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 45
+local BLUEPRINT_VERSION = 46
 ```
 
 When making major map changes, bump this number and also update:
@@ -147,6 +147,7 @@ Current pet flow:
 - A roll awards one pet based on rarity weights.
 - The first pet auto-equips.
 - Players can select owned pets in the menu and equip or unequip them.
+- Selecting a different owned pet keeps that pet selected, so switching companions works from the same equip button.
 - Equipped pets spawn as a small companion model near the character with a resource icon badge.
 - Pet care can be triggered from the pet menu or care station to discount the next roll, and some equipped pets improve that discount.
 

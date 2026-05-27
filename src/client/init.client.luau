@@ -1445,21 +1445,22 @@ renderPlayerMenu = function()
 
 	clearImageButtons(petGrid)
 	local firstOwnedId: string? = nil
+	local equippedPetId: string? = nil
 	for _, pet in getPetEntries() do
 		if (pet.count or 0) > 0 and not firstOwnedId then
 			firstOwnedId = pet.id
 		end
 		if pet.equipped then
-			selectedPetId = pet.id
+			equippedPetId = pet.id
 		end
 	end
 
 	if not selectedPetId then
-		selectedPetId = firstOwnedId
+		selectedPetId = equippedPetId or firstOwnedId
 	end
 	local activeSelection = findPetEntry(selectedPetId)
 	if not activeSelection or (activeSelection.count or 0) <= 0 then
-		selectedPetId = firstOwnedId
+		selectedPetId = equippedPetId or firstOwnedId
 	end
 
 	for _, pet in getPetEntries() do
