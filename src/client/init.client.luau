@@ -528,7 +528,7 @@ local cashButton, cashButtonLabel = createActionDockButton("CashButton", "CASH",
 
 local quickPanel = Instance.new("Frame")
 quickPanel.Name = "QuickPanel"
-quickPanel.Size = UDim2.fromOffset(298, 112)
+quickPanel.Size = UDim2.fromOffset(298, 150)
 quickPanel.Position = UDim2.fromOffset(18, 226)
 quickPanel.BackgroundColor3 = Color3.fromRGB(22, 24, 28)
 quickPanel.BackgroundTransparency = 0.06
@@ -566,7 +566,7 @@ styleResourceButton(quickPanelClose, RetailAssets.buttons.Close, 7, Color3.fromR
 
 local quickPanelBody = Instance.new("TextLabel")
 quickPanelBody.Name = "Body"
-quickPanelBody.Size = UDim2.new(1, -28, 0, 58)
+quickPanelBody.Size = UDim2.new(1, -28, 0, 52)
 quickPanelBody.Position = UDim2.fromOffset(14, 44)
 quickPanelBody.BackgroundTransparency = 1
 quickPanelBody.Font = Enum.Font.Gotham
@@ -576,6 +576,25 @@ quickPanelBody.TextWrapped = true
 quickPanelBody.TextXAlignment = Enum.TextXAlignment.Left
 quickPanelBody.TextYAlignment = Enum.TextYAlignment.Top
 quickPanelBody.Parent = quickPanel
+
+local quickPanelAction = Instance.new("ImageButton")
+quickPanelAction.Name = "Action"
+quickPanelAction.Size = UDim2.new(1, -28, 0, 34)
+quickPanelAction.Position = UDim2.fromOffset(14, 104)
+quickPanelAction.Parent = quickPanel
+styleResourceButton(quickPanelAction, RetailAssets.buttons.OrderStock, 7, Color3.fromRGB(88, 112, 78))
+
+local quickPanelActionLabel = Instance.new("TextLabel")
+quickPanelActionLabel.Name = "Label"
+quickPanelActionLabel.Size = UDim2.new(1, -44, 1, 0)
+quickPanelActionLabel.Position = UDim2.fromOffset(40, 0)
+quickPanelActionLabel.BackgroundTransparency = 1
+quickPanelActionLabel.Font = Enum.Font.GothamBold
+quickPanelActionLabel.Text = "Order Stock"
+quickPanelActionLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
+quickPanelActionLabel.TextSize = 13
+quickPanelActionLabel.TextXAlignment = Enum.TextXAlignment.Left
+quickPanelActionLabel.Parent = quickPanelAction
 
 local quickPanelMode: string? = nil
 
@@ -703,6 +722,25 @@ rollPetButtonLabel.TextSize = 13
 rollPetButtonLabel.TextXAlignment = Enum.TextXAlignment.Left
 rollPetButtonLabel.Parent = rollPetButton
 
+local carePetButton = Instance.new("ImageButton")
+carePetButton.Name = "CarePet"
+carePetButton.Size = UDim2.fromOffset(104, 38)
+carePetButton.Position = UDim2.fromOffset(248, 82)
+carePetButton.Parent = lotteryPanel
+styleResourceButton(carePetButton, RetailAssets.buttons.Care, 8, Color3.fromRGB(94, 112, 142))
+
+local carePetButtonLabel = Instance.new("TextLabel")
+carePetButtonLabel.Name = "Label"
+carePetButtonLabel.Size = UDim2.new(1, -36, 1, 0)
+carePetButtonLabel.Position = UDim2.fromOffset(34, 0)
+carePetButtonLabel.BackgroundTransparency = 1
+carePetButtonLabel.Font = Enum.Font.GothamBold
+carePetButtonLabel.Text = "Care"
+carePetButtonLabel.TextColor3 = Color3.fromRGB(245, 245, 245)
+carePetButtonLabel.TextSize = 13
+carePetButtonLabel.TextXAlignment = Enum.TextXAlignment.Left
+carePetButtonLabel.Parent = carePetButton
+
 local petHeader = Instance.new("TextLabel")
 petHeader.Name = "PetHeader"
 petHeader.Size = UDim2.new(1, -28, 0, 22)
@@ -791,12 +829,15 @@ local function updateResponsiveLayout()
 
 	local menuTop = yPad + 120 + dockHeight + 10
 	quickPanel.Position = UDim2.fromOffset(xPad, menuTop)
-	quickPanel.Size = UDim2.fromOffset(math.min(360, availableWidth), if compact then 104 else 112)
+	quickPanel.Size = UDim2.fromOffset(math.min(360, availableWidth), if compact then 142 else 150)
 	quickPanelAccent.Size = UDim2.new(1, -20, 0, 4)
 	quickPanelTitle.TextSize = if compact then 14 else 15
 	quickPanelClose.Position = UDim2.new(1, -42, 0, 10)
-	quickPanelBody.Size = UDim2.new(1, -28, 0, if compact then 52 else 58)
+	quickPanelBody.Size = UDim2.new(1, -28, 0, if compact then 46 else 52)
 	quickPanelBody.TextSize = if compact then 12 else 13
+	quickPanelAction.Position = UDim2.fromOffset(14, if compact then 98 else 104)
+	quickPanelAction.Size = UDim2.new(1, -28, 0, 34)
+	quickPanelActionLabel.TextSize = if compact then 12 else 13
 
 	local menuWidth = math.min(if compact then 360 else 408, availableWidth)
 	local menuHeight = math.min(if compact then 430 else 448, math.max(320, viewport.Y - menuTop - yPad))
@@ -825,9 +866,13 @@ local function updateResponsiveLayout()
 	lotteryResult.Position = UDim2.fromOffset(lotteryTextX, if compact then 34 else 40)
 	lotteryResult.Size = UDim2.new(1, -(lotteryTextX + 12), 0, if compact then 30 else 36)
 	lotteryResult.TextSize = if compact then 12 else 13
+	local lotteryButtonWidth = math.min(if compact then 118 else 140, math.max(96, (menuWidth - lotteryTextX - 38) / 2))
 	rollPetButton.Position = UDim2.fromOffset(lotteryTextX, lotteryHeight - 42)
-	rollPetButton.Size = UDim2.fromOffset(math.min(152, math.max(128, menuWidth - lotteryTextX - 28)), 34)
+	rollPetButton.Size = UDim2.fromOffset(lotteryButtonWidth, 34)
 	rollPetButtonLabel.TextSize = if compact then 12 else 13
+	carePetButton.Position = UDim2.fromOffset(lotteryTextX + lotteryButtonWidth + 8, lotteryHeight - 42)
+	carePetButton.Size = UDim2.fromOffset(lotteryButtonWidth, 34)
+	carePetButtonLabel.TextSize = if compact then 12 else 13
 
 	local petHeaderTop = lotteryTop + lotteryHeight + 8
 	local petGridTop = petHeaderTop + 24
@@ -909,6 +954,18 @@ local function getTaskHint(shift: number, stock: number, lowStock: number, empty
 	return "Next: help shoppers, check departments, or run register"
 end
 
+local function setQuickPanelAction(label: string, image: string, color: Color3, visible: boolean, enabled: boolean)
+	quickPanelAction.Visible = visible
+	quickPanelAction.Active = enabled
+	quickPanelAction.AutoButtonColor = enabled
+	quickPanelAction.Image = image
+	quickPanelAction.ImageTransparency = if enabled then 0 else 0.45
+	quickPanelAction.BackgroundColor3 = if enabled then color else Color3.fromRGB(60, 62, 66)
+	quickPanelAction.BackgroundTransparency = if enabled then 0 else 0.35
+	quickPanelActionLabel.Text = label
+	quickPanelActionLabel.TextTransparency = if enabled then 0 else 0.4
+end
+
 renderQuickPanel = function()
 	local store = Workspace:FindFirstChild("RetailStore")
 	local lowStock = readStoreAttribute(store, "LowStockShelves")
@@ -916,8 +973,10 @@ renderQuickPanel = function()
 	local storeCash = readStoreAttribute(store, "StoreCashCents")
 	local storeCustomers = readStoreAttribute(store, "StoreCustomers")
 	local serviceBags = readStoreAttribute(store, "ServiceBags")
+	local stockOrders = readStat("StockOrders")
 	local storeOpen = readStoreOpen(store)
 	local storeStatus = if storeOpen then "Open" else "Closed"
+	local onShift = readStat("Shift") == 1
 
 	if quickPanelMode == "stock" then
 		quickPanelAccent.BackgroundColor3 = Color3.fromRGB(104, 142, 112)
@@ -925,14 +984,22 @@ renderQuickPanel = function()
 		quickPanelBody.Text =
 			`Carried {readStat("Stock")} | Low shelves {lowStock} | Empty shelves {emptyShelves}`
 			.. "\n"
-			.. `Service bags {serviceBags}/12 | Tasks {readStat("Tasks")}`
+			.. `Service bags {serviceBags}/12 | Orders {stockOrders} | Tasks {readStat("Tasks")}`
+		setQuickPanelAction(
+			if onShift then "Order Stock $3" else "Clock In First",
+			RetailAssets.buttons.OrderStock,
+			Color3.fromRGB(88, 112, 78),
+			true,
+			onShift and readStat("Cash") >= 300
+		)
 	elseif quickPanelMode == "cash" then
 		quickPanelAccent.BackgroundColor3 = Color3.fromRGB(190, 150, 82)
 		quickPanelTitle.Text = "Cash"
 		quickPanelBody.Text =
 			`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Basket {RetailCurrency.formatCents(readStat("BasketValue"))}`
 			.. "\n"
-			.. `Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers}`
+			.. `Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers} | Streak {readStat("RegisterStreak")}`
+		setQuickPanelAction("Run Register", RetailAssets.buttons.Register, Color3.fromRGB(104, 88, 58), false, false)
 	elseif quickPanelMode == "store" then
 		quickPanelAccent.BackgroundColor3 = if storeOpen then Color3.fromRGB(88, 190, 146) else Color3.fromRGB(210, 116, 92)
 		quickPanelTitle.Text = "Store"
@@ -940,9 +1007,11 @@ renderQuickPanel = function()
 			`Status {storeStatus} | Shoppers {readStoreAttribute(store, "ActiveShoppers")} | Parking {readStoreAttribute(store, "OccupiedParkingSpots")}`
 			.. "\n"
 			.. `Traffic accepting customers: {if storeOpen then "yes" else "no"}`
+		setQuickPanelAction(if storeOpen then "Close Store" else "Open Store", if storeOpen then RetailAssets.buttons.StoreClosed else RetailAssets.buttons.StoreOpen, if storeOpen then Color3.fromRGB(132, 72, 62) else Color3.fromRGB(56, 116, 74), true, true)
 	else
 		quickPanelTitle.Text = "Quick Status"
 		quickPanelBody.Text = `Store {storeStatus} | Cash {RetailCurrency.formatCents(readStat("Cash"))}`
+		setQuickPanelAction("Action", RetailAssets.buttons.Menu, Color3.fromRGB(60, 62, 66), false, false)
 	end
 end
 
@@ -1243,6 +1312,33 @@ local function getPetRollCostCents(): number
 	return if petInventory and petInventory.rollCostCents then petInventory.rollCostCents else RetailAssets.petLottery.rollCostCents
 end
 
+local function getPetOddsSummary(): string
+	local weights = {
+		Common = 0,
+		Rare = 0,
+		Epic = 0,
+		Legendary = 0,
+	}
+	local totalWeight = 0
+	for _, pet in RetailAssets.pets do
+		local weight = math.max(0, math.floor(pet.weight or 0))
+		weights[pet.rarity or "Common"] = (weights[pet.rarity or "Common"] or 0) + weight
+		totalWeight += weight
+	end
+
+	if totalWeight <= 0 then
+		return "Odds loading"
+	end
+
+	return string.format(
+		"C %.0f%% | R %.0f%% | E %.0f%% | L %.0f%%",
+		weights.Common / totalWeight * 100,
+		weights.Rare / totalWeight * 100,
+		weights.Epic / totalWeight * 100,
+		weights.Legendary / totalWeight * 100
+	)
+end
+
 local function createPetSlot(pet)
 	local owned = math.max(0, math.floor(pet.count or 0))
 	local selected = selectedPetId == pet.id
@@ -1321,6 +1417,9 @@ renderPlayerMenu = function()
 
 	rollPetButtonLabel.Text = `Roll {RetailCurrency.formatCents(cost)}`
 	setResourceButtonEnabled(rollPetButton, readStat("Cash") >= cost, Color3.fromRGB(70, 116, 82))
+	local canCarePet = readStat("Shift") == 1
+	carePetButtonLabel.Text = if canCarePet then "Care" else "Clock in"
+	setResourceButtonEnabled(carePetButton, canCarePet, Color3.fromRGB(94, 112, 142))
 
 	if lastPetResult then
 		renderPetPortrait(lotteryIcon, lastPetResult, true, false, true)
@@ -1340,7 +1439,7 @@ renderPlayerMenu = function()
 			color = Color3.fromRGB(70, 116, 82),
 			accentColor = Color3.fromRGB(36, 72, 54),
 		}, true, false, true)
-		lotteryResult.Text = "Roll to discover a pet" .. "\n" .. `Rare safety in {rollsUntilRare}`
+		lotteryResult.Text = getPetOddsSummary() .. "\n" .. `Rare safety in {rollsUntilRare}`
 		lotteryResult.TextColor3 = Color3.fromRGB(208, 220, 234)
 	end
 
@@ -1751,6 +1850,14 @@ quickPanelClose.Activated:Connect(function()
 	quickPanelMode = nil
 end)
 
+quickPanelAction.Activated:Connect(function()
+	if quickPanelMode == "stock" then
+		fireServerRemote("RequestStockDelivery")
+	elseif quickPanelMode == "store" then
+		fireServerRemote("RequestStoreToggle")
+	end
+end)
+
 closePlayerMenuButton.Activated:Connect(function()
 	playerMenu.Visible = false
 end)
@@ -1768,6 +1875,16 @@ end
 
 rollPetButton.Activated:Connect(function()
 	requestPetRoll()
+end)
+
+carePetButton.Activated:Connect(function()
+	if readStat("Shift") ~= 1 then
+		lotteryResult.Text = "Clock in before pet care"
+		lotteryResult.TextColor3 = Color3.fromRGB(244, 140, 118)
+		return
+	end
+	showPlayerMenu("pets")
+	fireServerRemote("RequestPetCare")
 end)
 
 equipPetButton.Activated:Connect(function()

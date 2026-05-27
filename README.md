@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 44
+local BLUEPRINT_VERSION = 45
 ```
 
 When making major map changes, bump this number and also update:
@@ -80,6 +80,8 @@ Player stats are created as `leaderstats`:
 - `Shift`
 - `Customers`
 - `Pets`
+- `StockOrders`
+- `RegisterStreak`
 
 ### Shelf Assignment
 
@@ -107,6 +109,8 @@ The player register creates customer orders and tracks:
 
 The client register UI disables tender buttons that would overpay the remaining change. A sale can finish only when exact change is ready.
 
+Exact player-register sales now build a register streak. Each streak step adds a small checkout bonus, capped at `$2.00`, and clocking out resets the streak.
+
 ### HUD And Store Controls
 
 The HUD dock uses image/resource buttons for:
@@ -114,7 +118,7 @@ The HUD dock uses image/resource buttons for:
 - `HUD`: show or hide the top status panel.
 - `Menu`: open the player menu.
 - `Pets`: open pet lottery and inventory.
-- `Stock`: show carried stock, low shelf, empty shelf, and service bag status.
+- `Stock`: show carried stock, low shelf, empty shelf, service bag status, and order more stock from the HUD.
 - `Open/Close`: toggle whether NPC shoppers can enter.
 - `Cash`: show player cash, basket value, till cash, and customer totals.
 
@@ -139,11 +143,12 @@ The player menu includes a pet lottery using assets from `RetailAssets.luau`.
 Current pet flow:
 
 - Rolls cost `$5.00`.
+- The menu shows rarity odds and rare safety progress.
 - A roll awards one pet based on rarity weights.
 - The first pet auto-equips.
 - Players can select owned pets in the menu and equip or unequip them.
 - Equipped pets spawn as a small companion model near the character with a resource icon badge.
-- Pet care can discount the next roll, and some equipped pets improve that discount.
+- Pet care can be triggered from the pet menu or care station to discount the next roll, and some equipped pets improve that discount.
 
 Pet definitions live in:
 

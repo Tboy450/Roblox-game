@@ -44,6 +44,8 @@ local resetRegisterChange = getRemoteEvent("ResetRegisterChange")
 local finishRegisterSale = getRemoteEvent("FinishRegisterSale")
 local openPlayerMenu = getRemoteEvent("OpenPlayerMenu")
 local requestStoreToggle = getRemoteEvent("RequestStoreToggle")
+local requestStockDelivery = getRemoteEvent("RequestStockDelivery")
+local requestPetCare = getRemoteEvent("RequestPetCare")
 local processNpcCheckout = retailRemotes:FindFirstChild("ProcessNpcCheckout")
 if not processNpcCheckout then
 	processNpcCheckout = Instance.new("BindableFunction")
@@ -76,6 +78,10 @@ for _, department in RetailCatalog.departments do
 end
 local CUSTOMER_TENDER = { 500, 1000, 2000, 5000, 10000 }
 local receiptCounter = 1000
+local STOCK_DELIVERY_COST_CENTS = 300
+local STOCK_DELIVERY_UNITS = 12
+local STOCK_DELIVERY_COOLDOWN = 8
+local PET_CARE_COOLDOWN = 6
 local ALLOWED_DENOMINATIONS: { [number]: boolean } = {}
 for _, denomination in RetailCurrency.denominations do
 	ALLOWED_DENOMINATIONS[denomination.cents] = true
@@ -166,6 +172,8 @@ local function setupPlayer(player: Player)
 	getStat(player, "Tasks").Value = 0
 	getStat(player, "Shift").Value = 0
 	getStat(player, "Customers").Value = 0
+	getStat(player, "StockOrders").Value = 0
+	getStat(player, "RegisterStreak").Value = 0
 	player:SetAttribute("RetailMessage", "Ready for work")
 end
 
@@ -194,6 +202,17 @@ local function actionIsCoolingDown(player: Player, action: string, target: BaseP
 	end
 
 	perPlayer[key] = now
+	return false
+end
+
+local function remoteActionIsCoolingDown(player: Player, attributeName: string, cooldown: number): boolean
+	local now = os.clock()
+	local last = player:GetAttribute(attributeName)
+	if typeof(last) == "number" and now - last < cooldown then
+		return true
+	end
+
+	player:SetAttribute(attributeName, now)
 	return false
 end
 
@@ -608,7 +627,7 @@ local function buildReceiptText(state: RegisterState, source: string, bonusCents
 	table.insert(lines, `Paid {RetailCurrency.formatCents(state.paidCents)}`)
 	table.insert(lines, `Change {RetailCurrency.formatCents(getChangeDue(state))}`)
 	if bonusCents and bonusCents > 0 then
-		table.insert(lines, `Pet tip {RetailCurrency.formatCents(bonusCents)}`)
+		table.insert(lines, `Bonus {RetailCurrency.formatCents(bonusCents)}`)
 	end
 	return table.concat(lines, "\n")
 end
@@ -635,17 +654,35 @@ local function getPetCheckoutBonusCents(player: Player?): number
 	return math.max(0, math.floor(player:GetAttribute("PetCheckoutBonusCents") or 0))
 end
 
+local function getRegisterStreakBonusCents(player: Player?): number
+	if not player then
+		return 0
+	end
+
+	local streak = getStat(player, "RegisterStreak")
+	streak.Value += 1
+	return math.min(200, streak.Value * 25)
+end
+
 local function completeRegisterSale(player: Player?, register: Model, state: RegisterState, source: string): (string, number)
 	recordStoreSale(state.totalCents, source)
 	state.completed = true
-	local bonusCents = getPetCheckoutBonusCents(player)
+	local petBonusCents = getPetCheckoutBonusCents(player)
+	local streakBonusCents = if source == "Player" then getRegisterStreakBonusCents(player) else 0
+	local bonusCents = petBonusCents + streakBonusCents
 	local receiptText = buildReceiptText(state, source, bonusCents)
 
 	if player then
 		awardCash(player, state.totalCents + bonusCents)
 		getStat(player, "Tasks").Value += state.itemCount
 		getStat(player, "Customers").Value += 1
-		local bonusText = if bonusCents > 0 then ` + pet tip {RetailCurrency.formatCents(bonusCents)}` else ""
+		local bonusText = ""
+		if petBonusCents > 0 then
+			bonusText ..= ` + pet tip {RetailCurrency.formatCents(petBonusCents)}`
+		end
+		if streakBonusCents > 0 then
+			bonusText ..= ` + streak {RetailCurrency.formatCents(streakBonusCents)}`
+		end
 		message(player, `Printed receipt #{state.receiptNumber} for {RetailCurrency.formatCents(state.totalCents)}{bonusText}`)
 	elseif source == "NPC" then
 		for _, activePlayer in Players:GetPlayers() do
@@ -657,6 +694,55 @@ local function completeRegisterSale(player: Player?, register: Model, state: Reg
 	setRegisterDisplay(register, `RECEIPT #{state.receiptNumber}`)
 	setReceiptPaper(register, `#{state.receiptNumber}\n{RetailCurrency.formatCents(state.totalCents)}`)
 	return receiptText, bonusCents
+end
+
+local function orderStockDelivery(player: Player)
+	if getStat(player, "Shift").Value == 0 then
+		message(player, "Clock in before ordering stock")
+		return
+	end
+	local cash = getStat(player, "Cash")
+	if cash.Value < STOCK_DELIVERY_COST_CENTS then
+		message(player, `Need {RetailCurrency.formatCents(STOCK_DELIVERY_COST_CENTS)} to order stock`)
+		return
+	end
+	if remoteActionIsCoolingDown(player, "LastStockDeliveryAt", STOCK_DELIVERY_COOLDOWN) then
+		message(player, "Stock delivery is already being staged")
+		return
+	end
+
+	local petBonus = math.max(0, math.floor(player:GetAttribute("PetStockBonusUnits") or 0))
+	local units = STOCK_DELIVERY_UNITS + petBonus
+	cash.Value -= STOCK_DELIVERY_COST_CENTS
+	getStat(player, "Stock").Value += units
+	getStat(player, "StockOrders").Value += 1
+	getStat(player, "Tasks").Value += 1
+
+	local store = Workspace:FindFirstChild("RetailStore")
+	if store then
+		store:SetAttribute("StockDeliveries", (store:GetAttribute("StockDeliveries") or 0) + 1)
+		store:SetAttribute("StockDeliveryUnits", (store:GetAttribute("StockDeliveryUnits") or 0) + units)
+	end
+
+	local bonusText = if petBonus > 0 then ` ({petBonus} pet bonus)` else ""
+	message(player, `Ordered {units} stock units{bonusText} for {RetailCurrency.formatCents(STOCK_DELIVERY_COST_CENTS)}`)
+end
+
+local function applyPetCare(player: Player)
+	if remoteActionIsCoolingDown(player, "LastPetCareAt", PET_CARE_COOLDOWN) then
+		return
+	end
+
+	local currentDiscount = math.max(0, math.floor(player:GetAttribute("PetRollDiscountCents") or 0))
+	local bonus = if player:GetAttribute("EquippedPetName") then 150 else 100
+	bonus += math.max(0, math.floor(player:GetAttribute("PetCareBonusCents") or 0))
+	local nextDiscount = math.min(300, currentDiscount + bonus)
+	player:SetAttribute("PetRollDiscountCents", nextDiscount)
+	awardCash(player, 75)
+	getStat(player, "Tasks").Value += 1
+	local petName = player:GetAttribute("EquippedPetName")
+	local petText = if typeof(petName) == "string" then ` for {petName}` else ""
+	message(player, `Prepared pet care{petText}. Next pet roll discount {RetailCurrency.formatCents(nextDiscount)}`)
 end
 
 local function beginNextRegisterOrder(registerId: string, register: Model): RegisterState
@@ -720,6 +806,9 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		message(player, `Added {getShelfProductName(target) or target.Name} for {RetailCurrency.formatCents(getTargetPriceCents(target))}`)
 	elseif action == "ClockIn" then
 		shift.Value = if shift.Value == 0 then 1 else 0
+		if shift.Value == 0 then
+			getStat(player, "RegisterStreak").Value = 0
+		end
 		message(player, if shift.Value == 1 then "Clocked in for the shift" else "Clocked out")
 	elseif action == "InspectTasks" then
 		local store = Workspace:FindFirstChild("RetailStore")
@@ -986,16 +1075,7 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 	elseif action == "OpenPetMenu" then
 		openPlayerMenu:FireClient(player, "pets")
 	elseif action == "CarePet" then
-		local currentDiscount = math.max(0, math.floor(player:GetAttribute("PetRollDiscountCents") or 0))
-		local bonus = if player:GetAttribute("EquippedPetName") then 150 else 100
-		bonus += math.max(0, math.floor(player:GetAttribute("PetCareBonusCents") or 0))
-		local nextDiscount = math.min(300, currentDiscount + bonus)
-		player:SetAttribute("PetRollDiscountCents", nextDiscount)
-		awardCash(player, 75)
-		tasks.Value += 1
-		local petName = player:GetAttribute("EquippedPetName")
-		local petText = if typeof(petName) == "string" then ` for {petName}` else ""
-		message(player, `Prepared pet care{petText}. Next pet roll discount {RetailCurrency.formatCents(nextDiscount)}`)
+		applyPetCare(player)
 	elseif action == "ToggleStoreOpen" then
 		local store = target:FindFirstAncestor("RetailStore") or Workspace:FindFirstChild("RetailStore")
 		if not store then
@@ -1238,6 +1318,19 @@ requestStoreToggle.OnServerEvent:Connect(function(player)
 
 	local nextOpen = store:GetAttribute("StoreOpen") == false
 	setStoreOpenFromPlayer(player, store, nextOpen)
+end)
+
+requestStockDelivery.OnServerEvent:Connect(function(player)
+	orderStockDelivery(player)
+end)
+
+requestPetCare.OnServerEvent:Connect(function(player)
+	if getStat(player, "Shift").Value == 0 then
+		message(player, "Clock in before pet care")
+		return
+	end
+
+	applyPetCare(player)
 end)
 
 local function connectPrompt(prompt: ProximityPrompt)
