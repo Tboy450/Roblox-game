@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 46
+local BLUEPRINT_VERSION = 47
 ```
 
 When making major map changes, bump this number and also update:
@@ -117,6 +117,7 @@ The HUD dock uses image/resource buttons for:
 
 - `HUD`: show or hide the top status panel.
 - `Menu`: open the player menu.
+- `Help`: open the controls panel.
 - `Pets`: open pet lottery and inventory.
 - `Stock`: show carried stock, low shelf, empty shelf, service bag status, and order more stock from the HUD.
 - `Open/Close`: toggle whether NPC shoppers can enter.

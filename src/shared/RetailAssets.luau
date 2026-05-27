@@ -7,6 +7,7 @@ end
 RetailAssets.buttons = {
 	Hud = "rbxassetid://6031280882",
 	Menu = "rbxassetid://6031280882",
+	Controls = "rbxassetid://6031280882",
 	Pets = "rbxassetid://6031075938",
 	Lottery = "rbxassetid://6031094678",
 	Roll = "rbxassetid://6031075938",

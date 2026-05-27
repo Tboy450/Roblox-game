@@ -519,6 +519,8 @@ end
 local hudButton, hudButtonLabel = createActionDockButton("HudButton", "HUD", RetailAssets.buttons.Hud, Color3.fromRGB(54, 68, 86))
 local menuButton, menuButtonLabel =
 	createActionDockButton("PlayerMenuButton", "MENU", RetailAssets.buttons.Menu, Color3.fromRGB(34, 42, 52))
+local controlsButton, controlsButtonLabel =
+	createActionDockButton("ControlsButton", "HELP", RetailAssets.buttons.Controls, Color3.fromRGB(66, 78, 98))
 local petsButton, petsButtonLabel = createActionDockButton("PetsButton", "PETS", RetailAssets.buttons.Pets, Color3.fromRGB(68, 58, 116))
 local stockButton, stockButtonLabel =
 	createActionDockButton("StockButton", "STOCK", RetailAssets.buttons.Stock, Color3.fromRGB(88, 112, 78))
@@ -812,8 +814,13 @@ local function updateResponsiveLayout()
 	panel.Size = UDim2.fromOffset(panelWidth, 112)
 	closeHudButton.Position = UDim2.new(1, -34, 0, 8)
 
-	local dockButtonSize = if compact then 42 else 58
 	local dockPadding = if compact then 5 else 7
+	local maxDockButtonSize = if compact then 42 else 58
+	local dockButtonSize = math.clamp(
+		math.floor((availableWidth - 20 - dockPadding * math.max(0, #actionButtons - 1)) / #actionButtons),
+		36,
+		maxDockButtonSize
+	)
 	local dockHeight = dockButtonSize + 16
 	local dockWidth = dockButtonSize * #actionButtons + dockPadding * math.max(0, #actionButtons - 1) + 20
 	actionDock.Position = UDim2.fromOffset(xPad, yPad + 120)
@@ -828,12 +835,14 @@ local function updateResponsiveLayout()
 	end
 
 	local menuTop = yPad + 120 + dockHeight + 10
+	local quickPanelHeight = if quickPanelMode == "controls" then if compact then 232 else 260 else if compact then 142 else 150
+	local quickBodyHeight = if quickPanelMode == "controls" then quickPanelHeight - 62 else if compact then 46 else 52
 	quickPanel.Position = UDim2.fromOffset(xPad, menuTop)
-	quickPanel.Size = UDim2.fromOffset(math.min(360, availableWidth), if compact then 142 else 150)
+	quickPanel.Size = UDim2.fromOffset(math.min(360, availableWidth), quickPanelHeight)
 	quickPanelAccent.Size = UDim2.new(1, -20, 0, 4)
 	quickPanelTitle.TextSize = if compact then 14 else 15
 	quickPanelClose.Position = UDim2.new(1, -42, 0, 10)
-	quickPanelBody.Size = UDim2.new(1, -28, 0, if compact then 46 else 52)
+	quickPanelBody.Size = UDim2.new(1, -28, 0, quickBodyHeight)
 	quickPanelBody.TextSize = if compact then 12 else 13
 	quickPanelAction.Position = UDim2.fromOffset(14, if compact then 98 else 104)
 	quickPanelAction.Size = UDim2.new(1, -28, 0, 34)
@@ -1008,6 +1017,19 @@ renderQuickPanel = function()
 			.. "\n"
 			.. `Traffic accepting customers: {if storeOpen then "yes" else "no"}`
 		setQuickPanelAction(if storeOpen then "Close Store" else "Open Store", if storeOpen then RetailAssets.buttons.StoreClosed else RetailAssets.buttons.StoreOpen, if storeOpen then Color3.fromRGB(132, 72, 62) else Color3.fromRGB(56, 116, 74), true, true)
+	elseif quickPanelMode == "controls" then
+		quickPanelAccent.BackgroundColor3 = Color3.fromRGB(112, 132, 170)
+		quickPanelTitle.Text = "Controls"
+		quickPanelBody.Text =
+			"Move: WASD or thumbstick\n"
+			.. "Jump: Space or controller jump\n"
+			.. "Use prompts: E, tap, or controller interact\n"
+			.. "Clock in before paid store tasks\n"
+			.. "HUD: Pets, Stock, Store, Cash, Help\n"
+			.. "Stock: order stock, then restock shelves\n"
+			.. "Register: open drawer, give exact change, print receipt\n"
+			.. "Pets: roll, care, select a pet, then equip or unequip"
+		setQuickPanelAction("Controls", RetailAssets.buttons.Controls, Color3.fromRGB(66, 78, 98), false, false)
 	else
 		quickPanelTitle.Text = "Quick Status"
 		quickPanelBody.Text = `Store {storeStatus} | Cash {RetailCurrency.formatCents(readStat("Cash"))}`
@@ -1827,6 +1849,10 @@ menuButton.Activated:Connect(function()
 	if playerMenu.Visible then
 		showPlayerMenu()
 	end
+end)
+
+controlsButton.Activated:Connect(function()
+	showQuickPanel("controls")
 end)
 
 petsButton.Activated:Connect(function()
