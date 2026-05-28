@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 48
+local BLUEPRINT_VERSION = 49
 ```
 
 When making major map changes, bump this number and also update:
@@ -106,10 +106,14 @@ The player register creates customer orders and tracks:
 - Change due.
 - Change given.
 - Suggested tender.
+- Opening till cash.
+- Tender received, change paid, and net sales.
 
 The client register UI disables tender buttons that would overpay the remaining change. A sale can finish only when exact change is ready.
 
 Exact player-register sales now build a register streak. Each streak step adds a small checkout bonus, capped at `$2.00`, and clocking out resets the streak.
+
+The store drawer starts with a `$200.00` opening till. Player and NPC sales add customer tender, subtract change paid, and update net sales so the HUD shows the drawer balance instead of only raw sales totals.
 
 ### HUD And Store Controls
 
@@ -121,7 +125,7 @@ The HUD dock uses image/resource buttons for:
 - `Pets`: open pet lottery and inventory.
 - `Stock`: show carried stock, low shelf, empty shelf, service bag status, and order more stock from the HUD.
 - `Open/Close`: toggle whether NPC shoppers can enter.
-- `Cash`: show player cash, basket value, till cash, and customer totals.
+- `Cash`: show player cash, basket value, opening till, drawer cash, tender, change, sales, and customer totals.
 
 Players start with enough test cash to roll pets while the economy is still being tuned.
 

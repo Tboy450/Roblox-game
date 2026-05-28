@@ -3,7 +3,8 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 48
+local BLUEPRINT_VERSION = 49
+local STARTING_TILL_CENTS = 20000
 
 export type BuildOptions = {
 	parent: Instance?,
@@ -79,6 +80,14 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	store.Name = storeName
 	store:SetAttribute("BlueprintVersion", BLUEPRINT_VERSION)
 	store:SetAttribute("StoreOpen", true)
+	store:SetAttribute("StoreStartingTillCents", STARTING_TILL_CENTS)
+	store:SetAttribute("StoreCashCents", STARTING_TILL_CENTS)
+	store:SetAttribute("StoreTenderReceivedCents", 0)
+	store:SetAttribute("StoreChangePaidCents", 0)
+	store:SetAttribute("StoreNetSalesCents", 0)
+	store:SetAttribute("StoreCustomers", 0)
+	store:SetAttribute("NpcCustomersProcessed", 0)
+	store:SetAttribute("PlayerCustomersProcessed", 0)
 	store.Parent = parent
 
 	-- Walk surface top is always floorY + 0.5 (1-stud-thick floors at floorY)
@@ -1406,6 +1415,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		statusDisplay:SetAttribute("RegisterStatusDisplay", true)
 
 		if kind == "Player" then
+			addSign(lane, "OpeningTillSign", x + 4.4, floorY + 5.2, halfD - 20.5, 3.4, "START\n$200", Color3.fromRGB(66, 78, 72), 0.9)
 			addPrompt(cashDrawer, "OpenPlayerRegister", "Open", "Player Register", 0.15)
 			addPrompt(scanner, "Checkout", "Scan basket", "Basket Checkout", 0.2)
 		else

@@ -980,6 +980,10 @@ renderQuickPanel = function()
 	local lowStock = readStoreAttribute(store, "LowStockShelves")
 	local emptyShelves = readStoreAttribute(store, "EmptyShelves")
 	local storeCash = readStoreAttribute(store, "StoreCashCents")
+	local openingTill = readStoreAttribute(store, "StoreStartingTillCents")
+	local tenderReceived = readStoreAttribute(store, "StoreTenderReceivedCents")
+	local changePaid = readStoreAttribute(store, "StoreChangePaidCents")
+	local netSales = readStoreAttribute(store, "StoreNetSalesCents")
 	local storeCustomers = readStoreAttribute(store, "StoreCustomers")
 	local serviceBags = readStoreAttribute(store, "ServiceBags")
 	local stockOrders = readStat("StockOrders")
@@ -1007,7 +1011,9 @@ renderQuickPanel = function()
 		quickPanelBody.Text =
 			`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Basket {RetailCurrency.formatCents(readStat("BasketValue"))}`
 			.. "\n"
-			.. `Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers} | Streak {readStat("RegisterStreak")}`
+			.. `Till {RetailCurrency.formatCents(storeCash)} | Start {RetailCurrency.formatCents(openingTill)} | Sales {RetailCurrency.formatCents(netSales)}`
+			.. "\n"
+			.. `Tender {RetailCurrency.formatCents(tenderReceived)} | Change {RetailCurrency.formatCents(changePaid)} | Customers {storeCustomers}`
 		setQuickPanelAction("Run Register", RetailAssets.buttons.Register, Color3.fromRGB(104, 88, 58), false, false)
 	elseif quickPanelMode == "store" then
 		quickPanelAccent.BackgroundColor3 = if storeOpen then Color3.fromRGB(88, 190, 146) else Color3.fromRGB(210, 116, 92)
@@ -1027,7 +1033,7 @@ renderQuickPanel = function()
 			.. "Clock in before paid store tasks\n"
 			.. "HUD: Pets, Stock, Store, Cash, Help\n"
 			.. "Stock: order stock, then restock shelves\n"
-			.. "Register: open drawer, give exact change, print receipt\n"
+			.. "Register: start with opening till, give exact change, print receipt\n"
 			.. "Pets: roll, care, select a pet, then equip or unequip"
 		setQuickPanelAction("Controls", RetailAssets.buttons.Controls, Color3.fromRGB(66, 78, 98), false, false)
 	else
@@ -1046,6 +1052,7 @@ local function updateHud()
 	local activeShoppers = readStoreAttribute(store, "ActiveShoppers")
 	local occupiedParking = readStoreAttribute(store, "OccupiedParkingSpots")
 	local storeCash = readStoreAttribute(store, "StoreCashCents")
+	local netSales = readStoreAttribute(store, "StoreNetSalesCents")
 	local storeCustomers = readStoreAttribute(store, "StoreCustomers")
 	local storeOpen = readStoreOpen(store)
 	local storeStatus = if storeOpen then "Open" else "Closed"
@@ -1058,7 +1065,7 @@ local function updateHud()
 		`Cash {RetailCurrency.formatCents(readStat("Cash"))} | Basket {basket} ({RetailCurrency.formatCents(readStat("BasketValue"))}) | Stock {stock} | Shift {shiftText}`
 	messageLabel.Text = player:GetAttribute("RetailMessage") or "Ready for work"
 	storeLabel.Text =
-		`Store {storeStatus} | Till {RetailCurrency.formatCents(storeCash)} | Customers {storeCustomers} | Shoppers {activeShoppers} | Service Q{serviceQueue}/R{serviceReturns}/S{serviceSatisfaction}`
+		`Store {storeStatus} | Till {RetailCurrency.formatCents(storeCash)} | Sales {RetailCurrency.formatCents(netSales)} | Customers {storeCustomers} | Shoppers {activeShoppers} | Service Q{serviceQueue}/R{serviceReturns}/S{serviceSatisfaction}`
 	taskLabel.Text = getTaskHint(shift, stock, lowStock, emptyShelves, basket, storeOpen, serviceQueue, serviceReturns)
 	storeButton.Image = if storeOpen then RetailAssets.buttons.StoreOpen else RetailAssets.buttons.StoreClosed
 	storeButton.BackgroundColor3 = if storeOpen then Color3.fromRGB(56, 116, 74) else Color3.fromRGB(132, 72, 62)
@@ -1595,11 +1602,18 @@ local function renderRegisterPanel(state)
 	currentRegisterState = state
 	currentRegisterId = state.registerId
 	registerTitle.Text = if state.completed then "Receipt Printed" else `Player Register #{state.receiptNumber or "--"}`
+	local tillText = ""
+	if typeof(state.tillCashCents) == "number" then
+		tillText =
+			"\n"
+			.. `Drawer {RetailCurrency.formatCents(state.tillCashCents)} | After sale {RetailCurrency.formatCents(state.drawerPreviewCents or state.tillCashCents)}`
+	end
 	registerSummary.Text = `Items {state.itemCount} | Total {RetailCurrency.formatCents(state.totalCents)}`
 		.. "\n"
 		.. `Customer paid {RetailCurrency.formatCents(state.paidCents)} | Change due {RetailCurrency.formatCents(state.changeDueCents)}`
 		.. "\n"
 		.. `Change given {RetailCurrency.formatCents(state.changeGivenCents)}`
+		.. tillText
 	receiptPreviewText.Text = buildRegisterReceiptPreview(state)
 
 	local remaining = state.changeRemainingCents or math.max(0, state.changeDueCents - state.changeGivenCents)
@@ -1691,7 +1705,11 @@ local function connectStoreStatus(store: Instance)
 		"EmptyShelves",
 		"ActiveShoppers",
 		"OccupiedParkingSpots",
+		"StoreStartingTillCents",
 		"StoreCashCents",
+		"StoreTenderReceivedCents",
+		"StoreChangePaidCents",
+		"StoreNetSalesCents",
 		"StoreCustomers",
 		"StoreOpen",
 		"ServiceQueue",

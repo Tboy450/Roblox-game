@@ -78,6 +78,7 @@ for _, department in RetailCatalog.departments do
 end
 local CUSTOMER_TENDER = { 500, 1000, 2000, 5000, 10000 }
 local receiptCounter = 1000
+local STARTING_TILL_CENTS = 20000
 local STOCK_DELIVERY_COST_CENTS = 300
 local STOCK_DELIVERY_UNITS = 12
 local STOCK_DELIVERY_COOLDOWN = 8
@@ -278,8 +279,47 @@ local SERVICE_ATTRIBUTE_DEFAULTS = {
 	ServiceTicketsHandled = 0,
 }
 
+local TILL_ATTRIBUTE_DEFAULTS = {
+	StoreStartingTillCents = STARTING_TILL_CENTS,
+	StoreCashCents = STARTING_TILL_CENTS,
+	StoreTenderReceivedCents = 0,
+	StoreChangePaidCents = 0,
+	StoreNetSalesCents = 0,
+	StoreCustomers = 0,
+	NpcCustomersProcessed = 0,
+	PlayerCustomersProcessed = 0,
+}
+
 local function getRetailStoreFromTarget(target: BasePart): Instance?
 	return target:FindFirstAncestor("RetailStore") or Workspace:FindFirstChild("RetailStore")
+end
+
+local function ensureTillAttributes(store: Instance)
+	local startingTill = store:GetAttribute("StoreStartingTillCents")
+	if typeof(startingTill) ~= "number" then
+		startingTill = STARTING_TILL_CENTS
+		store:SetAttribute("StoreStartingTillCents", startingTill)
+	end
+
+	for attributeName, defaultValue in TILL_ATTRIBUTE_DEFAULTS do
+		if attributeName ~= "StoreStartingTillCents" and typeof(store:GetAttribute(attributeName)) ~= "number" then
+			if attributeName == "StoreCashCents" then
+				store:SetAttribute(attributeName, startingTill)
+			else
+				store:SetAttribute(attributeName, defaultValue)
+			end
+		end
+	end
+end
+
+local function readTillAttribute(store: Instance?, attributeName: string): number
+	if not store then
+		return 0
+	end
+
+	ensureTillAttributes(store)
+	local value = store:GetAttribute(attributeName)
+	return if typeof(value) == "number" then math.max(0, math.floor(value)) else 0
 end
 
 local function readServiceAttribute(store: Instance, attributeName: string): number
@@ -569,6 +609,9 @@ local function registerPayload(registerId: string, state: RegisterState, extra: 
 	local changeDueCents = getChangeDue(state)
 	local changeRemainingCents = math.max(0, changeDueCents - state.changeGivenCents)
 	local changeOverCents = math.max(0, state.changeGivenCents - changeDueCents)
+	local store = Workspace:FindFirstChild("RetailStore")
+	local tillCashCents = readTillAttribute(store, "StoreCashCents")
+	local drawerPreviewCents = tillCashCents + state.paidCents - changeDueCents
 	local itemLines = {}
 	for _, item in state.items do
 		table.insert(itemLines, `{item.name} {RetailCurrency.formatCents(item.priceCents)}`)
@@ -586,6 +629,12 @@ local function registerPayload(registerId: string, state: RegisterState, extra: 
 		changeRemainingCents = changeRemainingCents,
 		changeOverCents = changeOverCents,
 		suggestedTender = getSuggestedChange(changeRemainingCents),
+		openingTillCents = readTillAttribute(store, "StoreStartingTillCents"),
+		tillCashCents = tillCashCents,
+		drawerPreviewCents = drawerPreviewCents,
+		tenderReceivedCents = readTillAttribute(store, "StoreTenderReceivedCents"),
+		changePaidCents = readTillAttribute(store, "StoreChangePaidCents"),
+		netSalesCents = readTillAttribute(store, "StoreNetSalesCents"),
 		completed = state.completed == true,
 	}
 	if extra then
@@ -632,18 +681,23 @@ local function buildReceiptText(state: RegisterState, source: string, bonusCents
 	return table.concat(lines, "\n")
 end
 
-local function recordStoreSale(totalCents: number, source: string)
+local function recordStoreSale(state: RegisterState, source: string)
 	local store = Workspace:FindFirstChild("RetailStore")
 	if not store then
 		return
 	end
 
-	store:SetAttribute("StoreCashCents", (store:GetAttribute("StoreCashCents") or 0) + totalCents)
-	store:SetAttribute("StoreCustomers", (store:GetAttribute("StoreCustomers") or 0) + 1)
+	ensureTillAttributes(store)
+	local changeDueCents = getChangeDue(state)
+	store:SetAttribute("StoreTenderReceivedCents", readTillAttribute(store, "StoreTenderReceivedCents") + state.paidCents)
+	store:SetAttribute("StoreChangePaidCents", readTillAttribute(store, "StoreChangePaidCents") + changeDueCents)
+	store:SetAttribute("StoreNetSalesCents", readTillAttribute(store, "StoreNetSalesCents") + state.totalCents)
+	store:SetAttribute("StoreCashCents", readTillAttribute(store, "StoreCashCents") + state.paidCents - changeDueCents)
+	store:SetAttribute("StoreCustomers", readTillAttribute(store, "StoreCustomers") + 1)
 	if source == "NPC" then
-		store:SetAttribute("NpcCustomersProcessed", (store:GetAttribute("NpcCustomersProcessed") or 0) + 1)
+		store:SetAttribute("NpcCustomersProcessed", readTillAttribute(store, "NpcCustomersProcessed") + 1)
 	else
-		store:SetAttribute("PlayerCustomersProcessed", (store:GetAttribute("PlayerCustomersProcessed") or 0) + 1)
+		store:SetAttribute("PlayerCustomersProcessed", readTillAttribute(store, "PlayerCustomersProcessed") + 1)
 	end
 end
 
@@ -665,7 +719,7 @@ local function getRegisterStreakBonusCents(player: Player?): number
 end
 
 local function completeRegisterSale(player: Player?, register: Model, state: RegisterState, source: string): (string, number)
-	recordStoreSale(state.totalCents, source)
+	recordStoreSale(state, source)
 	state.completed = true
 	local petBonusCents = getPetCheckoutBonusCents(player)
 	local streakBonusCents = if source == "Player" then getRegisterStreakBonusCents(player) else 0
@@ -1054,8 +1108,23 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 		awardCash(player, earned)
 		tasks.Value += basket.Value
 		receiptCounter += 1
+		recordStoreSale({
+			itemCount = basket.Value,
+			totalCents = basketValue.Value,
+			paidCents = basketValue.Value,
+			changeGivenCents = 0,
+			items = {
+				{
+					name = `Basket x{basket.Value}`,
+					priceCents = basketValue.Value,
+				},
+			},
+			receiptNumber = receiptCounter,
+		}, "Player")
 		local bonusText = if bonusCents > 0 then ` with {RetailCurrency.formatCents(bonusCents)} pet tip` else ""
-		message(player, `Printed basket receipt #{receiptCounter}: {basket.Value} items for {RetailCurrency.formatCents(basketValue.Value)}{bonusText}`)
+		local store = Workspace:FindFirstChild("RetailStore")
+		local tillText = if store then ` | Till {RetailCurrency.formatCents(readTillAttribute(store, "StoreCashCents"))}` else ""
+		message(player, `Printed basket receipt #{receiptCounter}: {basket.Value} items for {RetailCurrency.formatCents(basketValue.Value)}{bonusText}{tillText}`)
 		basket.Value = 0
 		basketValue.Value = 0
 	elseif action == "OpenPlayerRegister" then
@@ -1366,6 +1435,7 @@ local function connectStore(store: Instance)
 	if store:GetAttribute("StoreOpen") == nil then
 		store:SetAttribute("StoreOpen", true)
 	end
+	ensureTillAttributes(store)
 	for attributeName, defaultValue in SERVICE_ATTRIBUTE_DEFAULTS do
 		if typeof(store:GetAttribute(attributeName)) ~= "number" then
 			store:SetAttribute(attributeName, defaultValue)
