@@ -1090,6 +1090,7 @@ local currentRegisterState = nil
 local tenderButtons: { { button: TextButton, cents: number, color: Color3 } } = {}
 local petInventory = nil
 local selectedPetId: string? = nil
+local pendingPetSelectionId: string? = nil
 local lastPetResult = nil
 
 local function clearButtons(container: Instance)
@@ -1183,6 +1184,23 @@ local function findPetEntry(petId: string?)
 	end
 
 	return nil
+end
+
+local function getEquippedPetId(): string?
+	if petInventory and typeof(petInventory.equippedPetId) == "string" and petInventory.equippedPetId ~= "" then
+		return petInventory.equippedPetId
+	end
+
+	local attributePetId = player:GetAttribute("EquippedPetId")
+	return if typeof(attributePetId) == "string" and attributePetId ~= "" then attributePetId else nil
+end
+
+local function petIsEquipped(pet): boolean
+	if not pet then
+		return false
+	end
+
+	return pet.equipped == true or pet.id == getEquippedPetId()
 end
 
 local function rarityColor(rarity: string?): Color3
@@ -1371,6 +1389,7 @@ end
 local function createPetSlot(pet)
 	local owned = math.max(0, math.floor(pet.count or 0))
 	local selected = selectedPetId == pet.id
+	local equipped = petIsEquipped(pet)
 	local button = Instance.new("ImageButton")
 	button.Name = pet.id
 	button.Image = ""
@@ -1407,7 +1426,7 @@ local function createPetSlot(pet)
 	countLabel.Parent = button
 	addCorner(countLabel, 5)
 
-	if pet.equipped then
+	if equipped then
 		local equippedLabel = Instance.new("TextLabel")
 		equippedLabel.Name = "Equipped"
 		equippedLabel.Size = UDim2.fromOffset(46, 18)
@@ -1427,6 +1446,12 @@ local function createPetSlot(pet)
 			return
 		end
 		selectedPetId = pet.id
+		pendingPetSelectionId = pet.id
+		if equipped then
+			fireServerRemote("RequestEquipPet", pet.id, "unequip")
+		else
+			fireServerRemote("RequestEquipPet", pet.id, "equip")
+		end
 		if renderPlayerMenu then
 			renderPlayerMenu()
 		end
@@ -1474,7 +1499,7 @@ renderPlayerMenu = function()
 
 	clearImageButtons(petGrid)
 	local firstOwnedId: string? = nil
-	local equippedPetId: string? = nil
+	local equippedPetId: string? = getEquippedPetId()
 	for _, pet in getPetEntries() do
 		if (pet.count or 0) > 0 and not firstOwnedId then
 			firstOwnedId = pet.id
@@ -1489,7 +1514,9 @@ renderPlayerMenu = function()
 	end
 	local activeSelection = findPetEntry(selectedPetId)
 	if not activeSelection or (activeSelection.count or 0) <= 0 then
-		selectedPetId = equippedPetId or firstOwnedId
+		if not (lastPetResult and selectedPetId == lastPetResult.id) then
+			selectedPetId = equippedPetId or firstOwnedId
+		end
 	end
 
 	for _, pet in getPetEntries() do
@@ -1500,7 +1527,7 @@ renderPlayerMenu = function()
 	local canEquip = selectedPet ~= nil and (selectedPet.count or 0) > 0
 	if not selectedPet then
 		equipPetButtonLabel.Text = "Select a pet"
-	elseif selectedPet.equipped then
+	elseif petIsEquipped(selectedPet) then
 		equipPetButtonLabel.Text = `Unequip {selectedPet.name}`
 	elseif canEquip then
 		equipPetButtonLabel.Text = `Equip {selectedPet.name}`
@@ -1736,6 +1763,12 @@ player:GetAttributeChangedSignal("PetRollDiscountCents"):Connect(function()
 	end
 	updateHud()
 end)
+player:GetAttributeChangedSignal("EquippedPetId"):Connect(function()
+	if playerMenu.Visible and renderPlayerMenu then
+		renderPlayerMenu()
+	end
+	updateHud()
+end)
 local existingStore = Workspace:FindFirstChild("RetailStore")
 if existingStore then
 	connectStoreStatus(existingStore)
@@ -1938,15 +1971,23 @@ equipPetButton.Activated:Connect(function()
 		return
 	end
 
-	if selectedPet.equipped then
-		fireServerRemote("RequestEquipPet", "")
+	pendingPetSelectionId = selectedPet.id
+	if petIsEquipped(selectedPet) then
+		fireServerRemote("RequestEquipPet", selectedPet.id, "unequip")
 	else
-		fireServerRemote("RequestEquipPet", selectedPet.id)
+		fireServerRemote("RequestEquipPet", selectedPet.id, "equip")
 	end
 end)
 
 connectClientRemote("PetInventoryUpdate", function(payload)
 	petInventory = payload
+	if pendingPetSelectionId then
+		local pendingPet = findPetEntry(pendingPetSelectionId)
+		if pendingPet and (pendingPet.count or 0) > 0 then
+			selectedPetId = pendingPetSelectionId
+		end
+		pendingPetSelectionId = nil
+	end
 	if playerMenu.Visible and renderPlayerMenu then
 		renderPlayerMenu()
 	end
@@ -1956,6 +1997,7 @@ end)
 connectClientRemote("PetLotteryResult", function(result)
 	lastPetResult = result
 	selectedPetId = result.id
+	pendingPetSelectionId = result.id
 	showPlayerMenu("pets")
 end)
 

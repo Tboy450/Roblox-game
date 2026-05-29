@@ -306,13 +306,20 @@ requestPetLottery.OnServerEvent:Connect(function(player)
 	awardPet(player)
 end)
 
-requestEquipPet.OnServerEvent:Connect(function(player, petId)
+requestEquipPet.OnServerEvent:Connect(function(player, petId, action)
 	if typeof(petId) ~= "string" then
 		return
 	end
 
+	local requestedAction = if typeof(action) == "string" then string.lower(action) else "toggle"
 	local state = getState(player)
-	if petId == "" then
+	if petId == "" or requestedAction == "unequip" then
+		if petId ~= "" and state.equippedPetId ~= petId then
+			message(player, "That pet is not equipped")
+			sendInventory(player)
+			return
+		end
+
 		state.equippedPetId = nil
 		applyPetAttributes(player)
 		clearPetModel(player)
@@ -331,6 +338,12 @@ requestEquipPet.OnServerEvent:Connect(function(player, petId)
 	end
 
 	if state.equippedPetId == petId then
+		if requestedAction == "equip" then
+			message(player, `{pet.name} is already equipped`)
+			sendInventory(player)
+			return
+		end
+
 		state.equippedPetId = nil
 		applyPetAttributes(player)
 		clearPetModel(player)
