@@ -1164,6 +1164,8 @@ local function getPetEntries()
 			sourceName = pet.sourceName,
 			color = pet.color,
 			accentColor = pet.accentColor,
+			detailColor = pet.detailColor,
+			species = pet.species,
 			perk = pet.perk,
 			count = 0,
 			equipped = false,
@@ -1243,6 +1245,17 @@ local function petAccentColor(pet): Color3
 	return petBaseColor(pet):Lerp(Color3.fromRGB(20, 22, 26), 0.58)
 end
 
+local function petDetailColor(pet): Color3
+	if pet and typeof(pet.detailColor) == "Color3" then
+		return pet.detailColor
+	end
+	return petBaseColor(pet):Lerp(Color3.fromRGB(255, 255, 255), 0.5)
+end
+
+local function petSpecies(pet): string
+	return if pet and typeof(pet.species) == "string" then pet.species else "sprite"
+end
+
 local function clearPetPortrait(container: GuiObject)
 	for _, child in container:GetChildren() do
 		if child:IsA("GuiObject") then
@@ -1259,6 +1272,8 @@ local function renderPetPortrait(container: GuiObject, pet, owned: boolean, comp
 
 	local baseColor = petBaseColor(pet)
 	local accentColor = petAccentColor(pet)
+	local detailColor = petDetailColor(pet)
+	local species = petSpecies(pet)
 	container.BackgroundColor3 = if owned then baseColor:Lerp(Color3.fromRGB(20, 22, 26), 0.2) else Color3.fromRGB(46, 48, 54)
 	container.BackgroundTransparency = if owned then 0 else 0.08
 
@@ -1272,11 +1287,26 @@ local function renderPetPortrait(container: GuiObject, pet, owned: boolean, comp
 	shine.Parent = container
 	addCorner(shine, 8)
 
+	if species == "dragon" then
+		for _, side in { -1, 1 } do
+			local wing = Instance.new("Frame")
+			wing.Name = if side < 0 then "LeftWing" else "RightWing"
+			wing.Size = UDim2.fromOffset(if compact then 18 else 24, if compact then 24 else 32)
+			wing.Position = UDim2.new(0.5, side * (if compact then -28 else -34), 0, if compact then 24 else 28)
+			wing.BackgroundColor3 = accentColor
+			wing.BackgroundTransparency = if owned then 0.12 else 0.52
+			wing.BorderSizePixel = 0
+			wing.Rotation = side * 24
+			wing.Parent = container
+			addCorner(wing, 6)
+		end
+	end
+
 	local face = Instance.new("Frame")
 	face.Name = "Face"
 	face.AnchorPoint = Vector2.new(0.5, 0)
-	face.Size = UDim2.new(0.68, 0, 0, if compact then 34 else 42)
-	face.Position = UDim2.new(0.5, 0, 0, if compact then 16 else 19)
+	face.Size = UDim2.new(if species == "dog" then 0.72 else 0.66, 0, 0, if compact then 34 else 42)
+	face.Position = UDim2.new(0.5, 0, 0, if compact then 17 else 20)
 	face.BackgroundColor3 = if owned then baseColor else baseColor:Lerp(Color3.fromRGB(60, 62, 68), 0.55)
 	face.BorderSizePixel = 0
 	face.Parent = container
@@ -1285,39 +1315,84 @@ local function renderPetPortrait(container: GuiObject, pet, owned: boolean, comp
 
 	local earLeft = Instance.new("Frame")
 	earLeft.Name = "EarLeft"
-	earLeft.Size = UDim2.fromOffset(if compact then 12 else 15, if compact then 12 else 15)
-	earLeft.Position = UDim2.new(0.2, 0, 0, if compact then 12 else 15)
+	earLeft.Size = if species == "bunny"
+		then UDim2.fromOffset(if compact then 10 else 13, if compact then 25 else 31)
+		else UDim2.fromOffset(if compact then 12 else 15, if compact then 16 else 19)
+	earLeft.Position = if species == "dog"
+		then UDim2.new(0.19, 0, 0, if compact then 21 else 24)
+		else UDim2.new(0.2, 0, 0, if compact then 11 else 13)
 	earLeft.BackgroundColor3 = accentColor
 	earLeft.BackgroundTransparency = if owned then 0.08 else 0.48
 	earLeft.BorderSizePixel = 0
+	earLeft.Rotation = if species == "cat" or species == "dragon" then -18 else if species == "dog" then 18 else 0
 	earLeft.Parent = container
 	addCorner(earLeft, 8)
 
 	local earRight = earLeft:Clone()
 	earRight.Name = "EarRight"
-	earRight.Position = UDim2.new(0.68, 0, 0, if compact then 12 else 15)
+	earRight.Position = if species == "dog"
+		then UDim2.new(0.67, 0, 0, if compact then 21 else 24)
+		else UDim2.new(0.68, 0, 0, if compact then 11 else 13)
+	earRight.Rotation = -earLeft.Rotation
 	earRight.Parent = container
+
+	if species == "dragon" then
+		for _, side in { -1, 1 } do
+			local horn = Instance.new("Frame")
+			horn.Name = if side < 0 then "LeftHorn" else "RightHorn"
+			horn.Size = UDim2.fromOffset(if compact then 7 else 9, if compact then 14 else 18)
+			horn.Position = UDim2.new(0.5, side * (if compact then -16 else -20), 0, if compact then 8 else 10)
+			horn.BackgroundColor3 = detailColor
+			horn.BackgroundTransparency = if owned then 0 else 0.38
+			horn.BorderSizePixel = 0
+			horn.Rotation = side * 18
+			horn.Parent = container
+			addCorner(horn, 5)
+		end
+	end
+
+	local snout = Instance.new("Frame")
+	snout.Name = "Snout"
+	snout.AnchorPoint = Vector2.new(0.5, 0)
+	snout.Size = UDim2.fromOffset(if compact then 22 else 28, if compact then 13 else 16)
+	snout.Position = UDim2.new(0.5, 0, 0, if compact then 42 else 52)
+	snout.BackgroundColor3 = detailColor
+	snout.BackgroundTransparency = if owned then 0.06 else 0.5
+	snout.BorderSizePixel = 0
+	snout.Parent = container
+	addCorner(snout, 8)
+
+	for _, side in { -1, 1 } do
+		local eye = Instance.new("Frame")
+		eye.Name = if side < 0 then "LeftEye" else "RightEye"
+		eye.Size = UDim2.fromOffset(if compact then 4 else 5, if compact then 4 else 5)
+		eye.Position = UDim2.new(0.5, side * (if compact then -10 else -13), 0, if compact then 31 else 38)
+		eye.BackgroundColor3 = Color3.fromRGB(18, 20, 24)
+		eye.BorderSizePixel = 0
+		eye.Parent = container
+		addCorner(eye, 4)
+	end
 
 	local initialsLabel = Instance.new("TextLabel")
 	initialsLabel.Name = "Initials"
-	initialsLabel.Size = UDim2.new(1, 0, 0, if compact then 28 else 34)
-	initialsLabel.Position = UDim2.new(0, 0, 0, if compact then 22 else 27)
+	initialsLabel.Size = UDim2.new(1, 0, 0, if compact then 18 else 22)
+	initialsLabel.Position = UDim2.new(0, 0, 0, if compact then 50 else 61)
 	initialsLabel.BackgroundTransparency = 1
 	initialsLabel.Font = Enum.Font.GothamBlack
 	initialsLabel.Text = petInitials(if pet then pet.name else "Pet")
 	initialsLabel.TextColor3 = if owned then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(168, 172, 180)
-	initialsLabel.TextSize = if compact then 18 else 23
+	initialsLabel.TextSize = if compact then 12 else 14
 	initialsLabel.Parent = container
 
 	if pet and typeof(pet.image) == "string" and pet.image ~= "" then
 		local assetImage = Instance.new("ImageLabel")
 		assetImage.Name = "AssetImage"
-		assetImage.Size = UDim2.new(1, -10, 1, if showRarityTag ~= false then -22 else -10)
-		assetImage.Position = UDim2.fromOffset(5, 5)
+		assetImage.Size = UDim2.fromOffset(if compact then 18 else 22, if compact then 18 else 22)
+		assetImage.Position = UDim2.new(1, if compact then -23 else -27, 0, 5)
 		assetImage.BackgroundTransparency = 1
 		assetImage.Image = pet.image
 		assetImage.ImageColor3 = if owned then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(150, 154, 162)
-		assetImage.ImageTransparency = if owned then 0 else 0.28
+		assetImage.ImageTransparency = if owned then 0.08 else 0.36
 		assetImage.ScaleType = Enum.ScaleType.Fit
 		assetImage.Parent = container
 	end

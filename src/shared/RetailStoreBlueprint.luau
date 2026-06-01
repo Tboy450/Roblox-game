@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 50
+local BLUEPRINT_VERSION = 51
 local STARTING_TILL_CENTS = 20000
 
 export type BuildOptions = {

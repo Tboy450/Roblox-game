@@ -46,7 +46,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 50
+local BLUEPRINT_VERSION = 51
 ```
 
 When making major map changes, bump this number and also update:
@@ -150,10 +150,12 @@ Current pet flow:
 - Rolls cost `$5.00`.
 - The menu shows rarity odds and rare safety progress.
 - A roll awards one pet based on rarity weights.
+- The lottery includes dog, cat, bunny, sprite, and dragon-style pets.
+- Pet cards draw cute species-specific portraits while still showing the resource thumbnail badge.
 - The first pet auto-equips.
 - Players can tap owned pet cards to switch or unequip immediately, or use the resource-based equip button for the selected pet.
 - Selecting a different owned pet keeps that pet selected, so switching companions works from the same equip button.
-- Equipped pets spawn as a small companion model near the character with a resource icon badge.
+- Equipped pets spawn as multi-part companion models with faces, ears, tails, paws, and dragon wings/horns where appropriate.
 - Pet care can be triggered from the pet menu or care station to discount the next roll, and some equipped pets improve that discount.
 
 Pet definitions live in:
@@ -265,7 +267,8 @@ Edit `src/shared/RetailCatalog.luau`:
 
 Edit `src/shared/RetailAssets.luau`:
 
-- Add a pet entry with `id`, `name`, `rarity`, `weight`, `image`, colors, and size.
+- Add a pet entry with `id`, `name`, `rarity`, `weight`, `image`, `color`, `accentColor`, `detailColor`, `species`, and size.
+- Use `species` values like `dog`, `cat`, `bunny`, `sprite`, or `dragon` to change menu portraits and companion model details.
 - Higher `weight` means more common.
 - The client menu and server lottery read this shared table.
 
