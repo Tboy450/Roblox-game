@@ -1,5 +1,7 @@
 # Roblox Retail Game
 
+> This repository now contains two separate Rojo projects. The retail game remains on `default.project.json`; the existing arena-based Shooter uses `shooter.project.json` and is documented in [`shooter/README.md`](shooter/README.md). Connecting the Shooter project preserves the arena already in Studio.
+
 A Rojo-based Roblox Studio project for a playable retail store game. The map is generated from code, so layout changes, store props, shelves, prompts, registers, traffic markers, and exterior details can be edited in Luau and rebuilt in Studio with the custom **Retail Game** plugin.
 
 ## What Is In The Game

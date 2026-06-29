@@ -1,0 +1,25 @@
+{
+  "name": "Shooter",
+  "serveAddress": "127.0.0.1",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "ShooterShared": { "$path": "shooter/src/shared" }
+    },
+
+    "ServerScriptService": {
+      "ShooterBootstrap": { "$path": "shooter/src/server/ShooterBootstrap.server.luau" }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "ShooterClient": { "$path": "shooter/src/client/ShooterClient.client.luau" }
+      }
+    },
+
+    "Workspace": {
+      "$ignoreUnknownInstances": true
+    }
+  }
+}
