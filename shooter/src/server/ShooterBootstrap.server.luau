@@ -40,6 +40,42 @@ local RunService = game:GetService("RunService")
 local shared = ReplicatedStorage:WaitForChild("ShooterShared")
 local ArenaExpansion = require(shared:WaitForChild("ArenaExpansion"))
 
+local function isBridgeColor(color: Color3): boolean
+	local isRed = color.R >= 0.8 and color.G <= 0.25 and color.B <= 0.25
+	local isGreen = color.G >= 0.8 and color.R <= 0.25 and color.B <= 0.25
+	local isBlue = color.B >= 0.5 and color.R <= 0.25 and color.G <= 0.25
+	return isRed or isGreen or isBlue
+end
+
+local function repairColoredBridge()
+	local bridge = workspace:FindFirstChild("Obby Part")
+	if not bridge then
+		warn("[Shooter] Workspace.Obby Part was not found; colored bridge collision was not changed.")
+		return
+	end
+
+	local surfaces = 0
+	local repaired = 0
+	for _, descendant in bridge:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local isWalkwayShape = descendant.Size.Y <= 4 and descendant.Size.X >= 5 and descendant.Size.Z >= 5
+			if descendant.Anchored and isWalkwayShape and isBridgeColor(descendant.Color) then
+				surfaces += 1
+				if not descendant.CanCollide or descendant.CollisionGroup ~= "Default" then
+					repaired += 1
+				end
+				descendant.CanCollide = true
+				descendant.CanQuery = true
+				descendant.CanTouch = true
+				descendant.CollisionGroup = "Default"
+			end
+		end
+	end
+	print(`[Shooter] Colored bridge ready: {surfaces} solid surfaces ({repaired} repaired).`)
+end
+
+repairColoredBridge()
+
 local TELEPORT_COOLDOWN = 1.5
 local characterStates = setmetatable({}, { __mode = "k" })
 local teleporterPairs = {}

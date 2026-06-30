@@ -18,7 +18,7 @@ local SHARED_NAME = "ShooterShared"
 local EXPANSION_MODULE_NAME = "ArenaExpansion"
 local EXPANSION_NAME = "ShooterExpansion"
 local EXPANSION_VERSION = 1
-local PLUGIN_VERSION = 2
+local PLUGIN_VERSION = 3
 
 local autoUpdate = false
 local queued = false
@@ -146,6 +146,45 @@ local function repairPortals()
 	status(`Repaired {#portals} named portal tiles and removed {removed} broken legacy script{if removed == 1 then "" else "s"}. The Rojo server now pairs sibling tiles by floor.`)
 end
 
+local function isBridgeColor(color: Color3): boolean
+	local isRed = color.R >= 0.8 and color.G <= 0.25 and color.B <= 0.25
+	local isGreen = color.G >= 0.8 and color.R <= 0.25 and color.B <= 0.25
+	local isBlue = color.B >= 0.5 and color.R <= 0.25 and color.G <= 0.25
+	return isRed or isGreen or isBlue
+end
+
+local function repairBridge()
+	local bridge = Workspace:FindFirstChild("Obby Part")
+	if not bridge then
+		error("Workspace.Obby Part was not found.")
+	end
+
+	ChangeHistoryService:SetWaypoint("Before repairing Shooter colored bridge")
+	local surfaces = 0
+	local repaired = 0
+	for _, descendant in bridge:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local isWalkwayShape = descendant.Size.Y <= 4 and descendant.Size.X >= 5 and descendant.Size.Z >= 5
+			if descendant.Anchored and isWalkwayShape and isBridgeColor(descendant.Color) then
+				surfaces += 1
+				if not descendant.CanCollide or descendant.CollisionGroup ~= "Default" then
+					repaired += 1
+				end
+				descendant.CanCollide = true
+				descendant.CanQuery = true
+				descendant.CanTouch = true
+				descendant.CollisionGroup = "Default"
+			end
+		end
+	end
+	if surfaces == 0 then
+		error("No red, green, or blue walkway surfaces were found inside Workspace.Obby Part.")
+	end
+	ChangeHistoryService:SetWaypoint("After repairing Shooter colored bridge")
+	Selection:Set({ bridge })
+	status(`Colored bridge repaired: all {surfaces} surfaces are solid ({repaired} changed).`)
+end
+
 local function checkSystems()
 	local missing = {}
 	if not ReplicatedStorage:FindFirstChild(SHARED_NAME) then
@@ -206,6 +245,7 @@ local toolbar = plugin:CreateToolbar("Shooter")
 local updateButton = toolbar:CreateButton("Update Expansion", "Rebuild only ShooterExpansion beside the existing arena.", "rbxassetid://6031075938")
 local checkButton = toolbar:CreateButton("Check Systems", "Check Shooter Rojo sync, shop, and portal objects.", "rbxassetid://6031280882")
 local repairButton = toolbar:CreateButton("Repair Portals", "Remove broken legacy scripts from p1/p2 so ShooterBootstrap can control them.", "rbxassetid://6031075938")
+local bridgeButton = toolbar:CreateButton("Repair Bridge", "Make every red, green, and blue bridge walkway solid.", "rbxassetid://6031075938")
 local selectButton = toolbar:CreateButton("Select Expansion", "Select ShooterExpansion in Explorer.", "rbxassetid://6031091002")
 local clearButton = toolbar:CreateButton("Clear Expansion", "Remove only ShooterExpansion.", "rbxassetid://6031094678")
 local autoButton = toolbar:CreateButton("Auto Update", "Rebuild the expansion when ArenaExpansion changes through Rojo.", "rbxassetid://6031280882")
@@ -250,6 +290,10 @@ end)
 repairButton.Click:Connect(function()
 	widget.Enabled = true
 	safe("Repair portals", repairPortals)
+end)
+bridgeButton.Click:Connect(function()
+	widget.Enabled = true
+	safe("Repair bridge", repairBridge)
 end)
 selectButton.Click:Connect(function()
 	widget.Enabled = true

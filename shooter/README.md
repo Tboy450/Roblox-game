@@ -10,6 +10,7 @@ The arena already in Studio remains authoritative. `shooter.project.json` delibe
 - A working weapon shop beside `Workspace.Shop`, with Credits, server-validated purchases, ammo refills, the five existing arena Tools, and three new weapons.
 - Server-authoritative Hand Cannon, Pulse Rifle, and Scattergun weapons with ammo, reloads, tracers, headshots, and KO/death stats.
 - Repaired every sibling `p1`/`p2` or `pt1`/`pt2` set with anti-bounce cooldowns, including duplicate tiles on different floors, plus automatic pairing for models inside `Workspace.Teleporters`.
+- Solid collision across all six red, green, and blue surfaces in `Workspace.Obby Part`.
 - A separate **Shooter** Studio updater plugin that manages `Workspace.ShooterExpansion` and permanently removes broken legacy portal scripts without replacing the original arena.
 
 Start the connection with:
@@ -39,6 +40,7 @@ Restart Studio after installing it. The **Shooter** toolbar includes:
 - **Update Expansion**: rebuild only `Workspace.ShooterExpansion` beside the existing map.
 - **Check Systems**: verify the Shooter Bootstrap, existing shop, and `p1`/`p2` portals.
 - **Repair Portals**: permanently remove broken legacy scripts inside every named portal tile; the Rojo server then pairs each sibling set between floors.
+- **Repair Bridge**: permanently make all red, green, and blue bridge surfaces solid.
 - **Select Expansion**: select the generated addition in Explorer.
 - **Clear Expansion**: remove only the addition, leaving the original arena untouched.
 - **Auto Update**: rebuild the addition after `ArenaExpansion` changes through Rojo.
