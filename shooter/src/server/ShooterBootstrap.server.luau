@@ -4,13 +4,15 @@ print("[Shooter] Rojo server code connected. Existing Workspace arena preserved.
 
 local shared = ReplicatedStorage:WaitForChild("ShooterShared")
 
--- Stop the broken legacy touch handlers before they can spam errors. The
--- replacement pair is connected by the world service below.
-for _, portalName in { "p1", "p2" } do
-	local portal = workspace:FindFirstChild(portalName)
-	if portal then
+-- Stop every copy of the broken legacy touch handlers before they can spam
+-- errors. Some versions of the place contain duplicate p1/p2 (or pt1/pt2)
+-- tiles under different containers.
+for _, portal in workspace:GetDescendants() do
+	local portalName = string.lower(portal.Name)
+	if portal:IsA("BasePart") and table.find({ "p1", "p2", "pt1", "pt2" }, portalName) then
 		for _, descendant in portal:GetDescendants() do
 			if descendant:IsA("BaseScript") then
+				descendant.Enabled = false
 				descendant:Destroy()
 			end
 		end
@@ -31,13 +33,16 @@ if workspace:GetAttribute("ShooterInspectOnPlay") == true then
 end
 
 do
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local shared = ReplicatedStorage:WaitForChild("ShooterShared")
 local ArenaExpansion = require(shared:WaitForChild("ArenaExpansion"))
 
 local TELEPORT_COOLDOWN = 1.5
-local characterCooldowns: { [Model]: number } = {}
+local characterStates = setmetatable({}, { __mode = "k" })
+local teleporterPairs = {}
 
 local function disableLegacyPortalScripts(container: Instance?)
 	if not container then
@@ -45,6 +50,7 @@ local function disableLegacyPortalScripts(container: Instance?)
 	end
 	for _, descendant in container:GetDescendants() do
 		if descendant:IsA("BaseScript") then
+			descendant.Enabled = false
 			descendant:Destroy()
 		end
 	end
@@ -80,12 +86,24 @@ local function flash(part: BasePart)
 	end)
 end
 
-local function teleportCharacter(character: Model, root: BasePart, destination: BasePart)
+local function teleportCharacter(
+	character: Model,
+	root: BasePart,
+	source: BasePart,
+	destination: BasePart,
+	destinationZone: BasePart
+): boolean
 	local now = os.clock()
-	if (characterCooldowns[character] or 0) > now then
-		return
+	local state = characterStates[character]
+	if not state then
+		state = { readyAt = 0, blockedZone = nil }
+		characterStates[character] = state
 	end
-	characterCooldowns[character] = now + TELEPORT_COOLDOWN
+	if state.blockedZone ~= nil or state.readyAt > now then
+		return false
+	end
+	state.readyAt = now + TELEPORT_COOLDOWN
+	state.blockedZone = destinationZone
 
 	local currentPivot = character:GetPivot()
 	local rotation = currentPivot - currentPivot.Position
@@ -93,7 +111,37 @@ local function teleportCharacter(character: Model, root: BasePart, destination: 
 	character:PivotTo(CFrame.new(destination.Position + Vector3.new(0, verticalOffset, 0)) * rotation)
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.AssemblyAngularVelocity = Vector3.zero
+	flash(source)
 	flash(destination)
+	local player = Players:GetPlayerFromCharacter(character)
+	print(`[Shooter] Teleported {player and player.Name or character.Name}: {source:GetFullName()} -> {destination:GetFullName()}`)
+	return true
+end
+
+local function createTrigger(pad: BasePart, label: string, side: string): BasePart
+	local trigger = Instance.new("Part")
+	trigger.Name = `ShooterTeleportTrigger_{side}`
+	trigger.Anchored = true
+	trigger.CanCollide = false
+	trigger.CanQuery = false
+	trigger.CanTouch = true
+	trigger.CastShadow = false
+	trigger.Transparency = 1
+	trigger.Size = Vector3.new(math.max(8, pad.Size.X + 4), 8, math.max(8, pad.Size.Z + 4))
+	-- Legacy pads can be rotated or flipped. Keep the detector world-upright so
+	-- its volume always rises above the visible tile instead of below it.
+	trigger.CFrame = CFrame.new(pad.Position + Vector3.new(0, pad.Size.Y / 2 + trigger.Size.Y / 2, 0))
+	trigger:SetAttribute("ShooterTeleporterPair", label)
+	trigger.Parent = pad
+	return trigger
+end
+
+local function isInsideZone(root: BasePart, zone: BasePart): boolean
+	local localPosition = zone.CFrame:PointToObjectSpace(root.Position)
+	local halfSize = zone.Size / 2
+	return math.abs(localPosition.X) <= halfSize.X
+		and math.abs(localPosition.Y) <= halfSize.Y + 1
+		and math.abs(localPosition.Z) <= halfSize.Z
 end
 
 local function connectPair(first: BasePart, second: BasePart, label: string)
@@ -101,20 +149,26 @@ local function connectPair(first: BasePart, second: BasePart, label: string)
 	second.CanTouch = true
 	first:SetAttribute("ShooterTeleporterPair", label)
 	second:SetAttribute("ShooterTeleporterPair", label)
+	local firstZone = createTrigger(first, label, "A")
+	local secondZone = createTrigger(second, label, "B")
+	table.insert(teleporterPairs, {
+		first = first,
+		second = second,
+		firstZone = firstZone,
+		secondZone = secondZone,
+	})
 
-	first.Touched:Connect(function(hit)
+	firstZone.Touched:Connect(function(hit)
 		local character, _, root = findCharacter(hit)
 		if character and root then
-			flash(first)
-			teleportCharacter(character, root, second)
+			teleportCharacter(character, root, first, second, secondZone)
 		end
 	end)
 
-	second.Touched:Connect(function(hit)
+	secondZone.Touched:Connect(function(hit)
 		local character, _, root = findCharacter(hit)
 		if character and root then
-			flash(second)
-			teleportCharacter(character, root, first)
+			teleportCharacter(character, root, second, first, firstZone)
 		end
 	end)
 
@@ -129,7 +183,7 @@ local function choosePad(container: Instance): BasePart?
 	local best: BasePart? = nil
 	local bestScore = -math.huge
 	for _, descendant in container:GetDescendants() do
-		if descendant:IsA("BasePart") then
+		if descendant:IsA("BasePart") and not string.find(descendant.Name, "ShooterTeleportTrigger", 1, true) then
 			local lowerName = string.lower(descendant.Name)
 			local score = descendant.Size.X * descendant.Size.Z
 			if string.find(lowerName, "pad") or string.find(lowerName, "tele") or string.find(lowerName, "portal") then
@@ -150,17 +204,70 @@ local function choosePad(container: Instance): BasePart?
 	return best
 end
 
-local function repairSimplePair()
-	local p1 = workspace:FindFirstChild("p1")
-	local p2 = workspace:FindFirstChild("p2")
-	if not p1 or not p1:IsA("BasePart") or not p2 or not p2:IsA("BasePart") then
-		warn("[Shooter] Legacy p1/p2 teleporter pair was not found.")
-		return
+local function namedPortalSide(name: string): string?
+	local lowerName = string.lower(name)
+	if lowerName == "p1" or lowerName == "pt1" then
+		return "A"
+	elseif lowerName == "p2" or lowerName == "pt2" then
+		return "B"
+	end
+	return nil
+end
+
+local function pairScore(first: BasePart, second: BasePart): number
+	local offset = second.Position - first.Position
+	local horizontalDistance = Vector2.new(offset.X, offset.Z).Magnitude
+	-- When duplicate names share a container, prefer the tile on the other
+	-- floor. Horizontal distance breaks ties for same-level layouts.
+	return math.abs(offset.Y) * 1000 - horizontalDistance
+end
+
+local function repairNamedPairs()
+	local groups = {}
+	for _, descendant in workspace:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local side = namedPortalSide(descendant.Name)
+			if side then
+				local parent = descendant.Parent
+				local group = groups[parent]
+				if not group then
+					group = { A = {}, B = {} }
+					groups[parent] = group
+				end
+				table.insert(group[side], descendant)
+			end
+		end
 	end
 
-	disableLegacyPortalScripts(p1)
-	disableLegacyPortalScripts(p2)
-	connectPair(p1, p2, "Legacy-p1-p2")
+	local pairCount = 0
+	for parent, group in groups do
+		table.sort(group.A, function(left, right)
+			return left.Position.Y < right.Position.Y
+		end)
+		local unusedSeconds = table.clone(group.B)
+		for _, first in group.A do
+			local bestIndex = nil
+			local bestScore = -math.huge
+			for index, second in unusedSeconds do
+				local score = pairScore(first, second)
+				if score > bestScore then
+					bestIndex = index
+					bestScore = score
+				end
+			end
+			if bestIndex then
+				local second = table.remove(unusedSeconds, bestIndex)
+				disableLegacyPortalScripts(first)
+				disableLegacyPortalScripts(second)
+				pairCount += 1
+				connectPair(first, second, `Named-{parent:GetFullName()}-{pairCount}`)
+			end
+		end
+	end
+
+	if pairCount == 0 then
+		warn("[Shooter] No sibling p1/p2 or pt1/pt2 teleporter pairs were found.")
+	end
 end
 
 local function repairTeleporterModels()
@@ -187,8 +294,43 @@ local function repairTeleporterModels()
 	end
 end
 
-repairSimplePair()
+repairNamedPairs()
 repairTeleporterModels()
+
+local zoneAccumulator = 0
+RunService.Heartbeat:Connect(function(deltaTime)
+	zoneAccumulator += deltaTime
+	if zoneAccumulator < 0.08 then
+		return
+	end
+	zoneAccumulator = 0
+
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if character and root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
+			local state = characterStates[character]
+			if state and state.blockedZone then
+				if not state.blockedZone.Parent or not isInsideZone(root, state.blockedZone) then
+					state.blockedZone = nil
+				end
+			else
+				for _, pair in teleporterPairs do
+					if pair.first.Parent and pair.second.Parent and pair.firstZone.Parent and pair.secondZone.Parent then
+						if isInsideZone(root, pair.firstZone) then
+							teleportCharacter(character, root, pair.first, pair.second, pair.secondZone)
+							break
+						elseif isInsideZone(root, pair.secondZone) then
+							teleportCharacter(character, root, pair.second, pair.first, pair.firstZone)
+							break
+						end
+					end
+				end
+			end
+		end
+	end
+end)
 
 local ok, expansionOrError = pcall(function()
 	return ArenaExpansion.build({ parent = workspace, forceRebuild = true })

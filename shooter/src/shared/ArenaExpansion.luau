@@ -183,19 +183,6 @@ function ArenaExpansion.build(options)
 	barrier(cover, Vector3.new(centerX - 2, floorY + 3.5, centerZ - 24), 20)
 	barrier(cover, Vector3.new(centerX + 29, floorY + 3.5, centerZ - 15), 90)
 
-	for _, spawnOffset in { Vector3.new(28, 1.5, -depth / 2 + 12), Vector3.new(28, 1.5, depth / 2 - 12) } do
-		local spawn = Instance.new("SpawnLocation")
-		spawn.Name = "ExpansionSpawn"
-		spawn.Anchored = true
-		spawn.Neutral = true
-		spawn.Duration = 2
-		spawn.Size = Vector3.new(8, 1, 8)
-		spawn.Material = Enum.Material.Neon
-		spawn.Color = COLORS.cyan
-		spawn.Position = Vector3.new(centerX, floorY, centerZ) + spawnOffset
-		spawn.Parent = model
-	end
-
 	return model
 end
 

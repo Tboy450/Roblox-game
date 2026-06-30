@@ -18,6 +18,7 @@ local SHARED_NAME = "ShooterShared"
 local EXPANSION_MODULE_NAME = "ArenaExpansion"
 local EXPANSION_NAME = "ShooterExpansion"
 local EXPANSION_VERSION = 1
+local PLUGIN_VERSION = 2
 
 local autoUpdate = false
 local queued = false
@@ -116,6 +117,35 @@ local function selectExpansion()
 	end
 end
 
+local function repairPortals()
+	local portals = {}
+	for _, descendant in Workspace:GetDescendants() do
+		local lowerName = string.lower(descendant.Name)
+		if descendant:IsA("BasePart") and table.find({ "p1", "p2", "pt1", "pt2" }, lowerName) then
+			table.insert(portals, descendant)
+		end
+	end
+	if #portals == 0 then
+		error("No p1/p2 or pt1/pt2 portal tiles were found anywhere in Workspace.")
+	end
+
+	ChangeHistoryService:SetWaypoint("Before repairing Shooter portals")
+	local removed = 0
+	for _, portal in portals do
+		portal.CanTouch = true
+		for _, descendant in portal:GetDescendants() do
+			if descendant:IsA("BaseScript") then
+				descendant.Enabled = false
+				descendant:Destroy()
+				removed += 1
+			end
+		end
+	end
+	ChangeHistoryService:SetWaypoint("After repairing Shooter portals")
+	Selection:Set(portals)
+	status(`Repaired {#portals} named portal tiles and removed {removed} broken legacy script{if removed == 1 then "" else "s"}. The Rojo server now pairs sibling tiles by floor.`)
+end
+
 local function checkSystems()
 	local missing = {}
 	if not ReplicatedStorage:FindFirstChild(SHARED_NAME) then
@@ -127,13 +157,28 @@ local function checkSystems()
 	if not Workspace:FindFirstChild("Shop") then
 		table.insert(missing, "Workspace.Shop")
 	end
-	if not Workspace:FindFirstChild("p1") or not Workspace:FindFirstChild("p2") then
-		table.insert(missing, "p1/p2")
+	local namedPortals = {}
+	local legacyPortalScripts = 0
+	for _, descendant in Workspace:GetDescendants() do
+		local lowerName = string.lower(descendant.Name)
+		if descendant:IsA("BasePart") and table.find({ "p1", "p2", "pt1", "pt2" }, lowerName) then
+			table.insert(namedPortals, descendant)
+			for _, portalDescendant in descendant:GetDescendants() do
+				if portalDescendant:IsA("BaseScript") then
+					legacyPortalScripts += 1
+				end
+			end
+		end
+	end
+	if #namedPortals < 2 then
+		table.insert(missing, "paired p1/p2 tiles")
 	end
 	if #missing > 0 then
 		status(`Needs attention: {table.concat(missing, ", ")}.`, true)
+	elseif legacyPortalScripts > 0 then
+		status(`Found {legacyPortalScripts} broken legacy portal script{if legacyPortalScripts == 1 then "" else "s"}. Click Repair Portals.`, true)
 	else
-		status(`Shooter sync OK. Shop and p1/p2 found. Expansion plugin v{EXPANSION_VERSION}.`)
+		status(`Shooter sync OK. Shop and {#namedPortals} repaired portal tiles found. Plugin v{PLUGIN_VERSION}.`)
 	end
 end
 
@@ -160,6 +205,7 @@ end
 local toolbar = plugin:CreateToolbar("Shooter")
 local updateButton = toolbar:CreateButton("Update Expansion", "Rebuild only ShooterExpansion beside the existing arena.", "rbxassetid://6031075938")
 local checkButton = toolbar:CreateButton("Check Systems", "Check Shooter Rojo sync, shop, and portal objects.", "rbxassetid://6031280882")
+local repairButton = toolbar:CreateButton("Repair Portals", "Remove broken legacy scripts from p1/p2 so ShooterBootstrap can control them.", "rbxassetid://6031075938")
 local selectButton = toolbar:CreateButton("Select Expansion", "Select ShooterExpansion in Explorer.", "rbxassetid://6031091002")
 local clearButton = toolbar:CreateButton("Clear Expansion", "Remove only ShooterExpansion.", "rbxassetid://6031094678")
 local autoButton = toolbar:CreateButton("Auto Update", "Rebuild the expansion when ArenaExpansion changes through Rojo.", "rbxassetid://6031280882")
@@ -190,7 +236,7 @@ statusLabel.TextSize = 14
 statusLabel.TextWrapped = true
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextYAlignment = Enum.TextYAlignment.Top
-statusLabel.Text = `Shooter updater v{EXPANSION_VERSION} ready. Existing arena is never replaced.`
+statusLabel.Text = `Shooter updater v{PLUGIN_VERSION} ready. Existing arena is never replaced.`
 statusLabel.Parent = frame
 
 updateButton.Click:Connect(function()
@@ -200,6 +246,10 @@ end)
 checkButton.Click:Connect(function()
 	widget.Enabled = true
 	safe("Check systems", checkSystems)
+end)
+repairButton.Click:Connect(function()
+	widget.Enabled = true
+	safe("Repair portals", repairPortals)
 end)
 selectButton.Click:Connect(function()
 	widget.Enabled = true
@@ -229,4 +279,4 @@ autoButton.Click:Connect(function()
 	end
 end)
 
-status(`Loaded Shooter updater v{EXPANSION_VERSION}. Existing arena will be preserved.`)
+status(`Loaded Shooter updater v{PLUGIN_VERSION}. Existing arena will be preserved.`)
