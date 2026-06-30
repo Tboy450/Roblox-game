@@ -145,6 +145,23 @@ local function teleporterPad(parent: Instance, name: string, position: Vector3, 
 	return pad
 end
 
+local function roomAcrossShopPosition(floorY: number): Vector3
+	local shop = workspace:FindFirstChild("Shop")
+	if shop then
+		local shopCenter = Vector3.zero
+		if shop:IsA("Model") then
+			local shopCFrame = shop:GetBoundingBox()
+			shopCenter = shopCFrame.Position
+		elseif shop:IsA("BasePart") then
+			shopCenter = shop.Position
+		end
+		-- The shop faces the room bounded by the Z=-7 and Z=-24.5 walls.
+		-- Four studs east and eighteen south lands in its clear center.
+		return Vector3.new(shopCenter.X + 4, floorY + 0.3, shopCenter.Z - 18)
+	end
+	return Vector3.new(-59.4, floorY + 0.3, -15.3)
+end
+
 function ArenaExpansion.build(options)
 	options = options or {}
 	local parent = options.parent or workspace
@@ -223,15 +240,15 @@ function ArenaExpansion.build(options)
 	-- remains reachable without allowing Roblox to randomly spawn players there.
 	teleporterPad(
 		teleporters,
-		"MainArenaEntrance",
-		Vector3.new(centerX - expansionWidth / 2 + 7, floorY + 0.3, centerZ),
+		"ShopRoomEntrance",
+		roomAcrossShopPosition(floorY),
 		"SMALL ROOM"
 	)
 	teleporterPad(
 		teleporters,
 		"SmallRoomReturn",
 		Vector3.new(centerX + 28, floorY + 0.3, centerZ - depth / 2 + 12),
-		"RETURN TO ARENA"
+		"RETURN TO SHOP ROOM"
 	)
 
 	return model

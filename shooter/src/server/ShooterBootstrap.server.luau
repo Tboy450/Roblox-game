@@ -375,10 +375,10 @@ if ok then
 	local expansion = expansionOrError
 	if typeof(expansion) == "Instance" then
 		local expansionTeleporters = expansion:FindFirstChild("ExpansionTeleporters")
-		local entrance = expansionTeleporters and expansionTeleporters:FindFirstChild("MainArenaEntrance")
+		local entrance = expansionTeleporters and expansionTeleporters:FindFirstChild("ShopRoomEntrance")
 		local roomReturn = expansionTeleporters and expansionTeleporters:FindFirstChild("SmallRoomReturn")
 		if entrance and entrance:IsA("BasePart") and roomReturn and roomReturn:IsA("BasePart") then
-			connectPair(entrance, roomReturn, "Expansion-small-room")
+			connectPair(entrance, roomReturn, "Shop-room-to-small-room")
 		else
 			warn("[Shooter] Expansion small-room teleporter parts were not found.")
 		end

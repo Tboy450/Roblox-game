@@ -6,7 +6,7 @@ The arena already in Studio remains authoritative. `shooter.project.json` delibe
 
 ## Included Systems
 
-- An adaptive `ShooterExpansion` with a bunker, elevated overlook, stairs, cover, barriers, and a labeled two-way teleporter to the small room that formerly contained an expansion spawn. It builds beside the existing arena instead of replacing it and does not add competing spawn points.
+- An adaptive `ShooterExpansion` with a bunker, elevated overlook, stairs, cover, barriers, and a labeled two-way teleporter between the small former-spawn room and the existing room across from `Workspace.Shop`. It builds beside the existing arena instead of replacing it and does not add competing spawn points.
 - A working weapon shop beside `Workspace.Shop`, with Credits, server-validated purchases, ammo refills, the five existing arena Tools, and three new weapons.
 - Server-authoritative Hand Cannon, Pulse Rifle, and Scattergun weapons with ammo, reloads, tracers, headshots, and KO/death stats.
 - Repaired every sibling `p1`/`p2` or `pt1`/`pt2` set with anti-bounce cooldowns, including duplicate tiles on different floors, plus automatic pairing for models inside `Workspace.Teleporters`.
