@@ -149,17 +149,37 @@ local function roomAcrossShopPosition(floorY: number): Vector3
 	local shop = workspace:FindFirstChild("Shop")
 	if shop then
 		local shopCenter = Vector3.zero
+		local shopSize = Vector3.zero
 		if shop:IsA("Model") then
-			local shopCFrame = shop:GetBoundingBox()
+			local shopCFrame, boundingSize = shop:GetBoundingBox()
 			shopCenter = shopCFrame.Position
+			shopSize = boundingSize
 		elseif shop:IsA("BasePart") then
 			shopCenter = shop.Position
+			shopSize = shop.Size
 		end
-		-- The shop faces the room bounded by the Z=-7 and Z=-24.5 walls.
-		-- Four studs east and eighteen south lands in its clear center.
-		return Vector3.new(shopCenter.X + 4, floorY + 0.3, shopCenter.Z - 18)
+
+		local shopFloorTop = floorY
+		local bestFloorArea = 0
+		for _, descendant in shop:GetDescendants() do
+			if descendant:IsA("BasePart") and descendant.Size.Y <= 2 then
+				local area = descendant.Size.X * descendant.Size.Z
+				if area > bestFloorArea then
+					bestFloorArea = area
+					shopFloorTop = descendant.Position.Y + descendant.Size.Y / 2
+				end
+			end
+		end
+
+		-- Stay in the shop's room: just beyond the shop's east edge and toward
+		-- the south half of the same floor, clear of the working shop terminal.
+		return Vector3.new(
+			shopCenter.X + shopSize.X / 2 + 2.5,
+			shopFloorTop + 0.3,
+			shopCenter.Z - 5
+		)
 	end
-	return Vector3.new(-59.4, floorY + 0.3, -15.3)
+	return Vector3.new(-54.1, floorY + 0.3, -2.3)
 end
 
 function ArenaExpansion.build(options)
