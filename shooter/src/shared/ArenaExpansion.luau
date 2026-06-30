@@ -113,6 +113,38 @@ local function barrier(parent: Instance, position: Vector3, rotation: number)
 	neon(parent, "WarningStrip", Vector3.new(8, 0.35, 0.2), cframe * CFrame.new(0, 1.3, -1.27), COLORS.orange)
 end
 
+local function teleporterPad(parent: Instance, name: string, position: Vector3, labelText: string): Part
+	local pad = part(parent, name, Vector3.new(7, 0.6, 7), CFrame.new(position), Color3.fromRGB(73, 225, 105), Enum.Material.Neon)
+	pad:SetAttribute("ShooterExpansionTeleporter", true)
+
+	local light = Instance.new("PointLight")
+	light.Color = pad.Color
+	light.Range = 16
+	light.Brightness = 1.2
+	light.Parent = pad
+
+	local label = Instance.new("BillboardGui")
+	label.Name = "PortalLabel"
+	label.AlwaysOnTop = true
+	label.LightInfluence = 0
+	label.Size = UDim2.fromOffset(190, 42)
+	label.StudsOffset = Vector3.new(0, 3.8, 0)
+	label.Parent = pad
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundColor3 = Color3.fromRGB(18, 28, 24)
+	text.BackgroundTransparency = 0.2
+	text.BorderSizePixel = 0
+	text.Font = Enum.Font.GothamBold
+	text.Text = labelText
+	text.TextColor3 = Color3.fromRGB(215, 255, 225)
+	text.TextScaled = true
+	text.Parent = label
+
+	return pad
+end
+
 function ArenaExpansion.build(options)
 	options = options or {}
 	local parent = options.parent or workspace
@@ -146,6 +178,10 @@ function ArenaExpansion.build(options)
 	local cover = Instance.new("Folder")
 	cover.Name = "Cover"
 	cover.Parent = model
+
+	local teleporters = Instance.new("Folder")
+	teleporters.Name = "ExpansionTeleporters"
+	teleporters.Parent = model
 
 	local floor = part(
 		geometry,
@@ -182,6 +218,21 @@ function ArenaExpansion.build(options)
 	coverCrate(cover, Vector3.new(centerX + 3, floorY + 4, centerZ + 24), 30, COLORS.metal)
 	barrier(cover, Vector3.new(centerX - 2, floorY + 3.5, centerZ - 24), 20)
 	barrier(cover, Vector3.new(centerX + 29, floorY + 3.5, centerZ - 15), 90)
+
+	-- The destination occupies the former north expansion spawn location. It
+	-- remains reachable without allowing Roblox to randomly spawn players there.
+	teleporterPad(
+		teleporters,
+		"MainArenaEntrance",
+		Vector3.new(centerX - expansionWidth / 2 + 7, floorY + 0.3, centerZ),
+		"SMALL ROOM"
+	)
+	teleporterPad(
+		teleporters,
+		"SmallRoomReturn",
+		Vector3.new(centerX + 28, floorY + 0.3, centerZ - depth / 2 + 12),
+		"RETURN TO ARENA"
+	)
 
 	return model
 end

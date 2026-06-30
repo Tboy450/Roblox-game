@@ -336,6 +336,17 @@ local ok, expansionOrError = pcall(function()
 	return ArenaExpansion.build({ parent = workspace, forceRebuild = true })
 end)
 if ok then
+	local expansion = expansionOrError
+	if typeof(expansion) == "Instance" then
+		local expansionTeleporters = expansion:FindFirstChild("ExpansionTeleporters")
+		local entrance = expansionTeleporters and expansionTeleporters:FindFirstChild("MainArenaEntrance")
+		local roomReturn = expansionTeleporters and expansionTeleporters:FindFirstChild("SmallRoomReturn")
+		if entrance and entrance:IsA("BasePart") and roomReturn and roomReturn:IsA("BasePart") then
+			connectPair(entrance, roomReturn, "Expansion-small-room")
+		else
+			warn("[Shooter] Expansion small-room teleporter parts were not found.")
+		end
+	end
 	print(`[Shooter] Arena expansion v{ArenaExpansion.VERSION} ready beside the existing map.`)
 else
 	warn(`[Shooter] Arena expansion failed: {tostring(expansionOrError)}`)
