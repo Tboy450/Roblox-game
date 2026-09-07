@@ -1,0 +1,9 @@
+﻿{
+  "name": "rojo-retail-updater",
+  "tree": {
+    "$className": "Folder",
+    "BuildRetailStore": {
+      "$path": "plugins/BuildRetailStore.lua"
+    }
+  }
+}
