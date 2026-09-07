@@ -809,20 +809,20 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	)
 
 	-- ========== SALES FLOOR (symmetric zones + aisles) ==========
-	zoneMarker("Produce", -28, -18, 24, 18, Color3.fromRGB(92, 128, 82))
-	zoneMarker("Dairy", 0, -18, 24, 18, Color3.fromRGB(98, 112, 132))
-	zoneMarker("Frozen", 28, -18, 24, 18, Color3.fromRGB(92, 118, 138))
-	zoneMarker("General", 0, 12, 56, 28, Color3.fromRGB(148, 148, 152))
+	zoneMarker("Produce", -50, -18, 20, 18, Color3.fromRGB(92, 128, 82))
+	zoneMarker("Dairy", 0, -18, 20, 18, Color3.fromRGB(98, 112, 132))
+	zoneMarker("Frozen", 50, -18, 20, 18, Color3.fromRGB(92, 118, 138))
+	zoneMarker("General", 0, 14, 100, 32, Color3.fromRGB(148, 148, 152))
 
 	local aisleSigns = Instance.new("Model")
 	aisleSigns.Name = "AisleSigns"
 	aisleSigns.Parent = store
 	for _, sign in {
-		{ name = "ProduceSign", x = -28, z = -18, text = "PRODUCE", color = Color3.fromRGB(72, 112, 68) },
-		{ name = "DairySign", x = 0, z = -8, text = "DAIRY", color = Color3.fromRGB(72, 92, 122) },
-		{ name = "FrozenSign", x = 28, z = 6, text = "FROZEN", color = Color3.fromRGB(62, 102, 126) },
-		{ name = "PantrySign", x = -14, z = 33, text = "PANTRY", color = Color3.fromRGB(132, 92, 58) },
-		{ name = "HouseholdSign", x = 24, z = 33, text = "HOUSEHOLD", color = Color3.fromRGB(92, 88, 112) },
+		{ name = "ProduceSign", x = -50, z = -20, text = "PRODUCE", color = Color3.fromRGB(72, 112, 68) },
+		{ name = "DairySign", x = 0, z = -10, text = "DAIRY", color = Color3.fromRGB(72, 92, 122) },
+		{ name = "FrozenSign", x = 50, z = 4, text = "FROZEN", color = Color3.fromRGB(62, 102, 126) },
+		{ name = "PantrySign", x = -30, z = 30, text = "PANTRY", color = Color3.fromRGB(132, 92, 58) },
+		{ name = "HouseholdSign", x = 30, z = 30, text = "HOUSEHOLD", color = Color3.fromRGB(92, 88, 112) },
 	} do
 		addSign(aisleSigns, sign.name, sign.x, floorY + 11.3, sign.z, 12, sign.text, sign.color)
 	end
@@ -831,7 +831,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	endcaps.Name = "PromotionalEndcaps"
 	endcaps.Parent = store
 	for _, endcap in {
-		{ name = "SeasonalEndcap", x = -20, z = 28, color = Color3.fromRGB(70, 150, 130), prompt = "Seasonal Display" },
+		{ name = "SeasonalEndcap", x = -30, z = 12, color = Color3.fromRGB(70, 150, 130), prompt = "Seasonal Display" },
 	} do
 		local display = storePart({
 			name = endcap.name,
@@ -857,7 +857,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local bins = Instance.new("Model")
 	bins.Name = "ProduceBins"
 	bins.Parent = store
-	for index, bx in { -42, -24, 12, 28, 42 } do
+	for index, bx in { -60, -30, 0, 30, 60 } do
 		local i, binZ = index - 3, -19
 		local crate = detailPart({
 			name = `Bin_{i}`,
@@ -1016,21 +1016,22 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	end
 
 	-- Aisles: keep the front third open for checkout, queueing, and NPC traffic.
+	-- Repositioned shelves to better fill expanded store
 	local shelfRows = {
-		{ z = -10, departments = { 1, 2, 3 } },
+		{ z = -14, departments = { 1, 2, 3 } },
 		{ z = 4, departments = { 4, 5, 2 } },
-		{ z = 18, departments = { 1, 4, 5 } },
+		{ z = 22, departments = { 1, 4, 5 } },
 	}
 	for _, row in shelfRows do
-		for columnIndex, x in { -42, 0, 42 } do
+		for columnIndex, x in { -50, 0, 50 } do
 			shelfUnit(x, row.z, row.departments[columnIndex])
 		end
 	end
 
 	-- Freezer row (raised off floor, glass in front of frame)
-	local freezerZ = -2
+	local freezerZ = -8
 	for i = -1, 1 do
-		local fx = i * 38
+		local fx = i * 50
 		local case = Instance.new("Model")
 		case.Name = `Freezer{i}`
 		case.Parent = store
