@@ -27,6 +27,7 @@ This project currently builds a supermarket-style store with:
 | `src/server/RetailMechanics.server.luau` | Core work actions, shelf stock, shelf assignment, register sales, and store stats. |
 | `src/server/RetailTraffic.server.luau` | NPC shoppers, parking spots, store pathing, and NPC checkout flow. |
 | `src/server/RetailPets.server.luau` | Pet lottery, pet inventory, equip/unequip, and companion model spawning. |
+| `src/server/RetailRoomDoors.server.luau` | Bathroom door interactions with proximity and occupied-doorway checks. |
 | `src/client/init.client.luau` | Player HUD, shelf editor, register UI, player menu, pet lottery UI, and client event handling. |
 | `plugins/BuildRetailStore.lua` | Roblox Studio plugin for updating, clearing, selecting, and auto-updating the generated map. |
 | `plugins/LinkToCursor.lua` | Optional helper plugin for sending notes from Studio back to this project. |
@@ -48,7 +49,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 54
+local BLUEPRINT_VERSION = 55
 ```
 
 When making major map changes, bump this number and also update:
@@ -369,6 +370,17 @@ Connect Rojo, then use **Plugins -> Retail Game -> Update Map**. Updater v52 sup
 
 For this update, connect the retail Rojo server at **localhost:34872**, stop any Play test, and click **Plugins -> Retail Game -> Update Map**. The map sign should read **v54 test**. Updater v52 remains compatible; no plugin reinstall is needed. Shelf, checkout, and pet rules are unchanged.
 
+## v55 Store Expansion
+
+- Widened the building from 120 to 152 studs, keeping its 100-stud depth and the existing fixture sizes. The sales-floor width between the side-room walls grows from 84 to 116 studs.
+- Moved complete side rooms outward without stretching furniture; widened shelf spacing and aligned shopper and checkout markers with the new positions. The manager room's internal arrangement is preserved.
+- Rebuilt the restroom block as two separate single-occupancy bathrooms, each with its own toilet, sink, fittings, light, and working privacy door.
+- Removed the corridor gaps between pharmacy/bakery and bathroom/staff room. Each adjoining pair now shares a single wall.
+- Added usable staff-room seats, a properly supported table, and room lighting. Repositioned staff controls against the new wall, reduced and wall-mounted loading signs, and refinished the dock door.
+- Updated the roof, front walls/windows, parking field, fourteen ordinary parking bays, side walks, lighting islands, road edges, pickup area, and service yard to match the wider building. The two reserved entrance bays and their access aisles stay clear of NPC parking.
+
+Use **Plugins -> Retail Game -> Update Map** with the retail Rojo connection active. Updater v52 supports this build; the map sign should read **v55 test**. Privacy doors can be opened or closed from either side. They will not finish closing through a player in the doorway. Shelf, checkout, and pet economy rules are unchanged.
+
 ## Development Checks
 
 Install the official [Luau Windows command-line release](https://github.com/luau-lang/luau/releases) into `.tools/luau`, then run:
@@ -377,7 +389,7 @@ Install the official [Luau Windows command-line release](https://github.com/luau
 .\scripts\test-retail.ps1
 ```
 
-This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, constructs all eight car styles, executes the actual blueprint with construction doubles, and builds `build.rbxlx` with Rojo. Layout checks cover window seals, fixture-to-wall clearance, principal furniture separation in eight rooms, avatar-sized entrance routes, the rear cross aisle, reserved parking/access aisles, and sidewalk connections. These checks do not simulate Roblox physics or pathfinding. In Studio, also walk the room entrances and parking approaches, and test shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
+This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, constructs all eight car styles, executes the actual blueprint with construction doubles, and builds `build.rbxlx` with Rojo. Layout checks cover window seals, fixture-to-wall clearance, principal furniture separation in nine rooms, avatar-sized entrance routes, shared walls, the wider shell/exterior, reserved parking/access aisles, and sidewalk connections. Door tests cover proximity, animation guards, interrupted closing, and cancellation recovery. These checks do not simulate Roblox physics or pathfinding. In Studio, also walk the room entrances and parking approaches, and test bathroom doors, shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
 
 ## GitHub
 

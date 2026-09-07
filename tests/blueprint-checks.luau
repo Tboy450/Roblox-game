@@ -3,7 +3,7 @@ local parts = {}
 for _, item in store:GetDescendants() do
 	if item:IsA("BasePart") then table.insert(parts, item) end
 end
-assert(store:GetAttribute("BlueprintVersion") == 54)
+assert(store:GetAttribute("BlueprintVersion") == 55)
 local function named(name)
 	for _, part in parts do if part.Name == name then return part end end
 	error("Missing part " .. name)
@@ -13,7 +13,7 @@ local function contains(part, x, y, z)
 	local s = part.Size
 	return math.abs(d.X - x) <= s.X / 2 + 0.0001 and math.abs(d.Y - y) <= s.Y / 2 + 0.0001 and math.abs(d.Z - z) <= s.Z / 2 + 0.0001
 end
-for _, center in { -42, 42 } do
+for _, center in { named("WindowL").Position.X, named("WindowR").Position.X } do
 	for x = center - 10, center + 10, 0.25 do
 		for y = 1.05, 14.95, 0.25 do
 			local sealed = false

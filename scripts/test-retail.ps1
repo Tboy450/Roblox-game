@@ -32,6 +32,14 @@ $GeneratedPath = Join-Path $RetailRoot '.tools/retail-blueprint-test.luau'
 & $Runner $GeneratedPath
 if ($LASTEXITCODE -ne 0) { throw 'Blueprint geometry checks failed.' }
 
+$DoorMock = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/room-doors-mock.luau') -Raw
+$Doors = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/server/RetailRoomDoors.server.luau') -Raw
+$DoorChecks = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/room-doors-checks.luau') -Raw
+$DoorTestPath = Join-Path $RetailRoot '.tools/retail-room-doors-test.luau'
+[System.IO.File]::WriteAllText($DoorTestPath, "$Fixture`n$DoorMock`n$Doors`n$DoorChecks")
+& $Runner $DoorTestPath
+if ($LASTEXITCODE -ne 0) { throw 'Private room door checks failed.' }
+
 $VehicleFixture = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/vehicle-mock.luau') -Raw
 $Traffic = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/server/RetailTraffic.server.luau') -Raw
 $VehicleChecks = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/vehicle-checks.luau') -Raw

@@ -15,7 +15,7 @@ local UDim2 = { fromScale = function(x, y) return { x, y } end, new = function(.
 local BrickColor = { new = function(value) return value end }
 local methods = {}
 function methods:IsA(class)
-	return self.ClassName == class or (class == "BasePart" and (self.ClassName == "Part" or self.ClassName == "SpawnLocation"))
+	return self.ClassName == class or (class == "BasePart" and (self.ClassName == "Part" or self.ClassName == "SpawnLocation" or self.ClassName == "Seat"))
 end
 function methods:GetChildren() return table.clone(self.children) end
 function methods:GetDescendants()
