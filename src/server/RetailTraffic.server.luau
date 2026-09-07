@@ -232,11 +232,28 @@ local function createVehicle(style, cframe: CFrame): Model
 
 	local root = createPart(vehicle, "Root", Vector3.new(1, 1, 1), CFrame.new(), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
 	root.Transparency = 1
+	local cabinZ = if style.cargoBox then -3.7 elseif style.bed then -2.8 else 0.4
+	local trim = Color3.fromRGB(39, 44, 49)
+	local chrome = Color3.fromRGB(161, 175, 180)
 	createPart(vehicle, "Body", style.bodySize, CFrame.new(0, 1.5, 0), style.bodyColor, Enum.Material.Metal)
-	createPart(vehicle, "Cabin", style.cabinSize, CFrame.new(0, 3.2, 0.6), Color3.fromRGB(160, 180, 192), Enum.Material.Glass)
-	createPart(vehicle, "FrontGlass", Vector3.new(style.cabinSize.X - 0.8, 1.5, 0.25), CFrame.new(0, 3.35, -style.cabinSize.Z / 2 + 0.25), Color3.fromRGB(120, 145, 160), Enum.Material.Glass)
-	createPart(vehicle, "Headlights", Vector3.new(style.bodySize.X - 1.2, 0.35, 0.2), CFrame.new(0, 1.85, -style.bodySize.Z / 2 - 0.05), Color3.fromRGB(245, 235, 170), Enum.Material.Neon)
-	createPart(vehicle, "TailLights", Vector3.new(style.bodySize.X - 1.2, 0.3, 0.2), CFrame.new(0, 1.75, style.bodySize.Z / 2 + 0.05), Color3.fromRGB(210, 48, 40), Enum.Material.Neon)
+	createPart(vehicle, "Cabin", style.cabinSize, CFrame.new(0, 3.2, cabinZ), Color3.fromRGB(63, 92, 105), Enum.Material.Glass)
+	createPart(vehicle, "Roof", Vector3.new(style.cabinSize.X + 0.2, 0.18, style.cabinSize.Z + 0.15), CFrame.new(0, 3.29 + style.cabinSize.Y / 2, cabinZ), style.bodyColor, Enum.Material.Metal)
+	createPart(vehicle, "FrontGlass", Vector3.new(style.cabinSize.X - 0.35, style.cabinSize.Y - 0.3, 0.08), CFrame.new(0, 3.2, cabinZ - style.cabinSize.Z / 2 - 0.05), Color3.fromRGB(94, 132, 146), Enum.Material.Glass)
+	for _, side in { -1, 1 } do
+		createPart(vehicle, `Bumper{side}`, Vector3.new(style.bodySize.X + 0.1, 0.35, 0.22), CFrame.new(0, 0.85, side * (style.bodySize.Z / 2 + 0.1)), trim, Enum.Material.Metal)
+		createPart(vehicle, `Headlight{side}`, Vector3.new(1.35, 0.43, 0.15), CFrame.new(side * (style.bodySize.X / 2 - 1), 1.85, -style.bodySize.Z / 2 - 0.09), Color3.fromRGB(244, 240, 211), Enum.Material.Neon)
+		createPart(vehicle, `TailLight{side}`, Vector3.new(0.85, 0.46, 0.15), CFrame.new(side * (style.bodySize.X / 2 - 0.85), 1.85, style.bodySize.Z / 2 + 0.09), Color3.fromRGB(188, 45, 42), Enum.Material.Neon)
+		createPart(vehicle, `Mirror{side}`, Vector3.new(0.55, 0.32, 0.65), CFrame.new(side * (style.bodySize.X / 2 + 0.08), 2.75, cabinZ - style.cabinSize.Z / 2 + 0.5), style.bodyColor, Enum.Material.Metal)
+		createPart(vehicle, `DoorHandle{side}`, Vector3.new(0.08, 0.13, 0.6), CFrame.new(side * (style.bodySize.X / 2 + 0.05), 2.05, cabinZ + 0.65), chrome, Enum.Material.Metal)
+		for _, z in { -style.cabinSize.Z / 2, 0, style.cabinSize.Z / 2 } do
+			createPart(vehicle, `WindowPillar{side}_{z}`, Vector3.new(0.1, style.cabinSize.Y, 0.14), CFrame.new(side * (style.cabinSize.X / 2 + 0.02), 3.2, cabinZ + z), trim, Enum.Material.Metal)
+		end
+	end
+	createPart(vehicle, "Grille", Vector3.new(2.5, 0.5, 0.12), CFrame.new(0, 1.6, -style.bodySize.Z / 2 - 0.08), trim, Enum.Material.Metal)
+	for line = -1, 1 do
+		createPart(vehicle, `GrilleSlat{line}`, Vector3.new(2.3, 0.035, 0.025), CFrame.new(0, 1.6 + line * 0.13, -style.bodySize.Z / 2 - 0.155), chrome, Enum.Material.Metal)
+	end
+	createPart(vehicle, "RearPlate", Vector3.new(1.3, 0.55, 0.04), CFrame.new(0, 1.55, style.bodySize.Z / 2 + 0.1), Color3.fromRGB(224, 226, 217), Enum.Material.SmoothPlastic)
 	if style.bed then
 		createPart(vehicle, "OpenBed", Vector3.new(style.bodySize.X - 0.8, 0.7, 4.8), CFrame.new(0, 2.75, 3.3), Color3.fromRGB(42, 42, 46), Enum.Material.Metal)
 		createPart(vehicle, "Tailgate", Vector3.new(style.bodySize.X - 0.5, 1.2, 0.25), CFrame.new(0, 2.45, style.bodySize.Z / 2 + 0.15), style.bodyColor, Enum.Material.Metal)
@@ -248,9 +265,13 @@ local function createVehicle(style, cframe: CFrame): Model
 	elseif style.spoiler then
 		createPart(vehicle, "Spoiler", Vector3.new(style.bodySize.X - 1, 0.3, 0.55), CFrame.new(0, 2.75, style.bodySize.Z / 2 - 0.7), style.bodyColor, Enum.Material.Metal)
 	end
-	for _, x in { -style.bodySize.X / 2 + 0.7, style.bodySize.X / 2 - 0.7 } do
+	for _, side in { -1, 1 } do
 		for _, z in { -style.bodySize.Z / 2 + 1.8, style.bodySize.Z / 2 - 1.8 } do
-			createPart(vehicle, "Wheel", Vector3.new(0.8, 1.5, 1.5), CFrame.new(x, 0.8, z), Color3.fromRGB(30, 30, 32), Enum.Material.Rubber)
+			local x = side * (style.bodySize.X / 2 - 0.08)
+			local wheel = createPart(vehicle, "Wheel", Vector3.new(0.55, 1.9, 1.9), CFrame.new(x, 0.95, z), Color3.fromRGB(30, 32, 34), Enum.Material.Rubber)
+			wheel.Shape = Enum.PartType.Cylinder
+			local hub = createPart(vehicle, "WheelHub", Vector3.new(0.06, 1.05, 1.05), CFrame.new(x + side * 0.29, 0.95, z), chrome, Enum.Material.Metal)
+			hub.Shape = Enum.PartType.Cylinder
 		end
 	end
 
@@ -402,7 +423,7 @@ local function moveCustomerToParking(npc: Model, spot: BasePart, groupOffset: nu
 	end
 	npc:SetAttribute("TrafficState", "Leaving")
 	local outsideEntry = getMarker("StoreEntryOutside").Position
-	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -6)
+	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -8.5)
 	if npc:GetPivot().Position.Z < outsideEntry.Z then
 		if not walkCustomerTo(npc, outsideEntry, canLeave) then
 			return
@@ -489,7 +510,7 @@ local function runVisitGroup(spot: BasePart, groupSize: number, generation: numb
 	local customers = {}
 	for index = 1, groupSize do
 		local offset = index - (groupSize + 1) / 2
-		local npc = createNpc(`Customer{index}`, SHIRT_COLORS[math.random(1, #SHIRT_COLORS)], spot.Position + Vector3.new(offset * 1.8, 0, -7))
+		local npc = createNpc(`Customer{index}`, SHIRT_COLORS[math.random(1, #SHIRT_COLORS)], spot.Position + Vector3.new(offset * 1.8, 0, -8.5))
 		table.insert(customers, npc)
 	end
 

@@ -207,6 +207,14 @@ local function addPetFace(model: Model, head: BasePart, pet)
 			material = Enum.Material.SmoothPlastic,
 		})
 		weldTo(head, eye)
+		local highlight = petPart(model, {
+			name = if eyeOffset < 0 then "LeftEyeHighlight" else "RightEyeHighlight",
+			shape = Enum.PartType.Ball,
+			size = Vector3.new(0.065, 0.065, 0.025),
+			cframe = eye.CFrame * CFrame.new(-0.035, 0.04, -0.04),
+			color = Color3.fromRGB(255, 255, 250),
+		})
+		weldTo(head, highlight)
 	end
 
 	local nose = petPart(model, {
@@ -228,27 +236,44 @@ local function addPetEars(model: Model, head: BasePart, pet, species: string)
 	for _, side in { -1, 1 } do
 		local ear = petPart(model, {
 			name = if side < 0 then "LeftEar" else "RightEar",
+			shape = if species == "dog" or species == "bunny" then Enum.PartType.Ball else Enum.PartType.Block,
 			size = earSize,
 			cframe = head.CFrame * CFrame.new(side * 0.42, yOffset, -0.02) * CFrame.Angles(0, 0, side * rotation),
 			color = accentColor,
 			material = Enum.Material.SmoothPlastic,
 		})
 		weldTo(head, ear)
+		local innerEar = petPart(model, {
+			name = if side < 0 then "LeftInnerEar" else "RightInnerEar",
+			shape = Enum.PartType.Ball,
+			size = Vector3.new(earSize.X * 0.55, earSize.Y * 0.68, 0.035),
+			cframe = ear.CFrame * CFrame.new(0, 0.02, -earSize.Z / 2),
+			color = colorOr(pet.detailColor, Color3.fromRGB(236, 176, 166)),
+		})
+		weldTo(head, innerEar)
 	end
 end
 
 local function addPetTail(model: Model, body: BasePart, pet, species: string)
 	local accentColor = colorOr(pet.accentColor, pet.color)
-	local size = if species == "cat" then Vector3.new(0.24, 1.35, 0.24) else Vector3.new(0.32, 0.98, 0.32)
+	local length = if species == "cat" then 1.35 else 0.98
+	local size = Vector3.new(length, 0.27, 0.27)
 	local tail = petPart(model, {
 		name = "Tail",
 		shape = Enum.PartType.Cylinder,
 		size = size,
 		cframe = body.CFrame * CFrame.new(0, 0.18, 0.98) * CFrame.Angles(math.rad(74), 0, math.rad(90)),
 		color = accentColor,
-		material = if species == "dragon" then Enum.Material.Neon else Enum.Material.SmoothPlastic,
+		material = Enum.Material.SmoothPlastic,
 	})
 	weldTo(body, tail)
+	local tailTip = petPart(model, {
+		name = "TailTip", shape = Enum.PartType.Ball,
+		size = Vector3.new(0.32, 0.32, 0.32),
+		cframe = tail.CFrame * CFrame.new(length / 2, 0, 0),
+		color = colorOr(pet.detailColor, accentColor),
+	})
+	weldTo(body, tailTip)
 end
 
 local function addPetPaws(model: Model, body: BasePart, pet)
@@ -279,7 +304,7 @@ local function addDragonDetails(model: Model, body: BasePart, head: BasePart, pe
 		wing.Name = if side < 0 then "LeftWing" else "RightWing"
 		wing.Size = Vector3.new(0.28, 1.05, 1.35)
 		wing.Color = accentColor
-		wing.Material = Enum.Material.Neon
+		wing.Material = Enum.Material.SmoothPlastic
 		wing.Anchored = false
 		wing.CanCollide = false
 		wing.Massless = true
@@ -365,12 +390,12 @@ local function attachPetToCharacter(player: Player)
 	weldTo(head, cheek)
 
 	local accent = petPart(model, {
-		name = "Accent",
+		name = "ChestPatch",
 		shape = Enum.PartType.Ball,
-		size = Vector3.new(0.58, 0.58, 0.58),
-		cframe = body.CFrame * CFrame.new(0.72, 0.38, -0.38),
-		color = colorOr(pet.accentColor, pet.color),
-		material = Enum.Material.Neon,
+		size = Vector3.new(petSize.X * 0.45, petSize.Y * 0.45, 0.15),
+		cframe = body.CFrame * CFrame.new(0, -petSize.Y * 0.1, -petSize.Z * 0.48),
+		color = colorOr(pet.detailColor, pet.color),
+		material = Enum.Material.SmoothPlastic,
 	})
 	weldTo(body, accent)
 

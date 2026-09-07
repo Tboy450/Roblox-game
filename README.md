@@ -48,7 +48,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 52
+local BLUEPRINT_VERSION = 53
 ```
 
 When making major map changes, bump this number and also update:
@@ -346,6 +346,16 @@ Run:
 - Corrected the office door-frame positions and service-area display refreshes.
 - Fixed updater startup and blocked rebuilds during both running and paused Play tests.
 
+## v53 Visual Pass
+
+- Steel shop shelving, slim price rails, and individual fruit in wooden produce crates.
+- Detailed checkout stations with monitor stands, working price/status displays, card readers, belt guides, and drawer trim.
+- Round car tires and hubs, framed windows, painted roofs, mirrors, bumpers, and separate lights. Pickup and delivery-truck cabs no longer occupy their cargo space.
+- Separated carts and bench, rebuilt wire cart baskets and slatted seating, and moved parking away from the central entrance walkway.
+- Pet eye highlights, inner ears, softer dog/bunny ears, corrected tail proportions, and less luminous dragon wings. Pet switching and lottery rules are unchanged.
+
+Connect Rojo, then use **Plugins -> Retail Game -> Update Map**. Updater v52 supports map v53; no new plugin installation is needed for this visual pass. Car and equipped-pet visuals appear during Play.
+
 ## Development Checks
 
 Install the official [Luau Windows command-line release](https://github.com/luau-lang/luau/releases) into `.tools/luau`, then run:
@@ -354,7 +364,7 @@ Install the official [Luau Windows command-line release](https://github.com/luau
 .\scripts\test-retail.ps1
 ```
 
-This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, executes the actual blueprint with construction doubles to check window coverage and fixture clearance, and builds `build.rbxlx` with Rojo. These checks do not simulate Roblox physics or pathfinding. In Studio, also test shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
+This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, constructs all eight car styles, executes the actual blueprint with construction doubles to check window coverage and fixture clearance, and builds `build.rbxlx` with Rojo. These checks do not simulate Roblox physics or pathfinding. In Studio, also test shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
 
 ## GitHub
 

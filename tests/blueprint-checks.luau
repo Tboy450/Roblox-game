@@ -3,7 +3,7 @@ local parts = {}
 for _, item in store:GetDescendants() do
 	if item:IsA("BasePart") then table.insert(parts, item) end
 end
-assert(store:GetAttribute("BlueprintVersion") == 52)
+assert(store:GetAttribute("BlueprintVersion") == 53)
 local function named(name)
 	for _, part in parts do if part.Name == name then return part end end
 	error("Missing part " .. name)
@@ -31,6 +31,35 @@ local function overlap(a, b)
 	return true
 end
 local blocked = {}
+local fruitCount, priceTags, cartWheels = 0, 0, 0
+for _, part in parts do
+	if part.Name:match("^Fruit%-?%d+_") then
+		fruitCount += 1
+		assert(part.Shape == Enum.PartType.Ball, "Produce must use individual rounded fruit")
+	end
+	if part:GetAttribute("FixtureDetail") then assert(not part.CanCollide, "Trim must not obstruct navigation") end
+	if part:GetAttribute("ShelfPriceDisplay") then priceTags += 1 end
+	if part.Name:match("^CartWheel") then
+		cartWheels += 1
+		assert(part.Shape == Enum.PartType.Cylinder, "Cart wheels must be round")
+	end
+	if part:GetAttribute("TrafficMarkerKind") == "Parking" then
+		assert(math.abs(part.Position.X) >= 20, "Parked cars must stay off the central entrance walk")
+	end
+end
+assert(fruitCount == 75 and priceTags == 81 and cartWheels == 8, "Expected produce, shelf pricing, and cart details")
+assert(not overlap(named("Bench"), named("NestedCart0")) and not overlap(named("Bench"), named("NestedCart1")), "Carts must not intersect the bench")
+assert(named("AccessibleAisle0").Position.Y > named("AccessibleSpace0").Position.Y + 0.035, "Overlaid parking paint must not flicker")
+for _, unit in store:GetChildren() do
+	if unit:GetAttribute("ShelfId") then
+		local cap = unit:FindFirstChild("TopCap")
+		for _, product in unit:GetChildren() do
+			if product:GetAttribute("ShelfProductVisual") then
+				assert(product.Position.Y + product.Size.Y / 2 < cap.Position.Y - cap.Size.Y / 2, "Top shelf products must clear the cap")
+			end
+		end
+	end
+end
 local officeFrames = 0
 for _, part in parts do
 	if part.Name:match("^AdminDoorFrame") then
@@ -61,6 +90,11 @@ for _, lane in store:FindFirstChild("FrontEnd"):FindFirstChild("Checkout"):GetCh
 	for _, propName in { "Monitor", "CashDrawer", "Scanner" } do
 		assert(not overlap(printer, lane:FindFirstChild(propName)), `Printer overlaps {propName}`)
 	end
+	local reader = lane:FindFirstChild("CardReader")
+	for _, propName in { "Belt", "BeltGuide-1", "BeltGuide1", "CashDrawer", "ReceiptPrinter" } do
+		assert(not overlap(reader, lane:FindFirstChild(propName)), `Card reader overlaps {propName}`)
+	end
+	assert(lane:FindFirstChild("CashDrawer"):GetAttribute("RetailAction") == (if lane:GetAttribute("RegisterKind") == "Player" then "OpenPlayerRegister" else nil))
 end
 local oldStore = store
 store = Blueprint.build({ parent = workspace })

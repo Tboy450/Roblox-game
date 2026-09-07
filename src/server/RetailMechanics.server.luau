@@ -455,7 +455,9 @@ local function refreshShelfVisuals(unit: Model)
 	end
 
 	for _, desc in unit:GetDescendants() do
-		if desc:IsA("BasePart") and desc:GetAttribute("ShelfProductVisual") == true then
+		if desc:IsA("BasePart") and desc:GetAttribute("ShelfPriceDisplay") == true then
+			updateSignText(desc, RetailCurrency.formatCents(product.priceCents))
+		elseif desc:IsA("BasePart") and desc:GetAttribute("ShelfProductVisual") == true then
 			local boardY = desc:GetAttribute("ShelfBoardY")
 			local slotIndex = desc:GetAttribute("ShelfSlotIndex")
 			desc.Size = product.size
@@ -653,6 +655,10 @@ local function setRegisterDisplay(register: Model, text: string)
 	local statusDisplay = register:FindFirstChild("StatusDisplay")
 	if statusDisplay and statusDisplay:IsA("BasePart") then
 		updateSignText(statusDisplay, text)
+	end
+	local monitor = register:FindFirstChild("MonitorScreen")
+	if monitor and monitor:IsA("BasePart") then
+		updateSignText(monitor, text)
 	end
 end
 

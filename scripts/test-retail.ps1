@@ -30,5 +30,13 @@ $GeneratedPath = Join-Path $RetailRoot '.tools/retail-blueprint-test.luau'
 [System.IO.File]::WriteAllText($GeneratedPath, $Generated)
 & $Runner $GeneratedPath
 if ($LASTEXITCODE -ne 0) { throw 'Blueprint geometry checks failed.' }
+
+$VehicleFixture = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/vehicle-mock.luau') -Raw
+$Traffic = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/server/RetailTraffic.server.luau') -Raw
+$VehicleChecks = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/vehicle-checks.luau') -Raw
+$VehicleTestPath = Join-Path $RetailRoot '.tools/retail-vehicle-test.luau'
+[System.IO.File]::WriteAllText($VehicleTestPath, "$Fixture`n$VehicleFixture`n$Traffic`n$VehicleChecks")
+& $Runner $VehicleTestPath
+if ($LASTEXITCODE -ne 0) { throw 'Vehicle model checks failed.' }
 & (Join-Path $RetailRoot '.tools/rojo/rojo.exe') build (Join-Path $RetailRoot 'default.project.json') -o (Join-Path $RetailRoot 'build.rbxlx')
 if ($LASTEXITCODE -ne 0) { throw 'Rojo retail build failed.' }
