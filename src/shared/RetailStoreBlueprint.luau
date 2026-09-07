@@ -1018,9 +1018,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	-- Aisles: keep the front third open for checkout, queueing, and NPC traffic.
 	-- Repositioned shelves to better fill expanded store
 	local shelfRows = {
-		{ z = -14, departments = { 1, 2, 3 } },
+		{ z = -20, departments = { 1, 2, 3 } },
 		{ z = 4, departments = { 4, 5, 2 } },
-		{ z = 22, departments = { 1, 4, 5 } },
+		{ z = 28, departments = { 1, 4, 5 } },
 	}
 	for _, row in shelfRows do
 		for columnIndex, x in { -50, 0, 50 } do

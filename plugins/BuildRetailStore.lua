@@ -15,8 +15,8 @@ local CATALOG_NAME = "RetailCatalog"
 local HUD_CLIENT_SOURCE_NAME = "RetailHudClientSource"
 local HUD_RUNNER_NAME = "RetailHudRunner"
 local CLIENT_SCRIPT_NAME = "Client"
-local PLUGIN_VERSION = 52
-local MIN_BLUEPRINT_VERSION = 52
+local PLUGIN_VERSION = 56
+local MIN_BLUEPRINT_VERSION = 56
 
 local autoUpdateEnabled = false
 local autoUpdateQueued = false
