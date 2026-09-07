@@ -3,6 +3,7 @@
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 local StarterGui = game:GetService("StarterGui")
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -14,12 +15,12 @@ local CATALOG_NAME = "RetailCatalog"
 local HUD_CLIENT_SOURCE_NAME = "RetailHudClientSource"
 local HUD_RUNNER_NAME = "RetailHudRunner"
 local CLIENT_SCRIPT_NAME = "Client"
-local BLUEPRINT_VERSION = 51
+local PLUGIN_VERSION = 52
+local MIN_BLUEPRINT_VERSION = 52
 
 local autoUpdateEnabled = false
 local autoUpdateQueued = false
-local sourceChangedConnections: { [ModuleScript]: RBXScriptConnection } = {}
-local sharedChildConnection: RBXScriptConnection? = nil
+local sourceChangedConnections: { [LuaSourceContainer]: RBXScriptConnection } = {}
 local lastStatusLabel: TextLabel? = nil
 
 local function log(message: string)
@@ -85,11 +86,13 @@ end
 local function checkSync()
 	local moduleScript = getBlueprintModule()
 	local syncedVersion = readModuleBlueprintVersion(moduleScript)
-	if syncedVersion == BLUEPRINT_VERSION then
-		log(`Plugin v{BLUEPRINT_VERSION}; Rojo blueprint {versionLabel(syncedVersion)}. Sync OK.`)
+	local store = Workspace:FindFirstChild(STORE_NAME)
+	local builtVersion = if store then store:GetAttribute("BlueprintVersion") else nil
+	if syncedVersion and syncedVersion >= MIN_BLUEPRINT_VERSION then
+		log(`Updater v{PLUGIN_VERSION}; synced blueprint {versionLabel(syncedVersion)}; map {versionLabel(builtVersion)}. Ready to Update Map.`)
 	else
 		warnPlugin(
-			`Version mismatch: plugin v{BLUEPRINT_VERSION}, Rojo blueprint {versionLabel(syncedVersion)}. Reconnect Rojo to localhost:34872, then click Update Map.`
+			`Blueprint {versionLabel(syncedVersion)} is older than v{MIN_BLUEPRINT_VERSION}. Connect the retail Rojo project at localhost:34872, then Update Map.`
 		)
 	end
 end
@@ -189,10 +192,12 @@ local function ensureHudRunner(): (boolean, string)
 
 	local screenGui = runner :: ScreenGui
 	screenGui.ResetOnSpawn = false
+	screenGui.Enabled = true
 
 	local sourceClient = findHudClientSource(screenGui)
 	local existingClient = screenGui:FindFirstChild(CLIENT_SCRIPT_NAME)
 	if existingClient and existingClient:IsA("LocalScript") then
+		existingClient.Disabled = false
 		if sourceClient and sourceClient ~= existingClient and existingClient.Source ~= sourceClient.Source then
 			existingClient.Source = sourceClient.Source
 			return true, "HUD runner refreshed."
@@ -208,18 +213,22 @@ local function ensureHudRunner(): (boolean, string)
 
 	local clientClone = sourceClient:Clone()
 	clientClone.Name = CLIENT_SCRIPT_NAME
+	clientClone.Disabled = false
 	clientClone.Parent = screenGui
 	return true, "HUD runner repaired."
 end
 
 local function updateMap()
+	if not RunService:IsEdit() then
+		error("Stop the play test before updating the edit-mode map. Rojo changes are applied on the next Play.")
+	end
 	ChangeHistoryService:SetWaypoint("Before retail map update")
 
 	local blueprintModule = getBlueprintModule()
 	local syncedVersion = readModuleBlueprintVersion(blueprintModule)
-	if syncedVersion ~= BLUEPRINT_VERSION then
+	if not syncedVersion or syncedVersion < MIN_BLUEPRINT_VERSION then
 		error(
-			`Version mismatch before build: plugin v{BLUEPRINT_VERSION}, Rojo blueprint {versionLabel(syncedVersion)}. Reconnect Rojo to localhost:34872 or restart Studio, then Update Map again.`
+			`Synced blueprint {versionLabel(syncedVersion)} is too old. Connect the retail project at localhost:34872; this updater accepts v{MIN_BLUEPRINT_VERSION} and newer.`
 		)
 	end
 
@@ -245,14 +254,17 @@ local function updateMap()
 	local builtVersion = if typeof(builtVersionAttribute) == "number" then builtVersionAttribute else nil
 	if hudReady then
 		log(
-			`Updated {STORE_NAME} {versionLabel(builtVersion)} ({countParts(store)} parts). Plugin v{BLUEPRINT_VERSION}; Rojo {versionLabel(syncedVersion)}. {hudMessage}`
+			`Updated {STORE_NAME} {versionLabel(builtVersion)} ({countParts(store)} parts). Updater v{PLUGIN_VERSION}; Rojo {versionLabel(syncedVersion)}. {hudMessage}`
 		)
 	else
-		warnPlugin(`Updated map, but HUD setup needs attention: {hudMessage}. Plugin v{BLUEPRINT_VERSION}; Rojo {versionLabel(syncedVersion)}.`)
+		warnPlugin(`Updated map, but HUD setup needs attention: {hudMessage}. Updater v{PLUGIN_VERSION}; Rojo {versionLabel(syncedVersion)}.`)
 	end
 end
 
 local function clearMap()
+	if not RunService:IsEdit() then
+		error("Stop the play test before clearing the map.")
+	end
 	local existing = Workspace:FindFirstChild(STORE_NAME)
 	if not existing then
 		log("No RetailStore found to clear.")
@@ -290,7 +302,7 @@ local function queueAutoUpdate()
 	autoUpdateQueued = true
 	task.delay(0.75, function()
 		autoUpdateQueued = false
-		if autoUpdateEnabled then
+		if autoUpdateEnabled and RunService:IsEdit() then
 			runSafely("Auto update", updateMap)
 		end
 	end)
@@ -303,7 +315,7 @@ local function clearSourceWatches()
 	end
 end
 
-local function watchSource(moduleScript: ModuleScript)
+local function watchSource(moduleScript: LuaSourceContainer)
 	sourceChangedConnections[moduleScript] = moduleScript.Changed:Connect(function(propertyName)
 		if propertyName == "Source" or propertyName == "Parent" then
 			queueAutoUpdate()
@@ -313,15 +325,26 @@ end
 
 local function watchSources()
 	clearSourceWatches()
-	watchSource(getBlueprintModule())
-	watchSource(getCatalogModule())
+	local shared = ReplicatedStorage:FindFirstChild("Shared")
+	if shared then
+		for _, name in { BLUEPRINT_NAME, CATALOG_NAME } do
+			local source = shared:FindFirstChild(name)
+			if source and source:IsA("ModuleScript") then
+				watchSource(source)
+			end
+		end
+	end
+	local client = findReplicatedClientSource()
+	if client then
+		watchSource(client)
+	end
 end
 
 local toolbar = plugin:CreateToolbar("Retail Game")
 
 local updateButton = toolbar:CreateButton(
 	"Update Map",
-	"Rebuild RetailStore v51 in Workspace using the latest Rojo-synced blueprint.",
+	"Rebuild RetailStore using the latest Rojo-synced blueprint (v52 and newer).",
 	"rbxassetid://6031075938"
 )
 
@@ -383,7 +406,7 @@ lastStatusLabel.TextWrapped = true
 lastStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 lastStatusLabel.TextYAlignment = Enum.TextYAlignment.Top
 lastStatusLabel.Size = UDim2.fromScale(1, 1)
-lastStatusLabel.Text = `Plugin v{BLUEPRINT_VERSION} ready. Connect Rojo, then click Check Sync or Update Map.`
+lastStatusLabel.Text = `Updater v{PLUGIN_VERSION} ready. Connect Rojo, then click Check Sync or Update Map.`
 lastStatusLabel.Parent = statusFrame
 
 updateButton.Click:Connect(function()
@@ -413,31 +436,34 @@ autoButton.Click:Connect(function()
 
 	if autoUpdateEnabled then
 		runSafely("Watch sources", watchSources)
-
-		if sharedChildConnection then
-			sharedChildConnection:Disconnect()
-		end
-
-		local shared = ReplicatedStorage:FindFirstChild("Shared")
-		if shared then
-			sharedChildConnection = shared.ChildAdded:Connect(function(child)
-				if child.Name == BLUEPRINT_NAME or child.Name == CATALOG_NAME then
-					runSafely("Watch sources", watchSources)
-					queueAutoUpdate()
-				end
-			end)
-		end
-
+		queueAutoUpdate()
 		log("Auto Update enabled.")
 	else
 		clearSourceWatches()
-		if sharedChildConnection then
-			sharedChildConnection:Disconnect()
-			sharedChildConnection = nil
-		end
-
 		log("Auto Update disabled.")
 	end
 end)
 
-log(`Loaded plugin v{BLUEPRINT_VERSION}. Use Retail Game -> Check Sync after Rojo connects.`)
+ReplicatedStorage.DescendantAdded:Connect(function(child)
+	if not autoUpdateEnabled then
+		return
+	end
+	local shared = ReplicatedStorage:FindFirstChild("Shared")
+	if child == shared or child.Name == HUD_CLIENT_SOURCE_NAME
+		or (child.Parent == shared and (child.Name == BLUEPRINT_NAME or child.Name == CATALOG_NAME)) then
+		watchSources()
+		queueAutoUpdate()
+	end
+end)
+
+RunService:GetPropertyChangedSignal("RunState"):Connect(function()
+	if RunService:IsEdit() then
+		queueAutoUpdate()
+	end
+end)
+
+plugin.Unloading:Connect(function()
+	autoUpdateEnabled = false
+	clearSourceWatches()
+end)
+log(`Loaded updater v{PLUGIN_VERSION}. Use Retail Game -> Check Sync after Rojo connects.`)

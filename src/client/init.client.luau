@@ -988,7 +988,7 @@ renderQuickPanel = function()
 	local serviceBags = readStoreAttribute(store, "ServiceBags")
 	local stockOrders = readStat("StockOrders")
 	local storeOpen = readStoreOpen(store)
-	local storeStatus = if storeOpen then "Open" else "Closed"
+	local storeStatus = if storeOpen then "Open" elseif store and store:GetAttribute("StoreClosing") then "Closing" else "Closed"
 	local onShift = readStat("Shift") == 1
 
 	if quickPanelMode == "stock" then
@@ -998,6 +998,7 @@ renderQuickPanel = function()
 			`Carried {readStat("Stock")} | Low shelves {lowStock} | Empty shelves {emptyShelves}`
 			.. "\n"
 			.. `Service bags {serviceBags}/12 | Orders {stockOrders} | Tasks {readStat("Tasks")}`
+			.. `\nReturned stock {readStoreAttribute(store, "RecoveredStockUnits")}`
 		setQuickPanelAction(
 			if onShift then "Order Stock $3" else "Clock In First",
 			RetailAssets.buttons.OrderStock,
@@ -1021,7 +1022,7 @@ renderQuickPanel = function()
 		quickPanelBody.Text =
 			`Status {storeStatus} | Shoppers {readStoreAttribute(store, "ActiveShoppers")} | Parking {readStoreAttribute(store, "OccupiedParkingSpots")}`
 			.. "\n"
-			.. `Traffic accepting customers: {if storeOpen then "yes" else "no"}`
+			.. `Checkout queue {readStoreAttribute(store, "CheckoutQueueLength")} | Arrivals {if storeOpen then "open" else "paused"}`
 		setQuickPanelAction(if storeOpen then "Close Store" else "Open Store", if storeOpen then RetailAssets.buttons.StoreClosed else RetailAssets.buttons.StoreOpen, if storeOpen then Color3.fromRGB(132, 72, 62) else Color3.fromRGB(56, 116, 74), true, true)
 	elseif quickPanelMode == "controls" then
 		quickPanelAccent.BackgroundColor3 = Color3.fromRGB(112, 132, 170)
@@ -1055,7 +1056,7 @@ local function updateHud()
 	local netSales = readStoreAttribute(store, "StoreNetSalesCents")
 	local storeCustomers = readStoreAttribute(store, "StoreCustomers")
 	local storeOpen = readStoreOpen(store)
-	local storeStatus = if storeOpen then "Open" else "Closed"
+	local storeStatus = if storeOpen then "Open" elseif store and store:GetAttribute("StoreClosing") then "Closing" else "Closed"
 	local serviceQueue = readStoreAttribute(store, "ServiceQueue")
 	local serviceReturns = readStoreAttribute(store, "ServiceReturns")
 	local serviceSatisfaction = readStoreAttribute(store, "ServiceSatisfaction")
@@ -1814,6 +1815,9 @@ local function connectStoreStatus(store: Instance)
 		"StoreNetSalesCents",
 		"StoreCustomers",
 		"StoreOpen",
+		"StoreClosing",
+		"CheckoutQueueLength",
+		"RecoveredStockUnits",
 		"ServiceQueue",
 		"ServiceReturns",
 		"ServicePickupOrders",

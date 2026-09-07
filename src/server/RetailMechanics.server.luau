@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local NpcStockOrders = require(script.Parent:WaitForChild("NpcStockOrders"))
 
 local connectedPrompts: { [ProximityPrompt]: RBXScriptConnection } = {}
 local RetailCatalog = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RetailCatalog"))
@@ -58,6 +59,7 @@ if not createNpcOrder then
 	createNpcOrder.Name = "CreateNpcOrder"
 	createNpcOrder.Parent = retailRemotes
 end
+local cancelNpcOrder = retailRemotes:WaitForChild("CancelNpcOrder") :: BindableFunction
 
 type RegisterState = {
 	itemCount: number,
@@ -490,6 +492,8 @@ local function setShelfStock(unit: Model, stock: number)
 	end
 end
 
+local npcOrders = NpcStockOrders.new(getShelfStock, setShelfStock, getShelfProduct)
+
 local function getShelfProductName(target: BasePart): string?
 	local unit = getShelfUnit(target)
 	if not unit then
@@ -912,10 +916,17 @@ local function handleRetailAction(player: Player, action: string, target: BasePa
 	elseif action == "CollectStock" then
 		local bonus = math.max(0, math.floor(player:GetAttribute("PetStockBonusUnits") or 0))
 		local amount = 6 + bonus
+		local store = Workspace:FindFirstChild("RetailStore")
+		local recovered = if store then store:GetAttribute("RecoveredStockUnits") or 0 else 0
+		local returnedUnits = math.min(amount, recovered)
+		if store and returnedUnits > 0 then
+			store:SetAttribute("RecoveredStockUnits", recovered - returnedUnits)
+		end
 		stock.Value += amount
 		tasks.Value += 1
 		local bonusText = if bonus > 0 then ` ({bonus} pet bonus)` else ""
-		message(player, `Picked up {amount} stock units{bonusText}`)
+		local returnedText = if returnedUnits > 0 then ` | {returnedUnits} returned units recovered` else ""
+		message(player, `Picked up {amount} stock units{bonusText}{returnedText}`)
 	elseif action == "RestockShelf" then
 		local unit = getShelfUnit(target)
 		if not unit then
@@ -1270,47 +1281,14 @@ createNpcOrder.OnInvoke = function()
 	if not store then
 		return nil
 	end
-
-	local itemCount = 0
-	local totalCents = 0
-	local items = {}
-	local wantedItems = math.random(1, 4)
-
-	for _ = 1, wantedItems do
-		local stockedShelves = {}
-		for _, shelf in getShelfModels(store) do
-			if getShelfStock(shelf) > 0 then
-				table.insert(stockedShelves, shelf)
-			end
-		end
-
-		if #stockedShelves == 0 then
-			break
-		end
-
-		local shelf = stockedShelves[math.random(1, #stockedShelves)]
-		local _, _, _, product = getShelfProduct(shelf)
-		setShelfStock(shelf, getShelfStock(shelf) - 1)
-		itemCount += 1
-		totalCents += product.priceCents
-		table.insert(items, {
-			name = product.name,
-			priceCents = product.priceCents,
-		})
-	end
-
-	if itemCount == 0 then
-		return nil
-	end
-
-	return {
-		itemCount = itemCount,
-		totalCents = totalCents,
-		items = items,
-	}
+	return npcOrders.create(store, getShelfModels(store), math.random(1, 4))
 end
 
-processNpcCheckout.OnInvoke = function(order)
+cancelNpcOrder.OnInvoke = function(orderId)
+	return npcOrders.cancel(orderId)
+end
+
+processNpcCheckout.OnInvoke = function(orderId)
 	local store = Workspace:FindFirstChild("RetailStore")
 	if not store then
 		return nil
@@ -1321,26 +1299,19 @@ processNpcCheckout.OnInvoke = function(order)
 		return nil
 	end
 
-	local state = if typeof(order) == "table"
-		and typeof(order.itemCount) == "number"
-		and typeof(order.totalCents) == "number"
-		then {
-			itemCount = math.max(1, math.floor(order.itemCount)),
-			totalCents = math.max(0, math.floor(order.totalCents)),
-			paidCents = math.max(0, math.floor(order.totalCents)),
-			changeGivenCents = 0,
-			items = if typeof(order.items) == "table" then order.items else {
-				{
-					name = "NPC basket",
-					priceCents = math.max(0, math.floor(order.totalCents)),
-				},
-			},
-			receiptNumber = receiptCounter + 1,
-		}
-		else getRegisterState("NpcRegister")
-	if state.receiptNumber == receiptCounter + 1 then
-		receiptCounter += 1
+	local order = npcOrders.finish(store, orderId)
+	if not order then
+		return nil
 	end
+	receiptCounter += 1
+	local state = {
+		itemCount = order.itemCount,
+		totalCents = order.totalCents,
+		paidCents = order.totalCents,
+		changeGivenCents = 0,
+		items = order.items,
+		receiptNumber = receiptCounter,
+	}
 	local totalCents = state.totalCents
 	setRegisterDisplay(npcRegister, `SALE {RetailCurrency.formatCents(totalCents)}`)
 	completeRegisterSale(nil, npcRegister, state, "NPC")
@@ -1350,6 +1321,10 @@ end
 
 selectShelfProduct.OnServerEvent:Connect(function(player, shelfId, departmentIndex, productIndex)
 	if typeof(shelfId) ~= "number" or typeof(departmentIndex) ~= "number" or typeof(productIndex) ~= "number" then
+		return
+	end
+	if getStat(player, "Shift").Value == 0 then
+		message(player, "Clock in before changing shelf products")
 		return
 	end
 
@@ -1372,11 +1347,13 @@ selectShelfProduct.OnServerEvent:Connect(function(player, shelfId, departmentInd
 		return
 	end
 
+	local returnedStock = getShelfStock(unit)
+	getStat(player, "Stock").Value += returnedStock
 	unit:SetAttribute("ShelfDepartmentIndex", selectedDepartmentIndex)
 	unit:SetAttribute("ShelfProductIndex", selectedProductIndex)
 	applyShelfSelection(unit)
 	setShelfStock(unit, 0)
-	message(player, `Set {unit:GetAttribute("ShelfProductName")} in {unit:GetAttribute("ShelfDepartmentName")} - shelf needs stock`)
+	message(player, `Set {unit:GetAttribute("ShelfProductName")} - {returnedStock} stock units returned to you; ready to restock`)
 end)
 
 requestStoreToggle.OnServerEvent:Connect(function(player)
@@ -1444,9 +1421,15 @@ local function connectStore(store: Instance)
 	updateStoreOpenVisuals(store)
 	updateServiceAreaVisuals(store)
 	store:GetAttributeChangedSignal("StoreOpen"):Connect(function()
+		if store:GetAttribute("StoreOpen") == false then
+			npcOrders.cancelStore(store)
+		end
 		updateStoreOpenVisuals(store)
 	end)
-	for attributeName in {
+	store.Destroying:Connect(function()
+		npcOrders.cancelStore(store)
+	end)
+	for _, attributeName in {
 		"ServiceQueue",
 		"ServiceReturns",
 		"ServicePickupOrders",

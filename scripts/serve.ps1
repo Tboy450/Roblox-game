@@ -7,4 +7,4 @@ if (-not (Test-Path $Rojo)) {
 }
 
 Set-Location $Root
-& $Rojo serve
+& $Rojo serve (Join-Path $Root "default.project.json") --address 127.0.0.1 --port 34872

@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PathfindingService = game:GetService("PathfindingService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -80,12 +81,15 @@ local markers: { [string]: BasePart } = {}
 local parkingSpots: { BasePart } = {}
 local occupiedSpots: { [BasePart]: boolean } = {}
 local activeCustomers = 0
-local npcRegisterBusy = false
+local registerOwner: Model? = nil
+local registerQueue: { Model } = {}
 local visitGeneration = 0
+local closingRevision = 0
 
 local retailRemotes = ReplicatedStorage:WaitForChild("RetailRemotes")
 local processNpcCheckout = retailRemotes:WaitForChild("ProcessNpcCheckout") :: BindableFunction
 local createNpcOrder = retailRemotes:WaitForChild("CreateNpcOrder") :: BindableFunction
+local cancelNpcOrder = retailRemotes:WaitForChild("CancelNpcOrder") :: BindableFunction
 
 local function createPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material): Part
 	local part = Instance.new("Part")
@@ -102,36 +106,93 @@ local function createPart(parent: Instance, name: string, size: Vector3, cframe:
 	return part
 end
 
-local function tweenModelTo(model: Model, targetPosition: Vector3, speed: number)
+local function tweenModelTo(model: Model, targetPosition: Vector3, speed: number, shouldContinue: (() -> boolean)?): boolean
+	if not model.Parent or (shouldContinue and not shouldContinue()) then
+		return false
+	end
 	local startPivot = model:GetPivot()
 	local startPosition = startPivot.Position
 	local distance = (targetPosition - startPosition).Magnitude
 	if distance < 0.05 then
-		return
+		return true
 	end
 
-	local targetCFrame = CFrame.lookAt(targetPosition, targetPosition + (targetPosition - startPosition))
+	local direction = Vector3.new(targetPosition.X - startPosition.X, 0, targetPosition.Z - startPosition.Z)
+	local targetCFrame = if direction.Magnitude > 0.01 then CFrame.lookAt(targetPosition, targetPosition + direction)
+		else CFrame.new(targetPosition) * startPivot.Rotation
 	local value = Instance.new("CFrameValue")
 	value.Value = startPivot
 	local connection = value:GetPropertyChangedSignal("Value"):Connect(function()
-		model:PivotTo(value.Value)
+		if model.Parent then
+			model:PivotTo(value.Value)
+		end
 	end)
 	local tween = TweenService:Create(value, TweenInfo.new(distance / speed, Enum.EasingStyle.Linear), { Value = targetCFrame })
 	tween:Play()
-	tween.Completed:Wait()
+	while tween.PlaybackState == Enum.PlaybackState.Playing do
+		if not model.Parent or (shouldContinue and not shouldContinue()) then
+			tween:Cancel()
+			break
+		end
+		task.wait(0.05)
+	end
+	local completed = tween.PlaybackState == Enum.PlaybackState.Completed and model.Parent ~= nil
 	connection:Disconnect()
 	value:Destroy()
-	model:PivotTo(targetCFrame)
+	tween:Destroy()
+	if completed then
+		model:PivotTo(targetCFrame)
+	end
+	return completed
 end
 
-local function moveModelAlong(model: Model, waypoints: { Vector3 }, speed: number): boolean
+local function moveModelAlong(model: Model, waypoints: { Vector3 }, speed: number, shouldContinue: (() -> boolean)?): boolean
 	for _, waypoint in waypoints do
-		if not model.Parent then
+		if not tweenModelTo(model, waypoint, speed, shouldContinue) then
 			return false
 		end
-		tweenModelTo(model, waypoint, speed)
 	end
 	return model.Parent ~= nil
+end
+
+local function walkCustomerTo(npc: Model, destination: Vector3, shouldContinue: () -> boolean): boolean
+	for _ = 1, 2 do
+		if not npc.Parent or not shouldContinue() then
+			return false
+		end
+		local path = PathfindingService:CreatePath({ AgentRadius = 1.8, AgentHeight = 6, AgentCanJump = false, AgentCanClimb = false, WaypointSpacing = 5 })
+		local ok = pcall(function()
+			path:ComputeAsync(npc:GetPivot().Position + Vector3.new(0, 2, 0), destination + Vector3.new(0, 2, 0))
+		end)
+		if ok and path.Status == Enum.PathStatus.Success and shouldContinue() then
+			local waypointIndex = 1
+			local blocked = false
+			local connection = path.Blocked:Connect(function(index)
+				if index >= waypointIndex then
+					blocked = true
+				end
+			end)
+			local reached = true
+			for index, waypoint in path:GetWaypoints() do
+				waypointIndex = index
+				if not tweenModelTo(npc, waypoint.Position, CUSTOMER_SPEED, function()
+					return shouldContinue() and not blocked
+				end) then
+					reached = false
+					break
+				end
+			end
+			connection:Disconnect()
+			path:Destroy()
+			if reached then
+				return true
+			end
+		else
+			path:Destroy()
+		end
+		task.wait(0.2)
+	end
+	return false
 end
 
 local function createNpc(name: string, shirtColor: Color3, position: Vector3): Model
@@ -266,26 +327,12 @@ local function getCarExitPath(spot: BasePart): { Vector3 }
 	}
 end
 
-local function waitForNpcRegister(generation: number): boolean
-	while npcRegisterBusy and trafficStillActive(generation) and storeIsOpen() do
-		task.wait(0.2)
-	end
-	if not trafficStillActive(generation) or not storeIsOpen() then
-		return false
-	end
-
-	npcRegisterBusy = true
-	return true
-end
-
-local function releaseNpcRegister()
-	npcRegisterBusy = false
-end
-
 local function updateTrafficSummary()
 	if currentStore then
 		currentStore:SetAttribute("ActiveShoppers", activeCustomers)
 		currentStore:SetAttribute("TrafficAcceptingCustomers", storeIsOpen())
+		currentStore:SetAttribute("CheckoutQueueLength", #registerQueue)
+		currentStore:SetAttribute("StoreClosing", not storeIsOpen() and activeCustomers > 0)
 		local occupiedCount = 0
 		for _, occupied in occupiedSpots do
 			if occupied then
@@ -294,6 +341,45 @@ local function updateTrafficSummary()
 		end
 		currentStore:SetAttribute("OccupiedParkingSpots", occupiedCount)
 	end
+end
+
+local function releaseNpcRegister(npc: Model)
+	if registerOwner == npc then
+		registerOwner = nil
+	end
+	local index = table.find(registerQueue, npc)
+	if index then
+		table.remove(registerQueue, index)
+	end
+	updateTrafficSummary()
+end
+
+local function waitForNpcRegister(npc: Model, canShop: () -> boolean): boolean
+	table.insert(registerQueue, npc)
+	updateTrafficSummary()
+	npc:SetAttribute("TrafficState", "Queuing")
+	local previousIndex = 0
+	local deadline = os.clock() + 45
+	while npc.Parent and canShop() and os.clock() < deadline do
+		local index = table.find(registerQueue, npc)
+		if not index then
+			break
+		end
+		if index ~= previousIndex then
+			local slot = markers[`NpcQueueSlot{index}`] or getMarker("NpcRegisterQueue")
+			if not walkCustomerTo(npc, slot.Position, canShop) then
+				break
+			end
+			previousIndex = index
+		end
+		if registerQueue[1] == npc and not registerOwner and canShop() then
+			registerOwner = npc
+			return true
+		end
+		task.wait(0.2)
+	end
+	releaseNpcRegister(npc)
+	return false
 end
 
 local function getShopMarkers(): { BasePart }
@@ -307,50 +393,48 @@ local function getShopMarkers(): { BasePart }
 	return shops
 end
 
-local function moveCustomerToParking(npc: Model, spot: BasePart, groupOffset: number)
+local function moveCustomerToParking(npc: Model, spot: BasePart, groupOffset: number, generation: number)
+	local function canLeave()
+		return trafficStillActive(generation)
+	end
+	if not npc.Parent or not canLeave() then
+		return
+	end
+	npc:SetAttribute("TrafficState", "Leaving")
 	local outsideEntry = getMarker("StoreEntryOutside").Position
-	local insideEntry = getMarker("StoreEntryInside").Position
 	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -6)
-	moveModelAlong(npc, {
-		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
-		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
-		parkingExit,
-		spot.Position + Vector3.new(groupOffset * 1.8, 0, 0),
-	}, CUSTOMER_SPEED)
+	if npc:GetPivot().Position.Z < outsideEntry.Z then
+		if not walkCustomerTo(npc, outsideEntry, canLeave) then
+			return
+		end
+	end
+	walkCustomerTo(npc, parkingExit, canLeave)
 end
 
-local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, generation: number)
+local function runCustomerTrip(npc: Model, generation: number, revision: number)
+	local function canShop()
+		return trafficStillActive(generation) and storeIsOpen() and revision == closingRevision
+	end
 	local shopMarkers = getShopMarkers()
-	if #shopMarkers == 0 then
+	if #shopMarkers == 0 or not canShop() then
 		return
 	end
 	local shopMarker = shopMarkers[math.random(1, #shopMarkers)]
 	local secondShopMarker = shopMarkers[math.random(1, #shopMarkers)]
-	local aisleHub = getMarker("AisleHub")
 	local outsideEntry = getMarker("StoreEntryOutside").Position
 	local insideEntry = getMarker("StoreEntryInside").Position
-	local parkingExit = spot.Position + Vector3.new(groupOffset * 1.8, 0, -6)
-
-	if not storeIsOpen() then
-		moveModelAlong(npc, { spot.Position + Vector3.new(groupOffset * 1.8, 0, 0) }, CUSTOMER_SPEED)
-		return
-	end
-
-	local shoppingPath = {
-		parkingExit,
-		outsideEntry + Vector3.new(groupOffset * 1.4, 0, 0),
-		insideEntry + Vector3.new(groupOffset * 1.1, 0, 0),
-	}
-	if aisleHub then
-		table.insert(shoppingPath, aisleHub.Position + Vector3.new(groupOffset * 0.9, 0, 0))
-	end
-	table.insert(shoppingPath, shopMarker.Position + Vector3.new(groupOffset * 1.1, 0, 0))
+	npc:SetAttribute("TrafficState", "Entering")
+	local shoppingPath = { outsideEntry, insideEntry, shopMarker.Position }
 	if secondShopMarker ~= shopMarker then
-		table.insert(shoppingPath, secondShopMarker.Position + Vector3.new(groupOffset * 0.9, 0, 0))
+		table.insert(shoppingPath, secondShopMarker.Position)
 	end
-	moveModelAlong(npc, shoppingPath, CUSTOMER_SPEED)
-	if not waitTraffic(SHOP_WAIT, generation, true) then
-		moveCustomerToParking(npc, spot, groupOffset)
+	for _, destination in shoppingPath do
+		if not walkCustomerTo(npc, destination, canShop) then
+			return
+		end
+	end
+	npc:SetAttribute("TrafficState", "Shopping")
+	if not waitTraffic(SHOP_WAIT, generation, true) or not canShop() then
 		return
 	end
 	local ok, order = pcall(function()
@@ -361,22 +445,17 @@ local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, 
 		order = nil
 	end
 	if not order then
-		moveCustomerToParking(npc, spot, groupOffset)
+		return
+	end
+	npc:SetAttribute("NpcOrderId", order)
+
+	if not waitForNpcRegister(npc, canShop) then
 		return
 	end
 
-	if not waitForNpcRegister(generation) then
-		moveCustomerToParking(npc, spot, groupOffset)
-		return
-	end
-
-	moveModelAlong(npc, {
-		getMarker("NpcRegisterQueue").Position,
-		getMarker("NpcRegisterSpot").Position,
-	}, CUSTOMER_SPEED)
-	if not waitTraffic(REGISTER_WAIT, generation, true) then
-		releaseNpcRegister()
-		moveCustomerToParking(npc, spot, groupOffset)
+	npc:SetAttribute("TrafficState", "Checkout")
+	if not walkCustomerTo(npc, getMarker("NpcRegisterSpot").Position, canShop)
+		or not waitTraffic(REGISTER_WAIT, generation, true) or not canShop() then
 		return
 	end
 	local checkoutOk, checkoutResult = pcall(function()
@@ -384,14 +463,17 @@ local function runCustomerTrip(npc: Model, spot: BasePart, groupOffset: number, 
 	end)
 	if not checkoutOk then
 		warn("[RetailTraffic] NPC checkout failed:", checkoutResult)
+	elseif typeof(checkoutResult) == "number" then
+		addPurchaseBag(npc)
+		npc:SetAttribute("NpcOrderId", nil)
 	end
-	addPurchaseBag(npc)
-	releaseNpcRegister()
-
-	moveCustomerToParking(npc, spot, groupOffset)
 end
 
 local function runVisitGroup(spot: BasePart, groupSize: number, generation: number)
+	local revision = closingRevision
+	local function visitActive()
+		return trafficStillActive(generation)
+	end
 	occupiedSpots[spot] = true
 	activeCustomers += groupSize
 	updateTrafficSummary()
@@ -399,12 +481,15 @@ local function runVisitGroup(spot: BasePart, groupSize: number, generation: numb
 	local style = VEHICLE_STYLES[math.random(1, #VEHICLE_STYLES)]
 	local entryPath = getCarEntryPath(spot)
 	local vehicle = createVehicle(style, CFrame.lookAt(entryPath[1], entryPath[2]))
-	moveModelAlong(vehicle, { table.unpack(entryPath, 2) }, CAR_SPEED)
+	if not moveModelAlong(vehicle, { table.unpack(entryPath, 2) }, CAR_SPEED, visitActive) then
+		vehicle:Destroy()
+		return
+	end
 
 	local customers = {}
 	for index = 1, groupSize do
 		local offset = index - (groupSize + 1) / 2
-		local npc = createNpc(`Customer{index}`, SHIRT_COLORS[math.random(1, #SHIRT_COLORS)], spot.Position + Vector3.new(offset * 1.8, 0, 0))
+		local npc = createNpc(`Customer{index}`, SHIRT_COLORS[math.random(1, #SHIRT_COLORS)], spot.Position + Vector3.new(offset * 1.8, 0, -7))
 		table.insert(customers, npc)
 	end
 
@@ -412,7 +497,24 @@ local function runVisitGroup(spot: BasePart, groupSize: number, generation: numb
 	for index, npc in customers do
 		local offset = index - (groupSize + 1) / 2
 		task.spawn(function()
-			runCustomerTrip(npc, spot, offset, generation)
+			local ok, err = pcall(runCustomerTrip, npc, generation, revision)
+			releaseNpcRegister(npc)
+			local orderId = npc:GetAttribute("NpcOrderId")
+			if orderId then
+				local cancelled, cancelError = pcall(function()
+					cancelNpcOrder:Invoke(orderId)
+				end)
+				if not cancelled then
+					warn("[RetailTraffic] Order return failed:", cancelError)
+				end
+			end
+			if not ok then
+				warn("[RetailTraffic] Customer trip failed:", err)
+			end
+			local left, leaveError = pcall(moveCustomerToParking, npc, spot, offset, generation)
+			if not left then
+				warn("[RetailTraffic] Customer exit failed:", leaveError)
+			end
 			if npc.Parent then
 				npc:Destroy()
 			end
@@ -426,7 +528,7 @@ local function runVisitGroup(spot: BasePart, groupSize: number, generation: numb
 	end
 
 	if vehicle.Parent then
-		moveModelAlong(vehicle, getCarExitPath(spot), CAR_SPEED)
+		moveModelAlong(vehicle, getCarExitPath(spot), CAR_SPEED, visitActive)
 		vehicle:Destroy()
 	end
 
@@ -458,7 +560,8 @@ local function configureStore(store: Model)
 	parkingSpots = {}
 	occupiedSpots = {}
 	activeCustomers = 0
-	npcRegisterBusy = false
+	registerOwner = nil
+	registerQueue = {}
 	visitGeneration += 1
 
 	local oldRuntime = store:FindFirstChild("DynamicTraffic")
@@ -485,8 +588,11 @@ local function configureStore(store: Model)
 
 	spawnCashier()
 	currentStore:GetAttributeChangedSignal("StoreOpen"):Connect(function()
+		if store ~= currentStore then
+			return
+		end
 		if not storeIsOpen() then
-			npcRegisterBusy = false
+			closingRevision += 1
 		end
 		updateTrafficSummary()
 	end)
