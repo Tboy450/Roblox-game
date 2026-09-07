@@ -3,7 +3,7 @@ local parts = {}
 for _, item in store:GetDescendants() do
 	if item:IsA("BasePart") then table.insert(parts, item) end
 end
-assert(store:GetAttribute("BlueprintVersion") == 53)
+assert(store:GetAttribute("BlueprintVersion") == 54)
 local function named(name)
 	for _, part in parts do if part.Name == name then return part end end
 	error("Missing part " .. name)
@@ -49,7 +49,7 @@ for _, part in parts do
 end
 assert(fruitCount == 75 and priceTags == 81 and cartWheels == 8, "Expected produce, shelf pricing, and cart details")
 assert(not overlap(named("Bench"), named("NestedCart0")) and not overlap(named("Bench"), named("NestedCart1")), "Carts must not intersect the bench")
-assert(named("AccessibleAisle0").Position.Y > named("AccessibleSpace0").Position.Y + 0.035, "Overlaid parking paint must not flicker")
+assert(named("AccessHatch1_0").Position.Y > named("AccessibleAisle1").Position.Y + 0.035, "Overlaid parking paint must not flicker")
 for _, unit in store:GetChildren() do
 	if unit:GetAttribute("ShelfId") then
 		local cap = unit:FindFirstChild("TopCap")

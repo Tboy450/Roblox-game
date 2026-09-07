@@ -48,7 +48,7 @@ The blueprint handles:
 The blueprint uses a version number near the top:
 
 ```luau
-local BLUEPRINT_VERSION = 53
+local BLUEPRINT_VERSION = 54
 ```
 
 When making major map changes, bump this number and also update:
@@ -356,6 +356,19 @@ Run:
 
 Connect Rojo, then use **Plugins -> Retail Game -> Update Map**. Updater v52 supports map v53; no new plugin installation is needed for this visual pass. Car and equipped-pet visuals appear during Play.
 
+## v54 Layout Pass
+
+- Preserved exact wall and fixture dimensions throughout the blueprint instead of rounding them onto the two-stud grid.
+- Joined the back rooms into a continuous perimeter, removed the duplicate back divider, added doorway lintels, and moved room labels above their actual entrances.
+- Filled the front floor strip and extended the office walls to meet the exterior shell.
+- Removed obsolete bathroom and break-room props that overlapped the newer furniture. Separated counters, seating, cabinets, crates, and staging equipment across all eight perimeter rooms.
+- Opened the stock-room center lane and loading-room entrance. Moved produce clear of the cooler entrance and left a continuous rear cross aisle.
+- Separated pet care from the seasonal display, moved baskets beside the front wall, and placed bag holders beside checkout instead of inside the pet kiosk.
+- Replaced the misplaced blue parking patches with two reserved bays nearest the entrance, each beside a separate six-stud hatched access aisle connected to the sidewalk. NPCs use the ten ordinary bays only.
+- Moved the side walks clear of parked cars, lamps onto the islands, pickup paint onto the asphalt, and the dumpster away from the loading pallet.
+
+For this update, connect the retail Rojo server at **localhost:34872**, stop any Play test, and click **Plugins -> Retail Game -> Update Map**. The map sign should read **v54 test**. Updater v52 remains compatible; no plugin reinstall is needed. Shelf, checkout, and pet rules are unchanged.
+
 ## Development Checks
 
 Install the official [Luau Windows command-line release](https://github.com/luau-lang/luau/releases) into `.tools/luau`, then run:
@@ -364,7 +377,7 @@ Install the official [Luau Windows command-line release](https://github.com/luau
 .\scripts\test-retail.ps1
 ```
 
-This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, constructs all eight car styles, executes the actual blueprint with construction doubles to check window coverage and fixture clearance, and builds `build.rbxlx` with Rojo. These checks do not simulate Roblox physics or pathfinding. In Studio, also test shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
+This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, constructs all eight car styles, executes the actual blueprint with construction doubles, and builds `build.rbxlx` with Rojo. Layout checks cover window seals, fixture-to-wall clearance, principal furniture separation in eight rooms, avatar-sized entrance routes, the rear cross aisle, reserved parking/access aisles, and sidewalk connections. These checks do not simulate Roblox physics or pathfinding. In Studio, also walk the room entrances and parking approaches, and test shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
 
 ## GitHub
 

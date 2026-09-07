@@ -25,6 +25,7 @@ $Fixture = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/blueprint-mock
 $Catalog = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/shared/RetailCatalog.luau') -Raw
 $Blueprint = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/shared/RetailStoreBlueprint.luau') -Raw
 $Checks = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/blueprint-checks.luau') -Raw
+$Checks += "`n" + (Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/layout-checks.luau') -Raw)
 $Generated = "$Fixture`nlocal RetailCatalog = (function()`n$Catalog`nend)()`nlocal function require(_) return RetailCatalog end`nlocal Blueprint = (function()`n$Blueprint`nend)()`n$Checks"
 $GeneratedPath = Join-Path $RetailRoot '.tools/retail-blueprint-test.luau'
 [System.IO.File]::WriteAllText($GeneratedPath, $Generated)

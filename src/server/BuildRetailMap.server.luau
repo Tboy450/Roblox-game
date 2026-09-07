@@ -2,7 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
-local BLUEPRINT_VERSION = 53
+local BLUEPRINT_VERSION = 54
 
 local function buildStore()
 	local shared = ReplicatedStorage:WaitForChild("Shared", 10)
@@ -41,5 +41,5 @@ print("========================================")
 print(`[BuildRetailMap] RETAIL STORE v{BLUEPRINT_VERSION} READY`)
 print(`  Parts: {partCount}`)
 print(`  BlueprintVersion attribute: {store:GetAttribute("BlueprintVersion")}`)
-print("  Blueprint v53: detailed shop fixtures, parking furniture, cars, and pet visuals")
+print("  Blueprint v54: aligned perimeter rooms, clear fixture placement, and accessible parking")
 print("========================================")

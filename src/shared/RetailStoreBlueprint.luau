@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 53
+local BLUEPRINT_VERSION = 54
 local STARTING_TILL_CENTS = 20000
 
 export type BuildOptions = {
@@ -11,21 +11,6 @@ export type BuildOptions = {
 	storeName: string?,
 	forceRebuild: boolean?,
 }
-
-local SNAP = 2
-local function snap(n: number): number
-	return math.round(n / SNAP) * SNAP
-end
-
-local function snapHorizontalPosition(position: Vector3): Vector3
-	return Vector3.new(snap(position.X), position.Y, snap(position.Z))
-end
-
-local function snapFootprint(size: Vector3): Vector3
-	local x = if size.X >= SNAP then snap(size.X) else size.X
-	local z = if size.Z >= SNAP then snap(size.Z) else size.Z
-	return Vector3.new(math.max(x, 0.05), math.max(size.Y, 0.05), math.max(z, 0.05))
-end
 
 local function part(props: {
 	name: string,
@@ -105,12 +90,11 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		canCollide: boolean?,
 		parent: Instance?,
 	}): Part
-		local pos = snapHorizontalPosition(props.position)
-		local size = snapFootprint(props.size)
+		-- Keep measured dimensions: grid rounding breaks door openings and wall-mounted fixtures.
 		return part({
 			name = props.name,
-			size = size,
-			position = pos,
+			size = props.size,
+			position = props.position,
 			color = props.color,
 			material = props.material,
 			transparency = props.transparency,
@@ -170,19 +154,21 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		w: number,
 		text: string,
 		color: Color3,
-		height: number?
+		height: number?,
+		axis: string?
 	): Part
 		local signHeight = height or math.clamp(w * 0.15, 1.0, 1.9)
 		local sign = detailPart({
 			name = name,
-			size = Vector3.new(w, signHeight, 0.35),
+			size = if axis == "X" then Vector3.new(0.35, signHeight, w) else Vector3.new(w, signHeight, 0.35),
 			position = Vector3.new(cx, cy, cz),
 			color = color,
 			canCollide = false,
 			parent = parent,
 		})
 		if sign then
-			for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+			local faces = if axis == "X" then { Enum.NormalId.Left, Enum.NormalId.Right } else { Enum.NormalId.Front, Enum.NormalId.Back }
+			for _, face in faces do
 				local gui = Instance.new("SurfaceGui")
 				gui.Face = face
 				gui.LightInfluence = 0.2
@@ -217,6 +203,12 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		prompt.Parent = target
 	end
 
+	local function wallPart(props)
+		local wall = detailPart(props)
+		wall:SetAttribute("BlueprintWall", true)
+		return wall
+	end
+
 	-- Wall along X axis (runs in X), placed at fixed Z
 	local function wallX(
 		name: string,
@@ -228,7 +220,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	)
 		local y = wallCenterY
 		if not door then
-			storePart({
+			wallPart({
 				name = name,
 				size = Vector3.new(lengthX, wallH, wallT),
 				position = Vector3.new(xCenter, y, zFixed),
@@ -245,7 +237,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local leftLen = (halfLen + doorStart)
 		local rightLen = (halfLen - doorEnd)
 		if leftLen > 0 then
-			storePart({
+			wallPart({
 				name = `{name}_L`,
 				size = Vector3.new(leftLen, wallH, wallT),
 				position = Vector3.new(xCenter - halfLen + leftLen / 2, y, zFixed),
@@ -255,7 +247,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			})
 		end
 		if rightLen > 0 then
-			storePart({
+			wallPart({
 				name = `{name}_R`,
 				size = Vector3.new(rightLen, wallH, wallT),
 				position = Vector3.new(xCenter + halfLen - rightLen / 2, y, zFixed),
@@ -264,6 +256,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				parent = parentModel,
 			})
 		end
+		wallPart({ name = `{name}_Lintel`, size = Vector3.new(door.width, 6, wallT),
+			position = Vector3.new(xCenter + door.offset, walkTop + 11, zFixed),
+			color = Color3.fromRGB(215, 213, 210), material = Enum.Material.Brick, parent = parentModel })
 	end
 
 	-- Wall along Z axis (runs in Z), placed at fixed X
@@ -277,7 +272,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	)
 		local y = wallCenterY
 		if not door then
-			storePart({
+			wallPart({
 				name = name,
 				size = Vector3.new(wallT, wallH, lengthZ),
 				position = Vector3.new(xFixed, y, zCenter),
@@ -294,7 +289,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local southLen = halfLen + doorStart
 		local northLen = halfLen - doorEnd
 		if southLen > 0 then
-			storePart({
+			wallPart({
 				name = `{name}_S`,
 				size = Vector3.new(wallT, wallH, southLen),
 				position = Vector3.new(xFixed, y, zCenter - halfLen + southLen / 2),
@@ -304,7 +299,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			})
 		end
 		if northLen > 0 then
-			storePart({
+			wallPart({
 				name = `{name}_N`,
 				size = Vector3.new(wallT, wallH, northLen),
 				position = Vector3.new(xFixed, y, zCenter + halfLen - northLen / 2),
@@ -313,6 +308,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				parent = parentModel,
 			})
 		end
+		wallPart({ name = `{name}_Lintel`, size = Vector3.new(wallT, 6, door.width),
+			position = Vector3.new(xFixed, walkTop + 11, zCenter + door.offset),
+			color = Color3.fromRGB(215, 213, 210), material = Enum.Material.Brick, parent = parentModel })
 	end
 
 	local function enclosedRoom(opts: {
@@ -324,6 +322,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		floorColor: Color3,
 		sign: string?,
 		doorSide: "south" | "east" | "west" | "none"?,
+		doorOffset: number?,
+		skipNorth: boolean?,
 		skipWest: boolean?,
 		skipEast: boolean?,
 	})
@@ -333,12 +333,15 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 		local w, d = opts.width, opts.depth
 		local cx, cz = opts.cx, opts.cz
-		local floorOverlayH = 0.12
+		local doorOffset = opts.doorOffset or 0
+		local floorOverlayH = 0.04
+		room:SetAttribute("RoomCenter", Vector3.new(cx, 0, cz))
+		room:SetAttribute("RoomSize", Vector3.new(w, wallH, d))
 
 		storePart({
 			name = "Floor",
-			size = Vector3.new(w - 0.4, floorOverlayH, d - 0.4),
-			position = Vector3.new(cx, walkTop + floorOverlayH / 2 + 0.015, cz),
+			size = Vector3.new(w - wallT, floorOverlayH, d - wallT),
+			position = Vector3.new(cx, walkTop + floorOverlayH / 2 + 0.005, cz),
 			color = opts.floorColor,
 			material = Enum.Material.Concrete,
 			canCollide = false,
@@ -347,8 +350,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 		storePart({
 			name = "Ceiling",
-			size = Vector3.new(w - 0.4, 0.35, d - 0.4),
-			position = Vector3.new(cx, floorY + wallH - 0.35, cz),
+			size = Vector3.new(w - wallT, 0.35, d - wallT),
+			position = Vector3.new(cx, 13.825, cz),
 			color = Color3.fromRGB(198, 198, 200),
 			material = Enum.Material.SmoothPlastic,
 			parent = room,
@@ -359,29 +362,32 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local westX = cx - w / 2
 		local eastX = cx + w / 2
 
-		wallX(`{opts.name}_N`, cx, northZ, w, nil, room)
+		if not opts.skipNorth then wallX(`{opts.name}_N`, cx, northZ, w, nil, room) end
 		if opts.doorSide == "south" then
-			wallX(`{opts.name}_S`, cx, southZ, w, { offset = 0, width = 8 }, room)
+			wallX(`{opts.name}_S`, cx, southZ, w, { offset = doorOffset, width = 8 }, room)
 		else
 			wallX(`{opts.name}_S`, cx, southZ, w, nil, room)
 		end
 		if opts.skipWest then
 			-- Exterior shell already supplies this side wall.
 		elseif opts.doorSide == "west" then
-			wallZ(`{opts.name}_W`, westX, cz, d, { offset = 0, width = 6 }, room)
+			wallZ(`{opts.name}_W`, westX, cz, d, { offset = doorOffset, width = 6 }, room)
 		else
 			wallZ(`{opts.name}_W`, westX, cz, d, nil, room)
 		end
 		if opts.skipEast then
 			-- Exterior shell already supplies this side wall.
 		elseif opts.doorSide == "east" then
-			wallZ(`{opts.name}_E`, eastX, cz, d, { offset = 0, width = 6 }, room)
+			wallZ(`{opts.name}_E`, eastX, cz, d, { offset = doorOffset, width = 6 }, room)
 		else
 			wallZ(`{opts.name}_E`, eastX, cz, d, nil, room)
 		end
 
 		if opts.sign then
-			addSign(room, "Sign", cx, floorY + 5, southZ + 0.8, math.min(w - 5, 9), opts.sign, Color3.fromRGB(65, 65, 70), 1.55)
+			local sideDoor = opts.doorSide == "west" or opts.doorSide == "east"
+			local signX = if sideDoor then (if opts.doorSide == "west" then westX - 0.7 else eastX + 0.7) else cx + doorOffset
+			local signZ = if sideDoor then cz + doorOffset else southZ + 0.7
+			addSign(room, "Sign", signX, 10.5, signZ, if sideDoor then 6 else 8, opts.sign, Color3.fromRGB(65, 65, 70), 1.2, if sideDoor then "X" else "Z")
 		end
 
 		return room
@@ -415,7 +421,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local fixture = storePart({
 			name = `Light_{cx}_{cz}`,
 			size = Vector3.new(3, 0.3, 1),
-			position = Vector3.new(cx, floorY + wallH - 0.5, cz),
+			position = Vector3.new(cx, 13.45, cz),
 			color = Color3.fromRGB(218, 216, 208),
 			material = Enum.Material.SmoothPlastic,
 			parent = parent,
@@ -431,19 +437,18 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local entranceW = 20
 
 	-- Floor chain with no gaps and no overlaps: interior → threshold → parking
-	local interiorDepth = D - 6
 	local floor = detailPart({
 		name = "MainFloor",
-		size = Vector3.new(W, 1, interiorDepth),
-		position = Vector3.new(0, floorY, -3),
+		size = Vector3.new(W, 1, D),
+		position = Vector3.new(0, floorY, 0),
 		color = Color3.fromRGB(188, 188, 192),
 		material = Enum.Material.Concrete,
 	})
 
 	detailPart({
 		name = "EntryThreshold",
-		size = Vector3.new(entranceW + 6, 1, 10),
-		position = Vector3.new(0, floorY, halfD - 1),
+		size = Vector3.new(entranceW, 1, 9),
+		position = Vector3.new(0, floorY + 0.06, halfD + 4.5),
 		color = Color3.fromRGB(178, 178, 182),
 		material = Enum.Material.Concrete,
 	})
@@ -572,7 +577,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		{ name = "ExtSouthInnerR", cx = 23, len = 18 },
 		{ name = "ExtSouthFarR", cx = 56, len = 8 },
 	} do
-		detailPart({
+		wallPart({
 			name = segment.name,
 			size = Vector3.new(segment.len, wallH, wallT),
 			position = Vector3.new(segment.cx, wallCenterY, halfD),
@@ -585,7 +590,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		{ name = "FrontDoorWallFillL", x = -12 },
 		{ name = "FrontDoorWallFillR", x = 12 },
 	} do
-		storePart({
+		wallPart({
 			name = filler.name,
 			size = Vector3.new(4, wallH, wallT),
 			position = Vector3.new(filler.x, wallCenterY, halfD),
@@ -607,14 +612,14 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			transparency = 0.5,
 			canCollide = true,
 		})
-		detailPart({
+		wallPart({
 			name = `{window.name}_Header`,
 			size = Vector3.new(window.width, 5, wallT),
 			position = Vector3.new(window.x, 12.5, halfD),
 			color = Color3.fromRGB(215, 213, 210),
 			material = Enum.Material.Brick,
 		})
-		detailPart({
+		wallPart({
 			name = `{window.name}_Sill`,
 			size = Vector3.new(window.width, 2, wallT),
 			position = Vector3.new(window.x, 2, halfD),
@@ -622,7 +627,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			material = Enum.Material.Brick,
 		})
 		for _, side in { -1, 1 } do
-			detailPart({
+			wallPart({
 				name = `{window.name}_Jamb{side}`,
 				size = Vector3.new(2, wallH, wallT),
 				position = Vector3.new(window.x + side * (window.width / 2 + 1), wallCenterY, halfD),
@@ -645,6 +650,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local entrance = Instance.new("Model")
 	entrance.Name = "Entrance"
 	entrance.Parent = store
+	wallPart({ name = "EntranceLintel", size = Vector3.new(20, 5.2, wallT), position = Vector3.new(0, 12.4, halfD),
+		color = Color3.fromRGB(215, 213, 210), material = Enum.Material.Brick, parent = entrance })
 	local entranceStatus = addSign(entrance, "EntranceStatus", 7, 7, halfD + 0.4, 3.4, "OPEN", Color3.fromRGB(52, 120, 72), 1)
 	entranceStatus:SetAttribute("StoreStatusDisplay", true)
 
@@ -687,56 +694,47 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		end
 	end
 
-	-- ========== NORTH BACK ROW (3 equal-ish rooms, symmetric) ==========
+	-- Back rooms share one continuous boundary, with no duplicate divider or narrow wall gaps.
 	local backZ = -halfD + 12
 	enclosedRoom({
 		name = "StockRoom",
-		cx = -36,
+		cx = -38,
 		cz = backZ,
-		width = 36,
-		depth = 22,
+		width = 44,
+		depth = 24,
 		floorColor = Color3.fromRGB(138, 138, 142),
 		sign = "STOCK",
 		doorSide = "south",
+		doorOffset = 2,
+		skipNorth = true,
+		skipWest = true,
 	})
 	enclosedRoom({
 		name = "WalkInCooler",
 		cx = 0,
 		cz = backZ,
-		width = 28,
-		depth = 22,
+		width = 32,
+		depth = 24,
 		floorColor = Color3.fromRGB(165, 180, 192),
 		sign = "COOLER",
 		doorSide = "south",
+		skipNorth = true,
+		skipWest = true,
+		skipEast = true,
 	})
 	enclosedRoom({
 		name = "LoadingDock",
-		cx = 36,
+		cx = 38,
 		cz = backZ,
-		width = 36,
-		depth = 22,
+		width = 44,
+		depth = 24,
 		floorColor = Color3.fromRGB(72, 72, 76),
 		sign = "LOADING",
 		doorSide = "south",
+		doorOffset = -2,
+		skipNorth = true,
+		skipEast = true,
 	})
-
-	-- Divider between back rooms and sales floor (3 door openings at x = -36, 0, 36)
-	local dividerZ = -26
-	local backDividerSegments = {
-		{ name = "BD_W", cx = -52, len = 14 },
-		{ name = "BD_WC", cx = -18, len = 26 },
-		{ name = "BD_C", cx = 18, len = 26 },
-		{ name = "BD_E", cx = 52, len = 14 },
-	}
-	for _, seg in backDividerSegments do
-		storePart({
-			name = seg.name,
-			size = Vector3.new(seg.len, wallH, wallT),
-			position = Vector3.new(seg.cx, wallCenterY, dividerZ),
-			color = Color3.fromRGB(215, 213, 210),
-			material = Enum.Material.Brick,
-		})
-	end
 
 	-- ========== WEST / EAST WINGS (mirrored) ==========
 	local westCx = -halfW + 9
@@ -763,18 +761,21 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		sign = "PHARMACY",
 		doorSide = "east",
 		skipWest = true,
+		skipNorth = true,
 	})
 
 	enclosedRoom({
 		name = "Restrooms",
 		cx = eastCx,
-		cz = -16,
+		cz = -15.5,
 		width = 18,
-		depth = 22,
+		depth = 21,
 		floorColor = Color3.fromRGB(162, 168, 174),
 		sign = "RESTROOM",
 		doorSide = "west",
 		skipEast = true,
+		skipNorth = true,
+		doorOffset = -0.5,
 	})
 	enclosedRoom({
 		name = "BreakRoom",
@@ -854,12 +855,12 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local bins = Instance.new("Model")
 	bins.Name = "ProduceBins"
 	bins.Parent = store
-	for i = -2, 2 do
-		local bx = i * 10
+	for index, bx in { -26, -16, 10, 20, 30 } do
+		local i, binZ = index - 3, -19
 		local crate = detailPart({
 			name = `Bin_{i}`,
 			size = Vector3.new(6, 1.2, 4),
-			position = Vector3.new(bx, 1.6, -22),
+			position = Vector3.new(bx, 1.6, binZ),
 			color = Color3.fromRGB(125, 90, 55),
 			material = Enum.Material.Wood,
 			parent = bins,
@@ -867,13 +868,13 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local fruitColor = if i % 3 == 0 then Color3.fromRGB(214, 66, 66)
 			elseif i % 3 == 1 then Color3.fromRGB(239, 158, 52) else Color3.fromRGB(115, 170, 73)
 		for _, side in { -1, 1 } do
-			fixtureDetail(bins, `CrateRimX{i}_{side}`, Vector3.new(6, 0.65, 0.18), Vector3.new(bx, 2.5, -22 + side * 1.91), crate.Color, Enum.Material.Wood)
-			fixtureDetail(bins, `CrateRimZ{i}_{side}`, Vector3.new(0.18, 0.65, 3.64), Vector3.new(bx + side * 2.91, 2.5, -22), crate.Color, Enum.Material.Wood)
+			fixtureDetail(bins, `CrateRimX{i}_{side}`, Vector3.new(6, 0.65, 0.18), Vector3.new(bx, 2.5, binZ + side * 1.91), crate.Color, Enum.Material.Wood)
+			fixtureDetail(bins, `CrateRimZ{i}_{side}`, Vector3.new(0.18, 0.65, 3.64), Vector3.new(bx + side * 2.91, 2.5, binZ), crate.Color, Enum.Material.Wood)
 		end
 		for row = -1, 1 do
 			for column = -2, 2 do
 				local fruit = fixtureDetail(bins, `Fruit{i}_{row}_{column}`, Vector3.new(0.86, 0.8, 0.86),
-					Vector3.new(bx + column * 1.02, 2.59, -22 + row * 1.03), fruitColor)
+					Vector3.new(bx + column * 1.02, 2.59, binZ + row * 1.03), fruitColor)
 				fruit.Shape = Enum.PartType.Ball
 				fixtureDetail(bins, `FruitStem{i}_{row}_{column}`, Vector3.new(0.07, 0.16, 0.07), fruit.Position + Vector3.new(0, 0.42, 0), Color3.fromRGB(75, 87, 49), Enum.Material.Wood)
 			end
@@ -881,7 +882,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local produce = detailPart({
 			name = `Produce_{i}`,
 			size = Vector3.new(5.4, 0.8, 3.4),
-			position = Vector3.new(bx, 2.6, -22),
+			position = Vector3.new(bx, 2.6, binZ),
 			color = fruitColor,
 			transparency = 1,
 			canCollide = false,
@@ -1014,7 +1015,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 	-- Aisles: keep the front third open for checkout, queueing, and NPC traffic.
 	local shelfRows = {
-		{ z = -12, departments = { 1, 2, 3 } },
+		{ z = -10, departments = { 1, 2, 3 } },
 		{ z = 4, departments = { 4, 5, 2 } },
 		{ z = 18, departments = { 1, 4, 5 } },
 	}
@@ -1114,7 +1115,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local returnBin = storePart({
 		name = "ReturnBin",
 		size = Vector3.new(3.4, 1.7, 2.4),
-		position = Vector3.new(-55.2, floorY + 1.35, halfD - 23.5),
+		position = Vector3.new(-55.2, floorY + 1.35, 31),
 		color = Color3.fromRGB(116, 88, 64),
 		material = Enum.Material.Wood,
 		parent = frontEnd,
@@ -1125,7 +1126,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		detailPart({
 			name = `ReturnPackage{i}`,
 			size = Vector3.new(0.9, 0.55, 0.8),
-			position = Vector3.new(-55.9 + i * 0.7, floorY + 2.45, halfD - 23.4),
+			position = Vector3.new(-55.9 + i * 0.7, floorY + 2.45, 31.1),
 			color = Color3.fromRGB(190, 148, 98),
 			material = Enum.Material.Cardboard,
 			canCollide = false,
@@ -1165,11 +1166,11 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	})
 	lostFoundShelf:SetAttribute("ServiceLostFoundShelf", true)
 	addPrompt(lostFoundShelf, "CheckLostFound", "Check", "Lost and Found", 0.15)
-	for i, z in { halfD - 22.5, halfD - 18.5, halfD - 14.5 } do
+	for i, z in { 39, 42, 45 } do
 		local postA = detailPart({
 			name = `ServiceQueuePostA{i}`,
 			size = Vector3.new(0.3, 2.3, 0.3),
-			position = Vector3.new(-58.6, floorY + 1.65, z),
+			position = Vector3.new(-51, floorY + 1.65, z),
 			color = Color3.fromRGB(65, 68, 74),
 			material = Enum.Material.Metal,
 			parent = frontEnd,
@@ -1177,15 +1178,15 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local postB = detailPart({
 			name = `ServiceQueuePostB{i}`,
 			size = Vector3.new(0.3, 2.3, 0.3),
-			position = Vector3.new(-55.6, floorY + 1.65, z),
+			position = Vector3.new(-41, floorY + 1.65, z),
 			color = Color3.fromRGB(65, 68, 74),
 			material = Enum.Material.Metal,
 			parent = frontEnd,
 		})
 		detailPart({
 			name = `ServiceQueueRail{i}`,
-			size = Vector3.new((postB.Position - postA.Position).Magnitude, 0.16, 0.16),
-			position = (postA.Position + postB.Position) / 2 + Vector3.new(0, 0.8, 0),
+			size = Vector3.new(0.16, 0.16, 3),
+			position = postA.Position + Vector3.new(0, 0.8, -1.5),
 			color = Color3.fromRGB(92, 112, 132),
 			material = Enum.Material.Metal,
 			canCollide = false,
@@ -1236,7 +1237,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local petCareStation = storePart({
 		name = "PetCareStation",
 		size = Vector3.new(4.2, 1.4, 2.8),
-		position = Vector3.new(-24, floorY + 1.2, halfD - 21.5),
+		position = Vector3.new(-24, floorY + 1.2, 40),
 		color = Color3.fromRGB(70, 88, 92),
 		material = Enum.Material.Wood,
 		parent = petKiosk,
@@ -1245,7 +1246,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	detailPart({
 		name = "PetTreatJar",
 		size = Vector3.new(1.2, 1.5, 1.2),
-		position = Vector3.new(-25.2, floorY + 2.65, halfD - 21.5),
+		position = Vector3.new(-25.2, floorY + 2.65, 40),
 		color = Color3.fromRGB(236, 198, 92),
 		material = Enum.Material.Glass,
 		transparency = 0.25,
@@ -1255,7 +1256,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	detailPart({
 		name = "PetCareMat",
 		size = Vector3.new(4.8, 0.08, 3.4),
-		position = Vector3.new(-24, walkTop + 0.08, halfD - 21.5),
+		position = Vector3.new(-24, walkTop + 0.08, 40),
 		color = Color3.fromRGB(92, 120, 126),
 		material = Enum.Material.SmoothPlastic,
 		transparency = 0.25,
@@ -1531,14 +1532,14 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		addSign(stock, "BackstockSign", -25, floorY + 7.7, backZ + 6.5, 7.2, "BACKSTOCK", Color3.fromRGB(62, 92, 72), 1.2)
 
 		for _, rack in {
-			{ name = "RackWest", x = -50, zone = "Case" },
-			{ name = "RackNorth", x = -36, zone = "Bulk" },
-			{ name = "RackEast", x = -22, zone = "Promo" },
+			{ name = "RackWest", x = -50, z = backZ - 3, width = 3, depth = 14, zone = "Case" },
+			{ name = "RackNorth", x = -40, z = backZ - 8.5, width = 8, depth = 3, zone = "Bulk" },
+			{ name = "RackEast", x = -22, z = backZ - 3, width = 3, depth = 14, zone = "Promo" },
 		} do
 			storePart({
 				name = rack.name,
-				size = Vector3.new(3, 7, 14),
-				position = Vector3.new(rack.x, floorY + 4.1, backZ - 3),
+				size = Vector3.new(rack.width, 7, rack.depth),
+				position = Vector3.new(rack.x, floorY + 4.1, rack.z),
 				color = Color3.fromRGB(95, 98, 104),
 				material = Enum.Material.Metal,
 				parent = stock,
@@ -1546,8 +1547,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			for shelf = -1, 1 do
 				storePart({
 					name = `{rack.name}_Shelf{shelf}`,
-					size = Vector3.new(4, 0.35, 14),
-					position = Vector3.new(rack.x, floorY + 2.5 + shelf * 2.4, backZ - 3),
+					size = Vector3.new(rack.width + 0.4, 0.35, rack.depth),
+					position = Vector3.new(rack.x, floorY + 2.5 + shelf * 2.4, rack.z),
 					color = Color3.fromRGB(125, 110, 90),
 					material = Enum.Material.Wood,
 					parent = stock,
@@ -1562,8 +1563,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			} do
 				detailPart({
 					name = `{rack.zone}Box{itemIndex}`,
-					size = Vector3.new(2.4, 1.1, 1.6),
-					position = Vector3.new(rack.x, floorY + item.y, item.z),
+					size = Vector3.new(if rack.zone == "Bulk" then 1.2 else 2.4, 1.1, 1.6),
+					position = Vector3.new(if rack.zone == "Bulk" then rack.x + (itemIndex - 3) * 1.3 else rack.x, floorY + item.y, if rack.zone == "Bulk" then rack.z else item.z),
 					color = item.color,
 					material = Enum.Material.SmoothPlastic,
 					parent = stock,
@@ -1646,7 +1647,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "ShrinkWrapRolls",
 			size = Vector3.new(2, 3.5, 2),
-			position = Vector3.new(-52, floorY + 2.25, backZ + 1),
+			position = Vector3.new(-56, floorY + 2.25, backZ + 1),
 			color = Color3.fromRGB(225, 232, 238),
 			material = Enum.Material.Plastic,
 			transparency = 0.15,
@@ -1657,13 +1658,13 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local pharmacy = store:FindFirstChild("Pharmacy")
 	if pharmacy then
 		decorFloor("PharmacyQueueMat", Vector3.new(4.5, 0.08, 10), Vector3.new(westCx + 6, walkTop + 0.08, -15), Color3.fromRGB(92, 126, 158), pharmacy)
-		decorFloor("PharmacyConsultZone", Vector3.new(7, 0.08, 7), Vector3.new(westCx - 5, walkTop + 0.09, -22), Color3.fromRGB(150, 174, 184), pharmacy)
+		decorFloor("PharmacyConsultZone", Vector3.new(9, 0.08, 6), Vector3.new(-48.5, walkTop + 0.09, -22), Color3.fromRGB(150, 174, 184), pharmacy)
 		decorFloor("PharmacyDropoffZone", Vector3.new(6, 0.08, 4), Vector3.new(westCx - 5, walkTop + 0.1, -16.5), Color3.fromRGB(72, 104, 132), pharmacy)
-		decorFloor("PharmacyPickupZone", Vector3.new(6, 0.08, 4), Vector3.new(westCx - 5, walkTop + 0.11, -7.5), Color3.fromRGB(72, 120, 92), pharmacy)
+		decorFloor("PharmacyPickupZone", Vector3.new(6, 0.08, 4), Vector3.new(westCx - 5, walkTop + 0.11, -10), Color3.fromRGB(72, 120, 92), pharmacy)
 		local pharmacyCounter = storePart({
 			name = "ServiceCounter",
 			size = Vector3.new(6.5, 3, 2.2),
-			position = Vector3.new(westCx - 5, floorY + 2, -7.5),
+			position = Vector3.new(westCx - 5, floorY + 2, -10),
 			color = Color3.fromRGB(220, 222, 226),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
@@ -1679,7 +1680,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		})
 		addPrompt(dropoffCounter, "FillPrescription", "Drop off", "Prescription Dropoff", 0.25)
 		addSign(pharmacy, "PharmacyDropoffSign", westCx - 5, floorY + 5.9, -17.7, 3.8, "DROP", Color3.fromRGB(52, 86, 120), 0.82)
-		addSign(pharmacy, "PharmacyPickupSign", westCx - 5, floorY + 5.9, -8.7, 3.8, "PICKUP", Color3.fromRGB(52, 100, 86), 0.82)
+		addSign(pharmacy, "PharmacyPickupSign", westCx - 5, floorY + 5.9, -11.2, 3.8, "PICKUP", Color3.fromRGB(52, 100, 86), 0.82)
 		for shelf, z in { -22, -6 } do
 			storePart({
 				name = `MedicineShelf{shelf}`,
@@ -1714,7 +1715,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "PharmacyMonitor",
 			size = Vector3.new(2.2, 1.6, 0.3),
-			position = Vector3.new(westCx - 4, floorY + 4.1, -7.2),
+			position = Vector3.new(westCx - 4, floorY + 4.1, -9.7),
 			color = Color3.fromRGB(24, 28, 34),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
@@ -1722,23 +1723,23 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		detailPart({
 			name = "PrescriptionScanner",
 			size = Vector3.new(1.1, 0.3, 1.2),
-			position = Vector3.new(westCx - 2.8, floorY + 3.65, -7.3),
+			position = Vector3.new(westCx - 2.8, floorY + 3.65, -9.8),
 			color = Color3.fromRGB(36, 44, 52),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
 		})
 		storePart({
 			name = "LockedMedsCabinet",
-			size = Vector3.new(4, 6, 1.4),
-			position = Vector3.new(westCx - 7, floorY + 3.8, -13.5),
+			size = Vector3.new(3, 6, 1.4),
+			position = Vector3.new(westCx - 6.5, floorY + 3.8, -13),
 			color = Color3.fromRGB(105, 118, 130),
 			material = Enum.Material.Metal,
 			parent = pharmacy,
 		})
 		detailPart({
 			name = "LockedMedsWindow",
-			size = Vector3.new(3.2, 3.8, 0.2),
-			position = Vector3.new(westCx - 7, floorY + 4.3, -12.75),
+			size = Vector3.new(2.5, 3.8, 0.2),
+			position = Vector3.new(westCx - 6.5, floorY + 4.3, -12.2),
 			color = Color3.fromRGB(174, 206, 220),
 			material = Enum.Material.Glass,
 			transparency = 0.35,
@@ -1756,7 +1757,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "WaitingBench",
 			size = Vector3.new(4, 1.5, 2),
-			position = Vector3.new(westCx + 5, floorY + 1.25, -22),
+			position = Vector3.new(westCx + 5, floorY + 1.25, -6),
 			color = Color3.fromRGB(110, 90, 70),
 			material = Enum.Material.Wood,
 			parent = pharmacy,
@@ -1764,7 +1765,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "PrivacyDivider",
 			size = Vector3.new(0.5, 5, 5),
-			position = Vector3.new(westCx + 4, floorY + 3.5, -6),
+			position = Vector3.new(westCx, floorY + 3.5, -6),
 			color = Color3.fromRGB(190, 198, 204),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
@@ -1772,12 +1773,12 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "ConsultTable",
 			size = Vector3.new(3.5, 1.5, 2.4),
-			position = Vector3.new(westCx - 5, floorY + 1.25, -22),
+			position = Vector3.new(-48.5, floorY + 1.25, -22),
 			color = Color3.fromRGB(212, 214, 214),
 			material = Enum.Material.SmoothPlastic,
 			parent = pharmacy,
 		})
-		for chair, x in { westCx - 7.2, westCx - 2.8 } do
+		for chair, x in { -51.5, -45.5 } do
 			storePart({
 				name = `ConsultChair{chair}`,
 				size = Vector3.new(1.8, 2, 1.8),
@@ -1846,7 +1847,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local prepCounter = storePart({
 			name = "PrepCounter",
 			size = Vector3.new(8, 2.4, 2),
-			position = Vector3.new(westCx + 2, floorY + 1.7, 24.5),
+			position = Vector3.new(-47.5, floorY + 1.7, 24.5),
 			color = Color3.fromRGB(210, 205, 198),
 			material = Enum.Material.Marble,
 			parent = bakery,
@@ -1855,7 +1856,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		detailPart({
 			name = "DoughBoard",
 			size = Vector3.new(3.5, 0.16, 1.4),
-			position = Vector3.new(westCx + 1, floorY + 3, 24.4),
+			position = Vector3.new(-48.5, floorY + 3, 24.4),
 			color = Color3.fromRGB(205, 168, 108),
 			material = Enum.Material.Wood,
 			canCollide = false,
@@ -1865,7 +1866,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			detailPart({
 				name = `DoughRound{dough}`,
 				size = Vector3.new(0.9, 0.35, 0.9),
-				position = Vector3.new(westCx - 0.6 + dough * 0.75, floorY + 3.25, 24.35),
+				position = Vector3.new(-50.1 + dough * 0.75, floorY + 3.25, 24.35),
 				color = Color3.fromRGB(230, 205, 156),
 				material = Enum.Material.SmoothPlastic,
 				canCollide = false,
@@ -1954,7 +1955,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		decorFloor("RestroomSinkZone", Vector3.new(9, 0.08, 4), Vector3.new(eastCx - 3.5, walkTop + 0.09, -7.2), Color3.fromRGB(150, 158, 164), restroom)
 		decorFloor("RestroomStallZone", Vector3.new(7, 0.08, 16), Vector3.new(eastCx + 4, walkTop + 0.09, -18.5), Color3.fromRGB(130, 138, 146), restroom)
 
-		for _, dividerZ in { -26.2, -21.3, -16.4, -11.5 } do
+		for _, dividerZ in { -25.2, -21.3, -16.4, -11.5 } do
 			detailPart({
 				name = `StallDivider{dividerZ}`,
 				size = Vector3.new(6.2, 5.8, 0.35),
@@ -2040,8 +2041,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		end
 		storePart({
 			name = "HandDryer",
-			size = Vector3.new(1.6, 2, 0.7),
-			position = Vector3.new(eastCx - 7.2, floorY + 4, -10.2),
+			size = Vector3.new(0.7, 2, 1.6),
+			position = Vector3.new(42.9, floorY + 4, -10.2),
 			color = Color3.fromRGB(210, 210, 215),
 			material = Enum.Material.Metal,
 			parent = restroom,
@@ -2065,12 +2066,12 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "RestroomTrashCan",
 			size = Vector3.new(1.3, 2.1, 1.3),
-			position = Vector3.new(eastCx - 7, floorY + 1.55, -7.2),
+			position = Vector3.new(55.5, floorY + 1.55, -7.3),
 			color = Color3.fromRGB(55, 58, 62),
 			material = Enum.Material.Metal,
 			parent = restroom,
 		})
-		for tile, z in { North = -26.6, South = -5.4 } do
+		for tile, z in { North = -25.4, South = -5.6 } do
 			detailPart({
 				name = `RestroomWallTileBand{tile}`,
 				size = Vector3.new(14, 2.4, 0.18),
@@ -2112,16 +2113,16 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		end
 		detailPart({
 			name = "PaperTowelDispenser",
-			size = Vector3.new(2, 1.6, 0.45),
-			position = Vector3.new(eastCx - 5.2, floorY + 4.3, -6.25),
+			size = Vector3.new(1.6, 1.6, 0.45),
+			position = Vector3.new(53.5, floorY + 4.3, -5.85),
 			color = Color3.fromRGB(205, 208, 212),
 			material = Enum.Material.Metal,
 			parent = restroom,
 		})
 		detailPart({
 			name = "SoapDispenser",
-			size = Vector3.new(1.2, 1.1, 0.35),
-			position = Vector3.new(eastCx - 2.2, floorY + 3.45, -6.25),
+			size = Vector3.new(0.7, 1.1, 0.35),
+			position = Vector3.new(52, floorY + 3.45, -5.85),
 			color = Color3.fromRGB(84, 118, 132),
 			material = Enum.Material.SmoothPlastic,
 			parent = restroom,
@@ -2133,24 +2134,24 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	if office then
 		decorFloor("AdminOfficeWorkZone", Vector3.new(9, 0.08, 8), Vector3.new(eastCx + 2.5, walkTop + 0.08, 30.5), Color3.fromRGB(146, 142, 136), office)
 		decorFloor("AdminOfficeEntryMat", Vector3.new(4.5, 0.08, 5), Vector3.new(eastCx - 7, walkTop + 0.09, 30), Color3.fromRGB(112, 120, 128), office)
-		detailPart({
+		wallPart({
 			name = "AdminBackWall",
-			size = Vector3.new(16, 9.5, 0.55),
-			position = Vector3.new(eastCx, floorY + 5.25, 23),
+			size = Vector3.new(16.5, 9.5, 0.55),
+			position = Vector3.new(eastCx + 0.25, floorY + 5.25, 23),
 			color = Color3.fromRGB(205, 203, 198),
 			material = Enum.Material.SmoothPlastic,
 			parent = office,
 		})
-		detailPart({
+		wallPart({
 			name = "AdminFrontWall",
-			size = Vector3.new(16, 9.5, 0.55),
-			position = Vector3.new(eastCx, floorY + 5.25, 37),
+			size = Vector3.new(16.5, 9.5, 0.55),
+			position = Vector3.new(eastCx + 0.25, floorY + 5.25, 37),
 			color = Color3.fromRGB(205, 203, 198),
 			material = Enum.Material.SmoothPlastic,
 			parent = office,
 		})
 		for segment, z in { South = 24.8, North = 35.2 } do
-			detailPart({
+			wallPart({
 				name = `AdminWestWall{segment}`,
 				size = Vector3.new(0.55, 9.5, 4.4),
 				position = Vector3.new(eastCx - 8, floorY + 5.25, z),
@@ -2165,6 +2166,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			position = Vector3.new(eastCx - 8, floorY + 8.1, 30),
 			color = Color3.fromRGB(92, 98, 104),
 			material = Enum.Material.Metal,
+			canCollide = false,
 			parent = office,
 		})
 		for _, frameZ in { 27.1, 32.9 } do
@@ -2174,10 +2176,11 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 				position = Vector3.new(eastCx - 8, floorY + 4.55, frameZ),
 				color = Color3.fromRGB(92, 98, 104),
 				material = Enum.Material.Metal,
+				canCollide = false,
 				parent = office,
 			})
 		end
-		addSign(office, "AdminOfficeSign", eastCx - 4.5, floorY + 8.1, 36.7, 6.2, "MANAGER", Color3.fromRGB(62, 76, 84), 1.1)
+		addSign(office, "AdminOfficeSign", eastCx - 4.5, floorY + 8.1, 36.5, 6.2, "MANAGER", Color3.fromRGB(62, 76, 84), 1.1)
 
 		local managerDesk = storePart({
 			name = "ManagerDesk",
@@ -2190,8 +2193,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		addPrompt(managerDesk, "InspectTasks", "Review", "Manager Desk", 0.15)
 		storePart({
 			name = "DeskReturn",
-			size = Vector3.new(2.2, 1.2, 5),
-			position = Vector3.new(eastCx + 5.2, floorY + 1.55, 28.2),
+			size = Vector3.new(2.2, 1.2, 3.6),
+			position = Vector3.new(eastCx + 5.2, floorY + 1.55, 27.5),
 			color = Color3.fromRGB(94, 70, 50),
 			material = Enum.Material.Wood,
 			parent = office,
@@ -2199,7 +2202,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "ManagerChair",
 			size = Vector3.new(2, 2.2, 2),
-			position = Vector3.new(eastCx - 3.5, floorY + 1.6, 31),
+			position = Vector3.new(48.5, floorY + 1.6, 32.5),
 			color = Color3.fromRGB(52, 56, 62),
 			material = Enum.Material.Plastic,
 			parent = office,
@@ -2245,7 +2248,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			detailPart({
 				name = `FilingCabinet{cabinetIndex}`,
 				size = Vector3.new(2.3, 3.6, 1.5),
-				position = Vector3.new(eastCx + 6.2, floorY + 2.3, z),
+				position = Vector3.new(45, floorY + 2.3, z),
 				color = Color3.fromRGB(110, 115, 120),
 				material = Enum.Material.Metal,
 				parent = office,
@@ -2262,7 +2265,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local officeTaskBoard = detailPart({
 			name = "ManagerTaskBoard",
 			size = Vector3.new(6, 3.5, 0.35),
-			position = Vector3.new(eastCx - 2.5, floorY + 5.8, 23.35),
+			position = Vector3.new(eastCx - 2.5, floorY + 5.8, 23.5),
 			color = Color3.fromRGB(44, 80, 70),
 			material = Enum.Material.SmoothPlastic,
 			parent = office,
@@ -2271,7 +2274,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		detailPart({
 			name = "OfficeWindow",
 			size = Vector3.new(5.5, 3.5, 0.18),
-			position = Vector3.new(eastCx - 3, floorY + 5.1, 36.65),
+			position = Vector3.new(eastCx - 3, floorY + 5.1, 36.6),
 			color = Color3.fromRGB(170, 202, 218),
 			material = Enum.Material.Glass,
 			transparency = 0.35,
@@ -2298,13 +2301,13 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local taskBoard = detailPart({
 			name = "TaskBoard",
 			size = Vector3.new(6, 3.6, 0.35),
-			position = Vector3.new(eastCx - 2.2, floorY + 5.2, -0.65),
+			position = Vector3.new(eastCx - 2.2, floorY + 5.2, -0.25),
 			color = Color3.fromRGB(38, 88, 68),
 			material = Enum.Material.SmoothPlastic,
 			parent = breakRoom,
 		})
 		addPrompt(taskBoard, "InspectTasks", "Review", "Task Board", 0.1)
-		addSign(breakRoom, "BreakRoomRulesSign", eastCx + 4.2, floorY + 6.95, -0.7, 5.2, "STAFF", Color3.fromRGB(74, 80, 86), 1.05)
+		addSign(breakRoom, "BreakRoomRulesSign", eastCx + 4.2, floorY + 6.95, -0.25, 5.2, "STAFF", Color3.fromRGB(74, 80, 86), 1.05)
 
 		local kitchenette = detailPart({
 			name = "KitchenetteCounter",
@@ -2379,7 +2382,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		for chairName, chair in {
 			North = Vector3.new(eastCx + 1.8, floorY + 1.45, 5.9),
 			South = Vector3.new(eastCx + 1.8, floorY + 1.45, 11.7),
-			East = Vector3.new(eastCx + 4.5, floorY + 1.45, 8.8),
+			East = Vector3.new(eastCx + 4.7, floorY + 1.45, 8.8),
 		} do
 			detailPart({
 				name = `BreakChair{chairName}`,
@@ -2393,7 +2396,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		detailPart({
 			name = "BreakBench",
 			size = Vector3.new(5, 1.6, 1.4),
-			position = Vector3.new(eastCx - 4.5, floorY + 1.3, 14.2),
+			position = Vector3.new(eastCx - 4.5, floorY + 1.3, 13.5),
 			color = Color3.fromRGB(92, 78, 68),
 			material = Enum.Material.Wood,
 			parent = breakRoom,
@@ -2479,7 +2482,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			storePart({
 				name = `DockBox{i}`,
 				size = Vector3.new(4, 3, 4),
-				position = Vector3.new(48, floorY + 2, backZ - 6 + i * 5),
+				position = Vector3.new(51, floorY + 2, backZ - 5 + i * 4.5),
 				color = Color3.fromRGB(150, 130, 100),
 				material = Enum.Material.Cardboard,
 				parent = loading,
@@ -2513,8 +2516,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		end
 		local dockControl = storePart({
 			name = "DockControl",
-			size = Vector3.new(2, 3, 0.5),
-			position = Vector3.new(22, floorY + 4, backZ),
+			size = Vector3.new(0.5, 3, 2),
+			position = Vector3.new(16.9, floorY + 4, backZ + 2),
 			color = Color3.fromRGB(52, 58, 66),
 			material = Enum.Material.Metal,
 			parent = loading,
@@ -2522,18 +2525,18 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		addPrompt(dockControl, "OpenDock", "Operate", "Dock Controls", 0.2)
 		local scheduleBoard = storePart({
 			name = "DockScheduleBoard",
-			size = Vector3.new(7, 4, 0.45),
-			position = Vector3.new(23, floorY + 6.2, backZ - 6),
+			size = Vector3.new(5, 4, 0.45),
+			position = Vector3.new(21.5, floorY + 6.2, -49.2),
 			color = Color3.fromRGB(38, 64, 74),
 			material = Enum.Material.SmoothPlastic,
 			parent = loading,
 		})
 		addPrompt(scheduleBoard, "InspectTasks", "Review", "Dock Schedule", 0.15)
-		addSign(loading, "DockScheduleSign", 23, floorY + 8.95, backZ - 5.6, 5, "TRUCKS", Color3.fromRGB(50, 64, 78), 1.05)
+		addSign(loading, "DockScheduleSign", 21.5, floorY + 8.95, -49.2, 5, "TRUCKS", Color3.fromRGB(50, 64, 78), 1.05)
 		storePart({
 			name = "PalletJack",
 			size = Vector3.new(5, 1, 3),
-			position = Vector3.new(30, floorY + 1.2, backZ + 6),
+			position = Vector3.new(19.5, floorY + 1.2, backZ + 8),
 			color = Color3.fromRGB(170, 130, 45),
 			material = Enum.Material.Metal,
 			parent = loading,
@@ -2541,7 +2544,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local forkliftBase = storePart({
 			name = "ForkliftBase",
 			size = Vector3.new(5, 2.2, 6),
-			position = Vector3.new(36, floorY + 1.9, backZ + 2),
+			position = Vector3.new(23, floorY + 1.9, backZ - 1),
 			color = Color3.fromRGB(214, 158, 38),
 			material = Enum.Material.Metal,
 			parent = loading,
@@ -2550,22 +2553,22 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = "ForkliftMast",
 			size = Vector3.new(0.7, 6, 3.4),
-			position = Vector3.new(33, floorY + 4.2, backZ - 1),
+			position = Vector3.new(20, floorY + 4.2, backZ - 4),
 			color = Color3.fromRGB(50, 54, 58),
 			material = Enum.Material.Metal,
 			parent = loading,
 		})
-		for fork, x in { 32, 34 } do
+		for fork, x in { 19, 21 } do
 			detailPart({
 				name = `ForkliftFork{fork}`,
 				size = Vector3.new(0.45, 0.25, 5),
-				position = Vector3.new(x, floorY + 1.15, backZ - 4.5),
+				position = Vector3.new(x, floorY + 1.15, backZ - 7.5),
 				color = Color3.fromRGB(56, 58, 62),
 				material = Enum.Material.Metal,
 				parent = loading,
 			})
 		end
-		for cone, x in { 20.8, 51.2 } do
+		for cone, x in { 18.5, 57 } do
 			storePart({
 				name = `DockSafetyCone{cone}`,
 				size = Vector3.new(1.3, 2, 1.3),
@@ -2620,7 +2623,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		local coolerCase = storePart({
 			name = "CoolerPullCase",
 			size = Vector3.new(7, 6.5, 2),
-			position = Vector3.new(9.2, floorY + 3.75, backZ + 4.5),
+			position = Vector3.new(9.2, floorY + 3.75, backZ + 1),
 			color = Color3.fromRGB(150, 180, 196),
 			material = Enum.Material.Glass,
 			transparency = 0.35,
@@ -2642,8 +2645,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		end
 		local tempPanel = detailPart({
 			name = "CoolerThermostat",
-			size = Vector3.new(2.1, 2.8, 0.35),
-			position = Vector3.new(12.7, floorY + 5, backZ + 3.5),
+			size = Vector3.new(0.35, 2.8, 2.1),
+			position = Vector3.new(15.2, floorY + 5, backZ + 3.5),
 			color = Color3.fromRGB(35, 50, 62),
 			material = Enum.Material.SmoothPlastic,
 			parent = cooler,
@@ -2651,8 +2654,8 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		addPrompt(tempPanel, "CheckTemperature", "Check", "Thermostat", 0.2)
 		detailPart({
 			name = "ThermostatScreen",
-			size = Vector3.new(1.4, 0.75, 0.12),
-			position = Vector3.new(12.5, floorY + 5.35, backZ + 3.5),
+			size = Vector3.new(0.12, 0.75, 1.4),
+			position = Vector3.new(14.95, floorY + 5.35, backZ + 3.5),
 			color = Color3.fromRGB(115, 210, 235),
 			material = Enum.Material.Neon,
 			canCollide = false,
@@ -2743,11 +2746,11 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	spill.Transparency = 0.45
 	addPrompt(spill, "CleanSpill", "Mop", "Floor Spill", 0.3)
 
-	for i, x in { -18, 6 } do
+	for i, x in { 16, 36 } do
 		storePart({
 			name = `BagHolder{i}`,
 			size = Vector3.new(3, 4, 1.5),
-			position = Vector3.new(x, floorY + 2.5, halfD - 16),
+			position = Vector3.new(x, floorY + 2.5, 24),
 			color = Color3.fromRGB(70, 120, 70),
 			material = Enum.Material.Plastic,
 			parent = interiorProps,
@@ -2758,7 +2761,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = `BasketStack{i}`,
 			size = Vector3.new(3, 2, 3),
-			position = Vector3.new(-20 + i * 8, floorY + 1.5, halfD - 22),
+			position = Vector3.new(-28 + i * 6, floorY + 1.5, 46),
 			color = Color3.fromRGB(200, 160, 50),
 			material = Enum.Material.Plastic,
 			parent = interiorProps,
@@ -2771,49 +2774,6 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 			size = Vector3.new(0.8, 2.5, 0.8),
 			position = Vector3.new(fx, floorY + 2, 0),
 			color = Color3.fromRGB(180, 40, 40),
-			material = Enum.Material.Metal,
-			parent = interiorProps,
-		})
-	end
-
-	if restroom then
-		storePart({
-			name = "Mirror",
-			size = Vector3.new(4, 3, 0.2),
-			position = Vector3.new(eastCx - 2, floorY + 4, -12),
-			color = Color3.fromRGB(200, 210, 220),
-			material = Enum.Material.Glass,
-			transparency = 0.3,
-			parent = interiorProps,
-		})
-		for s = -1, 1 do
-			storePart({
-				name = `Toilet{s}`,
-				size = Vector3.new(2, 2, 2.5),
-				position = Vector3.new(eastCx - 5, floorY + 1.5, -18 + s * 6),
-				color = Color3.fromRGB(240, 240, 245),
-				material = Enum.Material.SmoothPlastic,
-				parent = interiorProps,
-			})
-		end
-	end
-
-	if breakRoom then
-		for c = 0, 3 do
-			storePart({
-				name = `BreakChair{c}`,
-				size = Vector3.new(1.5, 2, 1.5),
-				position = Vector3.new(eastCx - 3 + (c % 2) * 4, floorY + 1.5, 6 + math.floor(c / 2) * 4),
-				color = Color3.fromRGB(55, 55, 60),
-				material = Enum.Material.Plastic,
-				parent = interiorProps,
-			})
-		end
-		storePart({
-			name = "Microwave",
-			size = Vector3.new(2, 1.5, 2),
-			position = Vector3.new(eastCx + 4, floorY + 3, 10),
-			color = Color3.fromRGB(50, 50, 55),
 			material = Enum.Material.Metal,
 			parent = interiorProps,
 		})
@@ -2919,35 +2879,55 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		})
 	end
 
+	local parkingBays = {}
 	for _, row in {
-		{ name = "Near", z = halfD + 18, stallDepth = 16 },
-		{ name = "Far", z = halfD + 56, stallDepth = 16 },
+		{ name = "Near", z = halfD + 18, xs = { -56, -42, 42, 56 } },
+		{ name = "Far", z = halfD + 56, xs = { -56, -42, -28, 28, 42, 56 } },
 	} do
-		for _, x in { -56, -42, -28, 28, 42, 56 } do
+		for _, x in row.xs do
+			table.insert(parkingBays, { x = x, z = row.z })
 			for _, side in { -1, 1 } do
-				stripe(`ParkingLine_{row.name}_{x}_{side}`, Vector3.new(0.22, 0.06, row.stallDepth), Vector3.new(x + side * 6, floorY + 0.62, row.z), Color3.fromRGB(220, 220, 215), parking)
+				stripe(`ParkingLine_{row.name}_{x}_{side}`, Vector3.new(0.22, 0.06, 16), Vector3.new(x + side * 6, floorY + 0.62, row.z), Color3.fromRGB(220, 220, 215), parking)
 			end
-			stripe(`ParkingBackLine_{row.name}_{x}`, Vector3.new(12, 0.06, 0.22), Vector3.new(x, floorY + 0.62, row.z + row.stallDepth / 2), Color3.fromRGB(220, 220, 215), parking)
+			local closedEnd = if row.name == "Near" then -8 else 8
+			stripe(`ParkingBackLine_{row.name}_{x}`, Vector3.new(12, 0.06, 0.22), Vector3.new(x, floorY + 0.62, row.z + closedEnd), Color3.fromRGB(220, 220, 215), parking)
 		end
 	end
 
-	for i = 0, 2 do
-		local x = -56 + i * 14
-		stripe(
-			`AccessibleSpace{i}`,
-			Vector3.new(10, 0.06, 10),
-			Vector3.new(x, floorY + 0.63, halfD + 18),
-			Color3.fromRGB(40, 80, 180),
-			parking
-		)
-		stripe(
-			`AccessibleAisle{i}`,
-			Vector3.new(0.45, 0.06, 9),
-			Vector3.new(x + 5, floorY + 0.66, halfD + 18),
-			Color3.fromRGB(235, 235, 230),
-			parking,
-			0.045
-		)
+	-- Reserved bays sit nearest the entrance; each has a separate six-stud access aisle.
+	for i, side in { -1, 1 } do
+		local x, aisleX, z = side * 21, side * 12, halfD + 18
+		local pad = detailPart({ name = `AccessibleSpace{i}`, size = Vector3.new(12, 0.035, 16),
+			position = Vector3.new(x, paintTop + 0.0175, z), color = Color3.fromRGB(39, 100, 174), canCollide = false, parent = parking })
+		pad:SetAttribute("ReservedParking", true)
+		local symbol = Instance.new("SurfaceGui")
+		symbol.Face = Enum.NormalId.Top
+		symbol.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		symbol.PixelsPerStud = 48
+		symbol.LightInfluence = 0.2
+		symbol.Parent = pad
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Text = utf8.char(0x267F)
+		label.Font = Enum.Font.SourceSansBold
+		label.TextSize = 240
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.Parent = symbol
+		local aisle = detailPart({ name = `AccessibleAisle{i}`, size = Vector3.new(6, 0.035, 17),
+			position = Vector3.new(aisleX, paintTop + 0.0175, z - 0.5), color = Color3.fromRGB(61, 66, 71), canCollide = false, parent = parking })
+		aisle:SetAttribute("AccessAisle", true)
+		for _, edge in { -1, 1 } do
+			stripe(`AccessBorder{i}_{edge}`, Vector3.new(0.2, 0.035, 17), Vector3.new(aisleX + edge * 2.85, 0, z - 0.5), Color3.fromRGB(244, 244, 236), parking, 0.045)
+		end
+		for hatch = 0, 6 do
+			local bar = detailPart({ name = `AccessHatch{i}_{hatch}`, size = Vector3.new(5.8, 0.035, 0.18),
+				position = Vector3.new(aisleX, paintTop + 0.0625, 61.5 + hatch * 2), color = Color3.fromRGB(244, 244, 236), canCollide = false, parent = parking })
+			bar.Orientation = Vector3.new(0, 25, 0)
+		end
+		fixtureDetail(parking, `AccessibleWheelStop{i}`, Vector3.new(8, 0.4, 0.65), Vector3.new(x, asphaltTop + 0.2, 60.6), Color3.fromRGB(195, 199, 202), Enum.Material.Concrete)
+		fixtureDetail(parking, `AccessibleSignPost{i}`, Vector3.new(0.18, 5, 0.18), Vector3.new(x, asphaltTop + 2.5, 60), Color3.fromRGB(131, 143, 152), Enum.Material.Metal)
+		addSign(parking, `AccessibleSign{i}`, x, asphaltTop + 5.3, 60, 3.2, "RESERVED", Color3.fromRGB(39, 100, 174), 1.2)
 	end
 
 	for i = 0, 1 do
@@ -3028,19 +3008,12 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	end
 
 	-- Sidewalks frame the store and connect the parking lot to the front door.
-	surfaceFloor("FrontSidewalk", Vector3.new(W - 2, 1, 12), Vector3.new(0, floorY, halfD + 3), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
-	surfaceFloor("SidewalkWest", Vector3.new(14, 1, 70), Vector3.new(-halfW - 6, floorY, halfD + 26), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
-	surfaceFloor("SidewalkEast", Vector3.new(14, 1, 70), Vector3.new(halfW + 6, floorY, halfD + 26), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
-	surfaceFloor("EntryWalk", Vector3.new(18, 1, 32), Vector3.new(0, floorY, halfD + 16), Color3.fromRGB(205, 203, 198), Enum.Material.Concrete, outdoor, sidewalkTop + 0.015)
-	storePart({
-		name = "Curb",
-		size = Vector3.new(W + 42, 0.6, 1),
-		position = Vector3.new(0, floorY + 0.35, halfD + 1),
-		color = Color3.fromRGB(140, 140, 145),
-		material = Enum.Material.Concrete,
-		canCollide = false,
-		parent = outdoor,
-	})
+	for _, side in { -1, 1 } do
+		surfaceFloor(`FrontSidewalk{side}`, Vector3.new(66, 1, 9), Vector3.new(side * 43, floorY, 54.5), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
+		surfaceFloor(`Sidewalk{side}`, Vector3.new(12, 1, 100), Vector3.new(side * 70, floorY, 0), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
+		surfaceFloor(`LotWalk{side}`, Vector3.new(12, 1, 59), Vector3.new(side * 70, floorY, 88.5), Color3.fromRGB(195, 193, 188), Enum.Material.Concrete, outdoor, sidewalkTop)
+	end
+	surfaceFloor("EntryWalk", Vector3.new(18, 1, 23), Vector3.new(0, floorY, 70.5), Color3.fromRGB(205, 203, 198), Enum.Material.Concrete, outdoor, sidewalkTop)
 
 	parkingIsland("IslandWest", -86, halfD + 42, 12, 36)
 	parkingIsland("IslandEast", 86, halfD + 42, 12, 36)
@@ -3091,9 +3064,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local pickup = Instance.new("Model")
 	pickup.Name = "CurbsidePickup"
 	pickup.Parent = outdoor
-	local pickupX = 92
+	local pickupX = 88
 	local pickupZ = halfD + 16
-	stripe("PickupPadPaint", Vector3.new(34, 0.06, 14), Vector3.new(pickupX, floorY, pickupZ), Color3.fromRGB(62, 80, 92), pickup)
+	stripe("PickupPadPaint", Vector3.new(24, 0.06, 14), Vector3.new(pickupX, floorY, pickupZ), Color3.fromRGB(62, 80, 92), pickup)
 	for i = 0, 2 do
 		stripe(`PickupLine{i}`, Vector3.new(0.35, 0.06, 12), Vector3.new(pickupX - 12 + i * 12, floorY, pickupZ), Color3.fromRGB(245, 245, 240), pickup)
 	end
@@ -3176,27 +3149,20 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	trafficMarker("CashierSpot", 30, halfD - 28, "Staff")
 	trafficMarker("RoadExit", 86, halfD + 88, "CarPath")
 
-	for index, spotDef in {
-		{ x = -56, z = halfD + 18 },
-		{ x = -42, z = halfD + 18 },
-		{ x = -28, z = halfD + 18 },
-		{ x = 28, z = halfD + 18 },
-		{ x = -28, z = halfD + 56 },
-		{ x = 28, z = halfD + 56 },
-		{ x = 42, z = halfD + 56 },
-		{ x = 56, z = halfD + 56 },
-	} do
+	for index, spotDef in parkingBays do
 		local spot = trafficMarker(`ParkingSpot{index}`, spotDef.x, spotDef.z, "Parking")
 		spot:SetAttribute("ParkingIndex", index)
+		spot:SetAttribute("BayWidth", 12)
+		spot:SetAttribute("BayDepth", 16)
 	end
 
-	-- Lamp posts (symmetric)
-	for i = -2, 2 do
-		local lx = i * 36
+	-- Keep lighting on the islands, not in the driveway or walking routes.
+	for i, lamp in { { x = -86, z = 84 }, { x = -86, z = 104 }, { x = 86, z = 84 }, { x = 86, z = 104 } } do
+		local lx = lamp.x
 		storePart({
 			name = `LampPost{i}`,
 			size = Vector3.new(1.2, 12, 1.2),
-			position = Vector3.new(lx, floorY + 6.5, halfD + 50),
+			position = Vector3.new(lx, floorY + 6.5, lamp.z),
 			color = Color3.fromRGB(50, 50, 55),
 			material = Enum.Material.Metal,
 			parent = outdoor,
@@ -3204,7 +3170,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		storePart({
 			name = `LampHead{i}`,
 			size = Vector3.new(2.5, 1, 2.5),
-			position = Vector3.new(lx, floorY + 12.5, halfD + 50),
+			position = Vector3.new(lx, floorY + 12.5, lamp.z),
 			color = Color3.fromRGB(230, 228, 210),
 			material = Enum.Material.SmoothPlastic,
 			parent = outdoor,
@@ -3213,16 +3179,14 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 
 	-- Landscaping (sides only — clear door)
 	for _, spot in {
-		{ name = "ShrubL", x = -halfW - 2, z = halfD - 8 },
-		{ name = "ShrubR", x = halfW + 2, z = halfD - 8 },
-		{ name = "FlowerBedL", x = -76, z = halfD + 2 },
-		{ name = "FlowerBedR", x = 76, z = halfD + 2 },
+		{ name = "ShrubL", x = -halfW - 2.25, z = halfD - 8 },
+		{ name = "ShrubR", x = halfW + 2.25, z = halfD - 8 },
+		{ name = "FlowerBedL", x = -82, z = halfD + 2 },
+		{ name = "FlowerBedR", x = 82, z = halfD + 2 },
 		{ name = "TreeL", x = -halfW - 42, z = halfD + 8 },
 		{ name = "TreeR", x = halfW + 42, z = halfD + 8 },
 		{ name = "TreeFrontL", x = -76, z = halfD + 76 },
 		{ name = "TreeFrontR", x = 76, z = halfD + 76 },
-		{ name = "MedianShrubL", x = -72, z = halfD + 42 },
-		{ name = "MedianShrubR", x = 72, z = halfD + 42 },
 	} do
 		if spot.name:find("Tree") then
 			storePart({
@@ -3236,7 +3200,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 		else
 			storePart({
 				name = spot.name,
-				size = if spot.name:find("FlowerBed") then Vector3.new(8, 1.2, 8) else Vector3.new(5, 2.5, 5),
+				size = if spot.name:find("FlowerBed") then Vector3.new(8, 1.2, 8) else Vector3.new(2.5, 2.5, 5),
 				position = Vector3.new(spot.x, if spot.name:find("FlowerBed") then floorY + 1.15 else floorY + 1.8, spot.z),
 				color = if spot.name:find("FlowerBed") then Color3.fromRGB(150, 72, 90) else Color3.fromRGB(55, 105, 50),
 				material = if spot.name:find("FlowerBed") then Enum.Material.LeafyGrass else Enum.Material.Grass,
@@ -3254,7 +3218,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	storePart({
 		name = "Dumpster",
 		size = Vector3.new(8, 5, 5),
-		position = Vector3.new(halfW - 14, floorY + 3, -halfD - 12),
+		position = Vector3.new(18, floorY + 3, -halfD - 12),
 		color = Color3.fromRGB(45, 75, 45),
 		material = Enum.Material.Metal,
 		parent = serviceYard,
