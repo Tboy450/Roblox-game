@@ -1,41 +1,42 @@
-# Rebuild plan
+# Standalone retail simulator plan
 
-Build a believable neighborhood discount-store simulator in Roblox. Keep approachable cooperative work and give players meaningful choices about stock, pricing, service and upgrades. **Cornerfield Market** is a working original identity.
+Build **Cornerfield Market**, a neighborhood discount-store simulator in Godot. Houdini creates procedural architecture and repeated fixtures; Blender creates detailed props, UVs and baking. Roblox v55 supplies design/system references. Repeated editor automation is outside the current workflow.
 
-## Tools and visual target
+## Delivery workflow
 
-Use Houdini for procedural shell construction, modular shelves, layout variants and repeated detail. Use Blender for detailed individual props, manual geometry cleanup, UVs, baking and export preparation. Use Studio/Luau/Rojo for gameplay integration. The user selected a hybrid workflow and authorized a noncommercial prototype using the installed Apprentice environment. Preserve provenance; small alterations are not recorded as changing the source license.
+Source code and procedural geometry are the source of truth. Run Houdini/Blender in fresh background processes, import GLBs headlessly, execute engine tests, render review frames by script and package a runnable prototype. GDScript creates the playable scene and HUD. GitHub Actions checks versioned runtime assets without requiring a DCC installation.
 
-Use warm masonry, muted painted metal, aluminum frames, tile, refrigeration glass and localized wear. Keep routes clear and forms readable at normal camera distance. Retain 152 × 100 studs as the initial footprint, then approve dimensions by walking it with avatars. The extracted v55 scene is a measured reference, not finished art.
+The first shell is 22.4 × 17.92 metres, scaled from an 80 × 64 source-unit Houdini variant. The conversion is **0.28 metres per source unit**, Y up. The runtime manifest records source tools and hashes. Keep visuals, stock, collision and gameplay actions separate.
 
 ## Play loop
 
-1. Prepare: inspect inventory, order goods, choose prices and prepare tills.
-2. Receive: unload cases and move stock into organized storage.
-3. Trade: restock while shoppers browse; scan goods, accept payment and give change.
-4. Maintain: clean, remove trash, resolve shortages and support other players.
-5. Close: finish queues, reconcile cash/stock, review service and profit, choose upgrades.
+1. Order cases and manage cash.
+2. Receive, carry and restock merchandise.
+3. Open and serve shoppers who consume real inventory.
+4. Resolve unpaid baskets without creating or losing units.
+5. Close and review revenue, cost of goods, purchases and cash movement.
+6. Carry cash/inventory into the next day, then expand management and upgrades.
 
-Inventory, prices, payments and rewards belong on the server. Use integer cents, stable IDs, request validation and rate limits. Reserve stock exactly once and refund abandoned orders exactly once; existing `NpcStockOrders` behavior is the regression reference.
+The prototype implements one product and one active shopper. Money uses integer cents. Inventory includes receiving, carried, shelf and reserved quantities; sales/cancellations consume order IDs once. Reserved capacity prevents cancellation from overfilling a restocked shelf. Purchases affect cash when ordered; cost of goods affects profit when sold. Saves, staff and networking are not implemented yet.
 
 ## Milestones
 
-| ID | Result | Acceptance gate | Dependency |
-| --- | --- | --- | --- |
-| M0 | Baseline/setup | Reference, docs, board, Studio backup and measured performance | — |
-| M1 | Store foundation | Editable scene, reviewed views and avatar-scale routes | M0 |
-| M2 | Modular art kit | Full fixture/room coverage, UV/PBR/LOD review | M1 |
-| M3 | Roblox integration | Correct import, separate interactions, bootstrap preserves art | M1; M2 incrementally |
-| M4 | Playable slice | Delivery → stock → NPC purchase → checkout → close works with two players | M3 |
-| M5 | Management | Ordering, demand, staff, upgrades, tutorial and recoverable saves | M4 |
-| M6 | Release candidate | Device profiling, multiplayer soak, provenance and recovery verified | M5 |
+| ID | Deliverable | Acceptance gate |
+| --- | --- | --- |
+| M0 | Background workflow | Source, docs, board, import/test/render/package commands |
+| M1 | Foundation | Reviewed shell, movement, lighting and usable routes |
+| M2 | Art kit | Complete room/fixture coverage, materials, UVs and LODs |
+| M3 | Godot integration | Stable actions, collision, stock visuals and navigation |
+| M4 | Playable slice | Receive → stock → sell → close, tests and human playtest |
+| M5 | Management/co-op | Demand, staff, upgrades, persistence and two-player flow |
+| M6 | Release | Profiling, soak tests, production exports and recovery |
 
-Take one shelf and one checkout through the complete pipeline before multiplying the art kit. Bakery/pharmacy detail and optional companions must not delay proving the main retail loop.
+## Verification and limits
 
-## Migration
+`scripts/test-game.ps1` checks actual engine imports, simulation and scene physics. The portable pack receives a startup smoke test. A scripted GPU frame is inspected separately. These do not prove human usability, navigation at scale, multiplayer correctness or target-hardware performance.
 
-Preserve baseline revision `8b47f52bfb817ede3c7f556cdf503c6f848ddb25` and save a dated Studio backup with unsynced edits. Build art outside the generated active store. Add stable interaction adapters, then an opt-in imported-store mode and matching updater behavior. Use a separate Studio test place until route, collision, interaction and performance gates pass. Switch the default only after the new slice works; retain a rollback path before retiring old visual generation.
+Shoppers currently follow fixed unobstructed waypoints and use capsule placeholder art. Only one shelf is interactive. Final product textures, lighting and most supporting rooms remain unfinished. Expand content after the first loop is reviewed.
 
-The first Blender pass is a foundation. It does not complete final fixture modeling, baked materials, Studio upload or the game. Targets of 30 FPS mobile and 60 FPS desktop are provisional, not measured. Establish mesh/texture budgets after profiling an imported aisle.
+The [earlier Roblox plan](ROBLOX_REBUILD_PLAN.md) is preserved. A future Roblox version could reuse art/data but would require platform-specific gameplay integration; it is not the current objective.
 
-References: [Roblox modeling](https://create.roblox.com/docs/art/modeling), [Importer](https://create.roblox.com/docs/studio/importer), [Reimport](https://create.roblox.com/docs/art/modeling/reimport), [SideFX licensing](https://www.sidefx.com/Support/licensing/), [Blender LTS](https://www.blender.org/releases/4-5/).
+References: [Godot command-line workflow](https://docs.godotengine.org/en/stable/tutorials/editor/command_line_tutorial.html), [Godot runtime](https://godotengine.org/download/windows/).

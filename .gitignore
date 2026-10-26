@@ -31,3 +31,12 @@ art/exports/*
 *.blend1
 *.blend2
 __pycache__/
+
+# Standalone simulator cache, generated assets and release artifacts
+game/.godot/
+game/assets/generated/*
+!game/assets/generated/.gitkeep
+!game/assets/generated/*.glb
+!game/assets/generated/*.glb.import
+!game/assets/generated/manifest.json
+builds/

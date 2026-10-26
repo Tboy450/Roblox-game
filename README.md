@@ -1,67 +1,66 @@
-# Retail Store Simulator
+# Cornerfield Market — Retail Store Simulator
 
-A rebuild of the Roblox retail game into a more believable neighborhood discount store. The goal is a detailed store and a satisfying **receive → stock → sell → close → upgrade** loop.
+A standalone simulator built in **Godot**, with **Houdini** procedural buildings and shelves and a **Blender** checkout. Development uses source files, background generation, headless engine tests and scripted renders. Roblox is the reference; Studio and Rojo are not required for this game.
 
-**Status:** pre-production and first model pass. The playable v55 game is the baseline. Replacement art stays separate until imports, collisions and gameplay integration pass review. The finished production game is still to be built.
+**Status: first playable prototype.** Order a case, collect it, stock the pantry shelf, open, serve a shopper and close with a reconciled report. One product and one active shopper are implemented. Final art, supporting rooms, saves, staff and multiplayer remain open work.
+
+![Actual Godot prototype, captured by script](art/previews/godot-prototype.png)
+
+![Blender checkout running in the Godot scene](art/previews/godot-checkout.png)
 
 - [To-do checklist](TODO.md)
 - [GitHub project board](https://github.com/users/Tboy450/projects/2)
-- [Game design and milestones](docs/REBUILD_PLAN.md)
+- [Design and milestones](docs/REBUILD_PLAN.md)
 - [Art pipeline](art/README.md)
-- [Store inventory and migration contract](docs/STORE_INVENTORY.md)
-- [Legacy setup and full v55 documentation](docs/LEGACY_V55.md)
+- [Background test report](docs/standalone-test-report.json)
 
-## Direction
+## Run
 
-**Cornerfield Market** is the working original identity: muted green signage, warm masonry, powder-coated shelves, tile floors, fluorescent fittings, glass coolers and restrained wear on everyday equipment. Use fictional branding and products. Aim for believable proportions and surfaces that remain readable and efficient on Roblox.
-
-Use **Houdini and Blender together**. Houdini handles procedural construction, repeated shelving, layout variations and scattering. Blender handles detailed props, shape cleanup, UVs and baking. Roblox Studio handles assembly, lighting, collision and gameplay integration. The current prototype uses the installed Houdini 22.0.466 Apprentice environment; keep asset provenance and review usage before changing the project's distribution or commercial scope. See [SideFX licensing](https://www.sidefx.com/Support/licensing/).
-
-## Existing game
-
-The baseline has shelf assignment and stocking, player/NPC checkout, exact change and till accounting, deliveries, open/close behavior, NPC parking and queues, service/cleaning tasks, private bathroom doors and a HUD. Its layout includes bakery, pharmacy, two bathrooms, staff room, office, stock room, cooler, dock, parking, pickup and service yard. Companion systems exist; their place in the new game is undecided.
-
-[The static reference](art/reference/current-store-v55.json) captures blueprint geometry and interaction metadata. It excludes live Studio edits, running shoppers, runtime vehicles and equipped pets. Baseline revision: `8b47f52bfb817ede3c7f556cdf503c6f848ddb25`.
-
-## Run and verify
+Windows / PowerShell, from this repository:
 
 ```powershell
-.\setup.ps1                       # if local tools are missing
-.\scripts\serve.ps1
+.\scripts\setup-godot.ps1    # pinned official portable Godot 4.7.2
+.\scripts\run-game.ps1       # background import, then launch the game
 ```
 
-Connect the Rojo plugin to `localhost:34872` in Studio. Stop Play, then use **Plugins → Retail Game → Update Map**. Press Play to test.
+The three runtime GLBs are checked in. Houdini and Blender are needed only to regenerate them. Supply an existing Godot executable with `-Godot C:\path\to\godot_console.exe`.
+
+The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract and run `CornerfieldMarket.exe`, keeping its `.pck` beside it. This prototype bundles the official Godot editor runtime in game mode; it is not a size-optimized production export. Build outputs are ignored by Git, not published GitHub releases.
+
+## Play a store day
+
+1. **B** orders twelve cans of Harvest Beans for **$8.40**. Delivery takes four seconds.
+2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
+3. Approach the marked **Pantry** shelf and press **E** to stock it.
+4. **O** opens. A shopper enters, takes an available item and walks to Checkout 01.
+5. Approach checkout and press **E** to complete the **$1.49** purchase.
+6. **O** closes and returns unpaid reservations to stock. The report separates revenue, cost of goods, purchases and cash movement. **N** starts the next day.
+
+**WASD** moves, the **mouse** looks, and **Esc** releases/captures the mouse. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
+
+## Build and verify without editor interaction
 
 ```powershell
-.\scripts\test-retail.ps1
-.\scripts\build.ps1
-.\scripts\export-retail-reference.ps1
+.\scripts\test-game.ps1             # real engine imports, physics and retail-loop tests
+.\scripts\render-game-preview.ps1  # scripted GPU render; no UI automation
+.\scripts\package-game.ps1          # portable pack, startup smoke test and ZIP
+.\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Build the prototype assets with the commands in [art/README.md](art/README.md). The Houdini starter contains a new parametric shell, removable roof/HVAC, nine shelves and a hidden baseline reference. The separate Blender starter creates a detailed checkout prop, GLB and interaction-anchor manifest. Final modeling, UV/PBR, optimization and live Studio integration remain open work.
-
-The [fixture integration test](docs/ASSET_IMPORT_TEST.md) has its own `asset-test.project.json`, a preparation plugin, separate collision/interaction folders, and a loader that preserves marked imported art. The normal game remains the default. Build the kit with `scripts/build-retail-assets.ps1`; run its separate Rojo server with `scripts/serve-asset-test.ps1` on port **34873**. Actual Studio imports and live play checks are still pending.
+Verification covers real imported geometry/materials, collision proxies, character landing, delivery/stock conservation, shopper movement, distance checks, duplicate payments/refunds, day transitions and cash reconciliation. A scripted frame was inspected. Human playtesting, hardware profiling and multiplayer testing are pending.
 
 ## Source layout
 
 | Location | Purpose |
 | --- | --- |
-| `src/` | Current Roblox game, UI, catalog and v55 map |
-| `plugins/` | Studio updater and Rojo plugin |
-| `tests/` | Existing Luau regression checks |
-| `scripts/` | Build, serve, tests and reference extraction |
-| `art/houdini/` | Procedural store and fixture source |
-| `art/blender/` | Detailed props and preview source |
-| `art/reference/` | Extracted baseline |
-| `art/exports/` | Generated models/renders, ignored by Git |
-| `docs/` | Design, migration and legacy instructions |
+| `game/` | Standalone project, gameplay, UI and engine tests |
+| `game/assets/generated/` | Versioned GLBs and source/hash manifest |
+| `art/houdini/`, `art/blender/` | Procedural architecture and detailed prop sources |
+| `art/reference/` | Extracted Roblox v55 geometry and metadata |
+| `scripts/*game*.ps1` | Background setup, test, render and packaging |
+| `builds/` | Local reports and portable build; ignored by Git |
+| `src/`, `plugins/` | Preserved Roblox implementation/integration experiment |
 
-The separate shooter uses `shooter.project.json`; see [its README](shooter/README.md).
+The reference revision is `8b47f52bfb817ede3c7f556cdf503c6f848ddb25`; the static export excludes unsynced Studio edits and live shoppers/vehicles. See [baseline documentation](docs/LEGACY_V55.md), [earlier Roblox plan](docs/ROBLOX_REBUILD_PLAN.md) and [integration experiment](docs/ASSET_IMPORT_TEST.md) for history. A future Roblox port is a separate task.
 
-## First prop preview
-
-![Blender checkout prototype](art/previews/checkout-review.png)
-
-Prototype render; Roblox import and gameplay binding are still pending.
-
-First playable milestone: receive one delivery, stock a shelf, serve a shopper buying real stock, complete checkout, and close with consistent accounts. Prove that loop with two players before expanding management, staff and persistence.
+Godot runtime notices are in `game/GODOT-LICENSE.txt` and `game/GODOT-THIRD-PARTY.txt`. The asset manifest records provenance and scale. No built-in image-generation service is used.

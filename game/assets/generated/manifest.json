@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "source_to_metres": 0.28,
+  "axis": "Y up",
+  "assets": [
+    {
+      "file": "shelf.glb",
+      "source": "gondola-01.obj",
+      "tool": "Houdini",
+      "sha256": "51d502c32e1ff368116e8cf5f69f757b339bfc850d47ab5c7ce50aa7ed6f9648"
+    },
+    {
+      "file": "store-shell.glb",
+      "source": "store-shell.obj",
+      "tool": "Houdini",
+      "sha256": "ef11961bbc1af4817f11ca8690a29c240657b69e364329f80aff0c7fb93e85d8"
+    },
+    {
+      "file": "checkout.glb",
+      "source": "art/blender/build_store.py",
+      "tool": "Blender",
+      "sha256": "1f164c8e5fa7c10c376030099d7df8787761ed4065b50cf2922bb198be655444"
+    }
+  ],
+  "note": "Authored geometry; textures/LODs and final art remain work in progress."
+}

@@ -1,91 +1,79 @@
-# Retail Store Simulator — To-do
+# Retail simulator checklist
 
-[GitHub project](https://github.com/users/Tboy450/projects/2). This file holds detailed acceptance criteria; board cards track milestones. A generated model is not a completed Studio integration.
+Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through files and background commands. [GitHub project](https://github.com/users/Tboy450/projects/2). Earlier Roblox tasks are preserved in [the historical checklist](docs/ROBLOX_REBUILD_CHECKLIST.md); Studio/Rojo work is stopped.
 
-## M0 — Baseline and setup
+## M0 — Project and workflow
 
-- [x] Inspect v55 source and existing systems; record baseline revision.
-- [x] Preserve legacy README and extract static geometry, hierarchy, attributes, signs and prompts.
-- [x] Write rebuild README, design plan, art pipeline and migration inventory.
-- [x] Create GitHub rebuild project.
-- [x] Populate seven milestone cards and set the existing repository as the project's default.
-- [ ] Save dated Studio place backup including unsynced edits before replacing the live map.
-- [ ] Capture Studio screenshots/video including runtime vehicles, NPCs and companions.
-- [ ] Measure baseline FPS, memory, triangles, instances and NPC timing on target devices.
+- [x] Preserve Roblox v55 source, documentation and static reference.
+- [x] Create the GitHub project and milestone cards.
+- [x] Establish standalone project and pinned portable runtime setup.
+- [x] Add background generation, import, test and portable packaging commands.
+- [x] Capture and inspect a game frame through a script.
+- [x] Add a GitHub Actions headless check.
+- [ ] Refresh the board's older Roblox milestone text to this standalone scope. Existing API credentials lack GitHub Projects access; this checklist is current.
+- [ ] Select target hardware and establish measured budgets.
 
 ## M1 — Store foundation
 
-- [x] Choose original working identity and grounded visual direction.
-- [x] Generate editable Houdini shell, roof/HVAC and nine parametric shelf units.
-- [x] Generate and visually inspect the Blender checkout prop; export GLB and anchor/collision manifest.
-- [x] Render and inspect the Houdini shell and shelf with its native renderer.
-- [ ] Visually review the Houdini store in its native viewport and refine the foundation.
-- [ ] Approve 152 × 100 stud footprint using real avatar scale.
-- [ ] Rebuild storefront: masonry, glazing frames, entrance, canopy, signs, bollards, gutters, roof and HVAC.
-- [ ] Rebuild shell: tile, wall trim, ceiling structure and practical lighting.
-- [ ] Validate routes between parking, entrance, checkout, aisles, rooms and dock.
-- [ ] Approve exterior, interior checkout, aisle and overhead views.
+- [x] Generate editable Houdini shell, shelves and roof/HVAC source.
+- [x] Import a 22.4 × 17.92 metre shell and nine shelf instances into Godot.
+- [x] Add floor/wall collision, ceiling, practical lights, signs and movement.
+- [x] Verify character landing and separate fixture collisions in the engine.
+- [ ] Refine glazing, doors, storefront, masonry and ceiling details.
+- [ ] Complete office, stockroom, staff room, bathrooms, cooler and dock layout.
+- [ ] Review all routes at player scale and adjust provisional dimensions.
+- [ ] Inspect exterior, checkout, aisle and overhead review views.
 
-## M2 — Modular fixtures and detail
+## M2 — Art kit
 
-- [ ] Shelving: uprights, base decks, perforated backs, brackets, endcaps, price rails and labels.
-- [ ] Checkout: conveyor, divider bars, scanner, scale, card reader, monitor, printer, drawer and bags.
-- [ ] Fictional product packaging: food, drinks, household, cleaning, health and seasonal goods.
-- [ ] Refrigeration: glass doors, seals, handles, racks, vents and shelf lighting.
-- [ ] Produce/bakery: crates, fruit, bread racks, prep, mixer and oven.
-- [ ] Pharmacy: counter, pickup/dropoff, locked storage, scanner and waiting area.
-- [ ] Stock/dock: cartons, racks, pallets, pallet jack, receiving desk, dock door and controls.
-- [ ] Staff/office: seating, table, kitchenette, lockers, clock, board, desk, safe and paperwork.
-- [ ] Two bathrooms: privacy doors, toilets, sinks, mirrors, dispensers, bins and fittings.
-- [ ] Exterior: carts, baskets, bench, bins, reserved bays/access aisles, signs, pickup and service yard.
-- [ ] Vehicles: delivery truck/van and customer cars with correct cabins and wheels.
-- [ ] UVs, baked PBR maps, reusable texture sets, LODs and collision proxies.
+- [x] Author detailed Blender checkout with conveyor, scanner, till, terminal, printer and bagging return.
+- [x] Import actual GLBs with materials and a source/hash manifest.
+- [x] Keep merchandise dynamic and fixture collision separate from decoration.
+- [ ] Replace block merchandise with fictional packaging and readable price tags.
+- [ ] Finish refrigeration, produce/bakery, pharmacy, receiving, staff/office and bathroom props.
+- [ ] Add carts, baskets, parking, delivery/customer vehicles and service-yard assets.
+- [ ] Replace the shopper capsule with a rigged, animated character.
+- [ ] Finish UVs, PBR textures, wear, LODs and measured rendering budgets.
 
-## M3 — Roblox import and interactions
+## M3 — Godot integration
 
-- [ ] Import one shelf and checkout in a separate test place; verify scale, axes, pivots and materials.
-- [x] Prepare an unstocked shelf OBJ/MTL and checkout GLB with measured bounds and anchor metadata.
-- [x] Validate the checkout GLB by round-tripping its actual exported geometry and anchors.
-- [x] Add the separate asset-test Rojo project and asset preparation/scale/pivot plugin.
-- [ ] Import modular batches; record asset IDs and stable source names in a manifest.
-- [x] Implement Visuals, Collisions, InteractionAnchors and Navigation in the fixture test builder.
-- [ ] Replace decorative-name bindings with stable interaction IDs/adapters.
-- [ ] Preserve shelf attributes, checkout targets, prompts, door pivots and NPC markers.
-- [x] Add explicit opt-in asset-test mode to bootstrap and updater.
-- [x] Test missing/invalid imports, atomic publication, imported-art preservation and repeated builds.
-- [ ] Verify Play/update protections and prompt counts in actual Roblox Studio.
-- [ ] Walk all room/parking routes and test door occupancy with real avatars.
+- [x] Bind shelf, receiving and register interactions to simulation state.
+- [x] Validate distance and prevent duplicate purchases/refunds.
+- [x] Reserve real stock; restore unpaid orders on close or timeout.
+- [x] Check actual shelf/checkout material imports in the engine.
+- [ ] Replace fixed shopper waypoints with navigation and occupancy handling.
+- [ ] Add multiple products, assignment, price editing and live receipt/display updates.
+- [ ] Add accessible controls, rebinding, settings and tutorial prompts.
 
 ## M4 — First playable slice
 
-- [ ] Receive a delivery, move a carton and stock a shelf with server-owned inventory.
-- [ ] Assign products and validate prices.
-- [ ] NPC parks, enters, chooses stocked goods and queues without getting stuck.
-- [ ] Complete checkout; stock and till reconcile in integer cents.
-- [ ] Close mid-shopping/checkout; refunds happen once and all customers leave.
-- [ ] End-of-day report shows revenue, cost, margin, stock and satisfaction.
-- [ ] Repeat with two players; reject duplicate sales, remote spam and out-of-range actions.
+- [x] Order, receive, carry and stock a twelve-unit case.
+- [x] Shopper enters, takes stocked goods, queues and leaves after checkout.
+- [x] Complete a sale in integer cents; conserve inventory and reconcile cash.
+- [x] Close, restore unpaid reservations and produce a daily report.
+- [x] Start a new day with cash/stock preserved and counters reset.
+- [x] Pass automated engine tests and packaged startup verification.
+- [ ] Human playtest the complete loop and resolve usability issues.
+- [ ] Expand beyond one product and one active shopper.
 
-## M5 — Management and progression
+## M5 — Management and multiplayer
 
-- [ ] Suppliers: case quantities, lead times, delivery windows, costs and storage capacity.
-- [ ] Demand: shopping lists, price sensitivity, stock availability and patience.
-- [ ] Operating costs and readable daily profit/loss.
-- [ ] Product, fixture, staff and store upgrades.
-- [ ] Cashier/stocker staff with bounded queues and reliable navigation.
-- [ ] Co-op roles, permissions and handoffs.
-- [ ] Persistence: versioned schemas, migrations, retries, ownership and recovery.
-- [ ] Tutorial covering a complete store day.
-- [ ] Decide companion/lottery scope after the core loop works.
+- [ ] Suppliers, lead times, storage limits and delivery windows.
+- [ ] Shopping lists, demand, patience, price sensitivity and satisfaction.
+- [ ] Operating expenses, upgrades and progression.
+- [ ] Cashier/stocker staff and reliable work queues.
+- [ ] Versioned saves, migrations, recovery and load/save tests.
+- [ ] Authoritative co-op simulation, permissions and request validation.
+- [ ] Complete two-player receive → stock → sell → close tests.
+- [ ] Decide companion/lottery scope after the core game is stable.
 
 ## M6 — Polish and release
 
-- [ ] Profile real devices, streaming, draw calls, texture memory and NPC cost.
-- [ ] Meet provisional targets: 30 FPS on agreed mobile baseline, 60 FPS on target desktop.
-- [ ] Optimize repeated meshes, materials, LODs and collision based on measurements.
-- [ ] Test phone, controller and keyboard UI; scalable text and sound controls.
-- [ ] Add ambience, checkout/footstep sounds, announcements and useful feedback.
-- [ ] Design custom project branding/watermark for previews; the proposed replacement of an existing tool watermark is not implemented.
-- [ ] Complete regression tests and sustained multiplayer delivery/open-close soak.
-- [ ] Review asset provenance, fictional branding and production tool licenses.
-- [ ] Verify save migration, backup and rollback, then publish the release place.
+- [ ] Profile target hardware and optimize from measurements.
+- [ ] Add sound, ambience, announcements and animation feedback.
+- [ ] Test controller/scalable UI and assess mobile suitability.
+- [ ] Add smaller production exports, versioning and crash handling.
+- [ ] Run sustained store-day and multiplayer soak tests.
+- [ ] Design custom project preview branding; the earlier watermark-replacement proposal remains unimplemented.
+- [ ] Review asset inventory, attribution and distribution requirements.
+- [ ] Publish a tested release with recovery instructions.

@@ -1,0 +1,24 @@
+{
+	"checkout": {
+		"colored": 68,
+		"materials": 84,
+		"meshes": 84,
+		"triangles": 25144
+	},
+	"checks": 48,
+	"failures": [],
+	"passed": true,
+	"scope": "Headless engine import, physics and retail loop; human playtesting and multiplayer remain pending.",
+	"shelf": {
+		"colored": 2,
+		"materials": 5,
+		"meshes": 1,
+		"triangles": 10368
+	},
+	"shell": {
+		"colored": 4,
+		"materials": 6,
+		"meshes": 1,
+		"triangles": 7932
+	}
+}
