@@ -38,7 +38,9 @@ Connect the Rojo plugin to `localhost:34872` in Studio. Stop Play, then use **Pl
 .\scripts\export-retail-reference.ps1
 ```
 
-Build the prototype assets with the commands in [art/README.md](art/README.md). The Houdini starter contains a new parametric shell, removable roof/HVAC, nine shelves and a hidden baseline reference. The separate Blender starter creates a detailed checkout prop, GLB and interaction-anchor manifest. Final modeling, UV/PBR, optimization and Studio integration remain open work. Test imports in a separate place: the current bootstrap regenerates `Workspace.RetailStore` on Play and would replace imported art there.
+Build the prototype assets with the commands in [art/README.md](art/README.md). The Houdini starter contains a new parametric shell, removable roof/HVAC, nine shelves and a hidden baseline reference. The separate Blender starter creates a detailed checkout prop, GLB and interaction-anchor manifest. Final modeling, UV/PBR, optimization and live Studio integration remain open work.
+
+The [fixture integration test](docs/ASSET_IMPORT_TEST.md) has its own `asset-test.project.json`, a preparation plugin, separate collision/interaction folders, and a loader that preserves marked imported art. The normal game remains the default. Build the kit with `scripts/build-retail-assets.ps1`; run its separate Rojo server with `scripts/serve-asset-test.ps1` on port **34873**. Actual Studio imports and live play checks are still pending.
 
 ## Source layout
 

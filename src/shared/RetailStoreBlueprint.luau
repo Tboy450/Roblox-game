@@ -45,6 +45,9 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local forceRebuild = if options and options.forceRebuild ~= nil then options.forceRebuild else true
 
 	local existing = parent:FindFirstChild(storeName)
+	if existing and existing:GetAttribute("ImportedArt") == true then
+		error("Imported retail art is protected. Use the asset test place; the legacy blueprint will not replace this store.")
+	end
 	if existing and not forceRebuild then
 		return existing :: Model
 	end

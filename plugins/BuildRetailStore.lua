@@ -15,7 +15,7 @@ local CATALOG_NAME = "RetailCatalog"
 local HUD_CLIENT_SOURCE_NAME = "RetailHudClientSource"
 local HUD_RUNNER_NAME = "RetailHudRunner"
 local CLIENT_SCRIPT_NAME = "Client"
-local PLUGIN_VERSION = 52
+local PLUGIN_VERSION = 53
 local MIN_BLUEPRINT_VERSION = 52
 
 local autoUpdateEnabled = false
@@ -222,6 +222,13 @@ local function updateMap()
 	if not RunService:IsEdit() then
 		error("Stop the play test before updating the edit-mode map. Rojo changes are applied on the next Play.")
 	end
+	local protected = Workspace:FindFirstChild(STORE_NAME)
+	local config = ReplicatedStorage:FindFirstChild("RetailMapConfig")
+	if (protected and protected:GetAttribute("ImportedArt") == true)
+		or (config and config:GetAttribute("Mode") == "AssetTest") then
+		log("Imported-art test mode: legacy map update skipped. Use Retail Asset Kit in the separate test place.")
+		return
+	end
 	ChangeHistoryService:SetWaypoint("Before retail map update")
 
 	local blueprintModule = getBlueprintModule()
@@ -269,6 +276,9 @@ local function clearMap()
 	if not existing then
 		log("No RetailStore found to clear.")
 		return
+	end
+	if existing:GetAttribute("ImportedArt") == true then
+		error("Imported retail art is protected. Clear Map cannot delete this store. Manage it explicitly in Explorer.")
 	end
 
 	ChangeHistoryService:SetWaypoint("Before clearing retail map")

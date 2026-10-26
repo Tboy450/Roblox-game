@@ -30,7 +30,7 @@ The extractor executes the actual blueprint using repository construction double
 - Remotes: preserve `RetailRemotes` contracts and server validation during migration, including NPC reservation/cancellation/checkout bindables.
 - UI: `StarterGui.RetailHudRunner` is independent of model art and remains until deliberately replaced.
 
-Target hierarchy (requires adapter implementation):
+The fixture integration builder now implements this hierarchy in its separate test place; migration of the full legacy store remains pending:
 
 ```text
 RetailStore
@@ -40,4 +40,4 @@ RetailStore
   Navigation
 ```
 
-Give meshes stable unique names for reimport. The bootstrap and Studio updater currently regenerate the old map. Do not clear the live store or put imported art under that generated root until M3 supports it.
+Give meshes stable unique names for reimport. The new bootstrap and updater v53 protect roots marked `ImportedArt=true`; the full legacy store remains the default. The isolated asset test connects semantic shelf/register Models to separate imported visual copies and collision proxies. Actual Studio import, physics, UI and multiplayer checks are still pending. See [the import test guide](ASSET_IMPORT_TEST.md).

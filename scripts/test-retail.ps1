@@ -7,6 +7,7 @@ if (-not (Test-Path -LiteralPath $Compiler)) {
 }
 $Sources = @(Get-ChildItem -LiteralPath (Join-Path $RetailRoot 'src') -Recurse -Filter '*.luau' | ForEach-Object FullName)
 $Sources += Join-Path $RetailRoot 'plugins/BuildRetailStore.lua'
+$Sources += Join-Path $RetailRoot 'plugins/RetailAssetKit.lua'
 & $Compiler --null @Sources
 if ($LASTEXITCODE -ne 0) { throw 'Retail Luau compilation failed.' }
 & $Runner (Join-Path $RetailRoot 'tests/npc-stock-orders.spec.luau')
@@ -47,5 +48,19 @@ $VehicleTestPath = Join-Path $RetailRoot '.tools/retail-vehicle-test.luau'
 [System.IO.File]::WriteAllText($VehicleTestPath, "$Fixture`n$VehicleFixture`n$Traffic`n$VehicleChecks")
 & $Runner $VehicleTestPath
 if ($LASTEXITCODE -ne 0) { throw 'Vehicle model checks failed.' }
+
+$Definitions = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/shared/RetailAssetDefinitions.luau') -Raw
+$AssetTest = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/shared/RetailAssetTestBlueprint.luau') -Raw
+$AssetChecks = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/asset-kit-checks.luau') -Raw
+$Bootstrap = Get-Content -LiteralPath (Join-Path $RetailRoot 'src/server/BuildRetailMap.server.luau') -Raw
+$BootstrapChecks = Get-Content -LiteralPath (Join-Path $RetailRoot 'tests/asset-bootstrap-checks.luau') -Raw
+$AssetGenerated = "$Fixture`nlocal CFrame = { new = function(position) return { Position = position } end }`nlocal RetailCatalog = (function()`n$Catalog`nend)()`nlocal Definitions = (function()`n$Definitions`nend)()`nlocal function require(name) return if name == 'RetailCatalog' then RetailCatalog else Definitions end`nlocal AssetTest = (function()`n$AssetTest`nend)()`n$AssetChecks"
+$AssetGenerated += "`nlocal function runBootstrap(services)`nlocal game = { GetService = function(_, name) return services[name] end }`nlocal function require(name) assert(name == 'RetailAssetTestBlueprint'); return AssetTest end`nlocal warningLog = {}`nlocal function warn(message) table.insert(warningLog, message) end`nlocal function execute()`n$Bootstrap`nend`nexecute()`nreturn warningLog`nend`n$BootstrapChecks"
+$AssetTestPath = Join-Path $RetailRoot '.tools/retail-asset-test.luau'
+[IO.File]::WriteAllText($AssetTestPath, $AssetGenerated)
+& $Runner $AssetTestPath
+if ($LASTEXITCODE -ne 0) { throw 'Imported asset integration checks failed.' }
 & (Join-Path $RetailRoot '.tools/rojo/rojo.exe') build (Join-Path $RetailRoot 'default.project.json') -o (Join-Path $RetailRoot 'build.rbxlx')
 if ($LASTEXITCODE -ne 0) { throw 'Rojo retail build failed.' }
+& (Join-Path $RetailRoot '.tools/rojo/rojo.exe') build (Join-Path $RetailRoot 'asset-test.project.json') -o (Join-Path $RetailRoot 'art/exports/retail-asset-test.rbxlx')
+if ($LASTEXITCODE -ne 0) { throw 'Rojo asset test build failed.' }

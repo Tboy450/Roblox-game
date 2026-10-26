@@ -469,7 +469,7 @@ local function refreshShelfVisuals(unit: Model)
 			end
 			local visible = typeof(slotIndex) ~= "number" or slotIndex <= stock
 			desc.Transparency = if visible then 0 else 1
-			desc.CanCollide = visible
+			desc.CanCollide = visible and desc:GetAttribute("DecorativeProduct") ~= true
 			updatePromptText(desc, product.name)
 		end
 	end

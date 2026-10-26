@@ -18,6 +18,7 @@
 - [x] Choose original working identity and grounded visual direction.
 - [x] Generate editable Houdini shell, roof/HVAC and nine parametric shelf units.
 - [x] Generate and visually inspect the Blender checkout prop; export GLB and anchor/collision manifest.
+- [x] Render and inspect the Houdini shell and shelf with its native renderer.
 - [ ] Visually review the Houdini store in its native viewport and refine the foundation.
 - [ ] Approve 152 × 100 stud footprint using real avatar scale.
 - [ ] Rebuild storefront: masonry, glazing frames, entrance, canopy, signs, bollards, gutters, roof and HVAC.
@@ -43,12 +44,16 @@
 ## M3 — Roblox import and interactions
 
 - [ ] Import one shelf and checkout in a separate test place; verify scale, axes, pivots and materials.
+- [x] Prepare an unstocked shelf OBJ/MTL and checkout GLB with measured bounds and anchor metadata.
+- [x] Validate the checkout GLB by round-tripping its actual exported geometry and anchors.
+- [x] Add the separate asset-test Rojo project and asset preparation/scale/pivot plugin.
 - [ ] Import modular batches; record asset IDs and stable source names in a manifest.
-- [ ] Separate Visuals, Collisions, InteractionAnchors and Navigation.
+- [x] Implement Visuals, Collisions, InteractionAnchors and Navigation in the fixture test builder.
 - [ ] Replace decorative-name bindings with stable interaction IDs/adapters.
 - [ ] Preserve shelf attributes, checkout targets, prompts, door pivots and NPC markers.
-- [ ] Add explicit opt-in imported-store mode to bootstrap and updater.
-- [ ] Confirm Play/update cannot overwrite imported art or duplicate prompts.
+- [x] Add explicit opt-in asset-test mode to bootstrap and updater.
+- [x] Test missing/invalid imports, atomic publication, imported-art preservation and repeated builds.
+- [ ] Verify Play/update protections and prompt counts in actual Roblox Studio.
 - [ ] Walk all room/parking routes and test door occupancy with real avatars.
 
 ## M4 — First playable slice

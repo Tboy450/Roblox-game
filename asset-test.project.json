@@ -1,0 +1,31 @@
+{
+  "name": "retail-asset-test",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" },
+      "Packages": { "$path": "Packages" },
+      "RetailHudClientSource": { "$path": "src/client" },
+      "RetailRemotes": { "$path": "src/replicatedstorage/RetailRemotes" },
+      "RetailMapConfig": {
+        "$className": "Folder",
+        "$attributes": { "Mode": "AssetTest" }
+      }
+    },
+    "ServerStorage": {
+      "RetailAssetLibrary": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      }
+    },
+    "ServerScriptService": { "Server": { "$path": "src/server" } },
+    "StarterGui": {
+      "RetailHudRunner": {
+        "$className": "ScreenGui",
+        "$properties": { "ResetOnSpawn": false },
+        "Client": { "$path": "src/client" }
+      }
+    },
+    "Workspace": { "$ignoreUnknownInstances": true }
+  }
+}
