@@ -24,3 +24,10 @@ wally.lock
 .DS_Store
 Thumbs.db
 *.swp
+
+# Reproducible art output and DCC scratch files
+art/exports/*
+!art/exports/.gitkeep
+*.blend1
+*.blend2
+__pycache__/
