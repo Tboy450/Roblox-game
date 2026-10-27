@@ -107,6 +107,10 @@ static func run(check: Callable, directory: String) -> void:
 	baseline = JSON.stringify(file_loaded.save_data())
 	check.call(not Saves.load_into(file_loaded, path).ok and JSON.stringify(file_loaded.save_data()) == baseline, "A future schema is not silently replaced by an older backup")
 	check.call(not Saves.save(loaded, path).ok and FileAccess.get_file_as_string(path) == future_text, "Older game refuses to overwrite a future save")
+	future.version = 1000000001
+	future_text = JSON.stringify(future)
+	_write(path, future_text)
+	check.call(not Saves.load_into(file_loaded, path).ok and not Saves.save(loaded, path).ok and FileAccess.get_file_as_string(path) == future_text, "Unknown large future versions remain protected without an arbitrary version ceiling")
 	_write(path, "{damaged")
 	_write(path + ".bak", "{damaged too")
 	check.call(not Saves.load_into(file_loaded, path).ok and JSON.stringify(file_loaded.save_data()) == baseline, "Two damaged files leave the running game unchanged")
