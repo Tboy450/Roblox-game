@@ -19,6 +19,8 @@ Loading validates the complete document before assigning live fields. It checks 
 
 Version-1 saves migrate automatically: existing stock, cash, prices, deliveries and day totals are preserved, and the original shelf mapping is added. The next successful write uses version 2. A checked-in version-1 fixture verifies migration. Future schema changes need additional explicit migrations. Saves are local single-player data, not an authority for future multiplayer accounts.
 
-Control preferences use a separate `cornerfield-settings.cfg` file. Sensitivity, movement speed and UI scale are validated before applying them. They are not rolled back by loading store progress. Esc pauses simulation time and the autosave countdown; manual save/load remain available in the pause menu. Save and quit stays in the menu if writing progress fails.
+Control preferences use a separate `cornerfield-settings.cfg` file. Sensitivity, movement speed, UI scale, guide visibility and collapsed panel states are validated before applying them. They are not rolled back by loading store progress. Missing new preference fields receive defaults, including a compact dashboard. Esc pauses simulation time and the autosave countdown; manual save/load remain available in the pause menu. Save and quit stays in the menu if writing progress fails.
+
+The first-day guide derives its next action from existing inventory, deliveries, sales, report and day data. It needs no new gameplay save version. Loading a partly completed day resumes useful guidance; later days hide the introductory guide.
 
 Automated tests use unique ignored directories under `builds/`, and scripted reviews/package smoke tests disable persistence. They do not read or overwrite the player's save.

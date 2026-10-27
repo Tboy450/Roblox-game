@@ -45,7 +45,11 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add three separate product shelves, case matching, price editing and live receipt/display totals.
 - [x] Swap the three front shelves' products while closed and empty; update labels, stock locations, shopper routes and saves.
 - [x] Add pause/settings with sensitivity, movement speed, UI scale and keyboard navigation.
-- [ ] Expand the catalog, add input rebinding and improve tutorial/accessibility coverage.
+- [x] Add contextual first-day guidance for ordering, delivery, stocking, checkout and closing; follow reassigned shelves and resumed progress.
+- [x] Add a remembered guide toggle and destination marker without locking normal gameplay.
+- [x] Add minimize/restore controls to dashboard, guide and day report; remember layouts and provide compact-all/cursor shortcuts.
+- [ ] Expand the catalog and add input rebinding.
+- [ ] Playtest the guide with new players and extend keyboard-only/accessibility coverage.
 
 ## M4 — First playable slice
 

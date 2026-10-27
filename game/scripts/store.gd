@@ -6,6 +6,8 @@ const Catalog = preload("res://scripts/catalog.gd")
 const Saves = preload("res://scripts/save_store.gd")
 const Preferences = preload("res://scripts/player_settings.gd")
 const PauseMenu = preload("res://scripts/pause_menu.gd")
+const Guide = preload("res://scripts/first_day_guide.gd")
+const Foldable = preload("res://scripts/foldable_panel.gd")
 const UNIT := 0.28
 var state = State.new()
 var player: CharacterBody3D
@@ -43,12 +45,22 @@ var hud_layer: CanvasLayer
 var crosshair: Label
 var controls_hint: Label
 var shopper_slot := "beans"
+var guide_panel: PanelContainer
+var guide_title: Label
+var guide_detail: Label
+var guide_marker: Label3D
+var dashboard_panel: PanelContainer
+var report_panel: PanelContainer
+var panel_cursor := false
 
 func _ready() -> void:
 	name = "CornerfieldMarket"
 	_build_environment()
 	_build_fixtures()
 	_build_hud()
+	guide_marker = _sign("NEXT\n↓", Vector3.ZERO, 36, 0.004)
+	guide_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	guide_marker.modulate = Color("ffdc88")
 	player = Player.new()
 	player.name = "Player"
 	player.position = Vector3(-2.8, 0.4, 7.7)
@@ -216,7 +228,9 @@ func _build_hud() -> void:
 	hud_layer = layer
 	layer.name = "RetailHUD"
 	add_child(layer)
-	var panel = PanelContainer.new()
+	dashboard_panel = Foldable.new("CORNERFIELD / MARKET", true)
+	var panel = dashboard_panel
+	panel.custom_minimum_size.x = 400
 	panel.position = Vector2(24, 24)
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.035, 0.09, 0.075, 0.94)
@@ -228,10 +242,7 @@ func _build_hud() -> void:
 	style.corner_radius_bottom_right = 10
 	panel.add_theme_stylebox_override("panel", style)
 	layer.add_child(panel)
-	var column = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 7)
-	panel.add_child(column)
-	_label(column, "CORNERFIELD  /  MARKET", 22, Color("f2e6bc"))
+	var column = panel.body
 	hud = _label(column, "", 17, Color("e3e8dc"))
 	supplier_hint = _label(column, "", 15, Color("dfd0a4"))
 	_label(column, "1 / 2 / 3  Select goods    [ / ]  Price ±10¢\nB  Order case    O  Open / close    N  Next day\nR  Swap empty shelf with selected goods (closed)", 15, Color("aebeb2"))
@@ -242,11 +253,30 @@ func _build_hud() -> void:
 	notice = _label(layer, "", 17, Color("fff6df"))
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notice.position = Vector2(24, 660)
-	controls_hint = _label(layer, "WASD  Move     Mouse  Look     E  Interact     Esc  Pause / settings", 15, Color("d4ddd7"))
+	controls_hint = _label(layer, "WASD Move   E Interact   Esc Pause   Tab Panel cursor   F2 Compact/restore   H Guide", 15, Color("d4ddd7"))
 	crosshair = _label(layer, "+", 24, Color("f2edd9"))
 	crosshair.position = Vector2(632, 344)
-	report = _label(layer, "", 20, Color("f6e9be"))
-	report.position = Vector2(870, 32)
+	report_panel = Foldable.new("DAY REPORT")
+	report_panel.custom_minimum_size.x = 320
+	report_panel.add_theme_stylebox_override("panel", style.duplicate())
+	layer.add_child(report_panel)
+	report = _label(report_panel.body, "", 18, Color("f6e9be"))
+	guide_panel = Foldable.new("FIRST DAY")
+	guide_panel.custom_minimum_size.x = 320
+	var guide_style = StyleBoxFlat.new()
+	guide_style.bg_color = Color(0.06, 0.15, 0.12, 0.94)
+	guide_style.set_content_margin_all(14)
+	guide_style.set_corner_radius_all(8)
+	guide_panel.add_theme_stylebox_override("panel", guide_style)
+	layer.add_child(guide_panel)
+	var guide_column = guide_panel.body
+	guide_column.add_theme_constant_override("separation", 8)
+	guide_title = _label(guide_column, "", 17, Color("f2dfae"))
+	guide_detail = _label(guide_column, "", 16, Color("e1e9df"))
+	guide_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dashboard_panel.collapsed_changed.connect(_panel_changed.bind("dashboard_collapsed"))
+	guide_panel.collapsed_changed.connect(_panel_changed.bind("guide_collapsed"))
+	report_panel.collapsed_changed.connect(_panel_changed.bind("report_collapsed"))
 
 func _money(cents: int) -> String:
 	return "$%.2f" % (float(cents) / 100.0)
@@ -269,6 +299,7 @@ func _refresh() -> void:
 		state.day, "OPEN" if state.is_open else "CLOSED", _money(state.cash), _money(state.revenue), stock_lines,
 		state.carried, carried_name, state.receiving, state.incoming, shopper_phase.replace("_", " ")]
 	supplier_hint.text = "BUY: %s · 12 units / %s" % [Catalog.PRODUCTS[selected_product].name, _money(12 * int(Catalog.PRODUCTS[selected_product].cost))]
+	dashboard_panel.set_title("MARKET / DAY %d %s\n%s · Buy %s" % [state.day, "OPEN" if state.is_open else "CLOSED", _money(state.cash), Catalog.PRODUCTS[selected_product].short])
 	for child in stock_root.get_children():
 		stock_root.remove_child(child)
 		child.queue_free()
@@ -288,21 +319,69 @@ func _refresh() -> void:
 		report.text = ""
 	else:
 		var summary: Dictionary = state.last_report
-		report.text = "DAY %d  /  CLOSED\n\nRevenue      %s\nGoods sold   %s\nGross profit %s\nPurchases    %s\nCash change  %s\n\n%d sold · %d walkouts\nN  Begin next day" % [summary.day,
+		report_panel.set_title("DAY %d / CLOSED\nSales %s" % [summary.day, _money(summary.revenue)])
+		report.text = "Revenue      %s\nGoods sold   %s\nGross profit %s\nPurchases    %s\nCash change  %s\n\n%d sold · %d walkouts\nN  Begin next day" % [
 			_money(summary.revenue), _money(summary.cost_of_goods), _money(summary.gross_profit),
 			_money(summary.purchases), _money(summary.cash_change), summary.sold, summary.walkouts]
+	report_panel.visible = not report.text.is_empty()
+	_update_guide()
+
+func _update_guide() -> void:
+	if not is_instance_valid(guide_panel) or not is_instance_valid(guide_marker):
+		return
+	var step = Guide.current(state, shopper_phase)
+	var enabled = bool(preferences.values.guide_enabled) and not step.is_empty()
+	guide_panel.visible = enabled and not game_paused
+	guide_marker.visible = false
+	if not enabled:
+		return
+	guide_panel.set_title("FIRST DAY / %d OF %d" % [step.step, step.total])
+	guide_title.text = step.title
+	guide_detail.text = step.detail
+	if game_paused or guide_panel.collapsed or step.target.is_empty():
+		return
+	for target in targets:
+		if target.id == step.target:
+			guide_marker.position = target.at + Vector3(0, 2.3, 0)
+			guide_marker.visible = true
 
 func _message(text: String) -> void:
 	notice.text = text
 	notice_timer = 7.0
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		set_paused(not game_paused)
-		get_viewport().set_input_as_handled()
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			set_paused(not game_paused)
+			get_viewport().set_input_as_handled()
+		elif not game_paused and event.keycode == KEY_TAB:
+			panel_cursor = not panel_cursor
+			player.controls_enabled = not panel_cursor
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if panel_cursor else Input.MOUSE_MODE_CAPTURED
+			if not panel_cursor:
+				get_viewport().gui_release_focus()
+			_message("Panel cursor: click − or +. Store time continues; Tab returns to movement." if panel_cursor else "Movement restored.")
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F2:
+			compact_panels()
+			get_viewport().set_input_as_handled()
+
+func compact_panels() -> void:
+	var compact = not (dashboard_panel.collapsed and guide_panel.collapsed and report_panel.collapsed)
+	dashboard_panel.set_collapsed(compact)
+	guide_panel.set_collapsed(compact)
+	report_panel.set_collapsed(compact)
+
+func _panel_changed(collapsed: bool, key: String) -> void:
+	preferences.set_value(key, collapsed)
+	_update_guide()
+	_layout_hud()
+	if persistence_enabled:
+		preferences.save_file(settings_path)
 
 func set_paused(paused: bool) -> void:
 	game_paused = paused
+	panel_cursor = false
 	player.controls_enabled = not paused
 	pause_menu.visible = paused
 	pause_menu.panel.visible = paused
@@ -312,12 +391,17 @@ func set_paused(paused: bool) -> void:
 		pause_menu.buttons.Resume.grab_focus()
 	else:
 		get_viewport().gui_release_focus()
+	_update_guide()
 	_layout_hud()
 
 func _apply_settings() -> void:
 	player.sensitivity = float(preferences.values.sensitivity)
 	player.move_speed = float(preferences.values.move_speed)
 	hud_layer.scale = Vector2.ONE * float(preferences.values.ui_scale)
+	dashboard_panel.set_collapsed(preferences.values.dashboard_collapsed, false)
+	guide_panel.set_collapsed(preferences.values.guide_collapsed, false)
+	report_panel.set_collapsed(preferences.values.report_collapsed, false)
+	_update_guide()
 	_layout_hud()
 
 func _settings_changed() -> void:
@@ -336,7 +420,8 @@ func _layout_hud() -> void:
 	notice.position = Vector2(24, logical.y - 68)
 	notice.size.x = logical.x - 48
 	controls_hint.position = Vector2(24, logical.y - 28)
-	report.position = Vector2(maxf(24, logical.x - 350), 24)
+	report_panel.position = Vector2(maxf(24, logical.x - 344), 24)
+	guide_panel.position = Vector2(maxf(24, logical.x - 344), 24 if report.text.is_empty() else 40 + report_panel.get_combined_minimum_size().y)
 	pause_menu.layout(screen, ui_scale)
 
 func _menu_save() -> void:
@@ -352,7 +437,7 @@ func _quit_game() -> void:
 	get_tree().quit()
 
 func reassign_nearby_shelf() -> bool:
-	if game_paused:
+	if game_paused or panel_cursor:
 		return false
 	var target = nearest_target()
 	if target.is_empty() or not target.has("slot"):
@@ -447,7 +532,7 @@ func nearest_target() -> Dictionary:
 
 func perform_action(id: String) -> bool:
 	# All physical actions validate distance here, including programmatic callers.
-	if game_paused:
+	if game_paused or panel_cursor:
 		return false
 	var target: Dictionary = {}
 	for item in targets:
@@ -476,17 +561,19 @@ func perform_action(id: String) -> bool:
 	return false
 
 func _interact() -> void:
-	if game_paused:
+	if game_paused or panel_cursor:
 		return
 	var target = nearest_target()
 	if not target.is_empty():
 		perform_action(target.id)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if game_paused:
+	if game_paused or panel_cursor:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_H:
+				pause_menu.guide_toggle.button_pressed = not pause_menu.guide_toggle.button_pressed
 			KEY_R:
 				reassign_nearby_shelf()
 			KEY_1, KEY_2, KEY_3:
@@ -614,11 +701,12 @@ func _process(delta: float) -> void:
 		prompt.text = ""
 		return
 	simulate(delta)
+	_update_guide()
 	if save_countdown >= 0 and not save_blocked:
 		save_countdown -= delta
 		if save_countdown <= 0:
 			_save_game(false)
-	var target = nearest_target()
+	var target = {} if panel_cursor else nearest_target()
 	prompt.text = str(target.label) if not target.is_empty() else ""
 	notice_timer -= delta
 	if notice_timer <= 0:

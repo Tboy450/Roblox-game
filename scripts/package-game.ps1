@@ -34,6 +34,15 @@ Pause/settings includes Resume, Save, Load and Save and quit. Mouse sensitivity,
 movement speed and UI scale (80-125%) save separately in cornerfield-settings.cfg.
 Tab and arrow keys can navigate the menu. Pausing stops all store timers.
 
+The dashboard starts compact. Click each panel's - / + button to minimize or
+restore it; Tab releases/recaptures the panel cursor. Store time continues in
+cursor mode. F2 compacts/restores all HUD panels, including while paused.
+These layout preferences are remembered separately from store progress.
+
+A first-day guide follows ordering, receiving, stocking, checkout and closing,
+with NEXT markers at relevant fixtures. It follows reassigned shelves and saved
+progress. H toggles the guide; the pause menu has a remembered checkbox too.
+
 F5 saves; F9 loads. Progress loads automatically on startup and autosaves after
 transactions and on normal window close. Files use Godot's Cornerfield Market
 user-data folder: cornerfield-save.json, with a previous-valid-save .bak.

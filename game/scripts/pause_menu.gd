@@ -12,6 +12,7 @@ var status: Label
 var sliders: Dictionary = {}
 var value_labels: Dictionary = {}
 var buttons: Dictionary = {}
+var guide_toggle: CheckButton
 
 func _ready() -> void:
 	layer = 10
@@ -42,6 +43,11 @@ func _ready() -> void:
 		slider.value_changed.connect(_changed.bind(key))
 		column.add_child(slider)
 		sliders[key] = slider
+	guide_toggle = CheckButton.new()
+	guide_toggle.text = "Show first-day guide (H)"
+	guide_toggle.button_pressed = preferences.values.guide_enabled
+	guide_toggle.toggled.connect(_guide_toggled)
+	column.add_child(guide_toggle)
 	for entry in [["Resume", resume_requested], ["Save progress", save_requested], ["Load progress", load_requested], ["Save and quit", quit_requested]]:
 		var button = Button.new()
 		button.text = entry[0]
@@ -67,6 +73,10 @@ func _changed(value: float, key: String) -> void:
 	if preferences.set_value(key, value):
 		_update_labels()
 		settings_changed.emit()
+
+func _guide_toggled(enabled: bool) -> void:
+	preferences.set_value("guide_enabled", enabled)
+	settings_changed.emit()
 
 func _update_labels() -> void:
 	value_labels.sensitivity.text = "Mouse sensitivity   %.1f×" % (float(preferences.values.sensitivity) / 0.002)

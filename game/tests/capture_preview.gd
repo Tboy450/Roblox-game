@@ -48,4 +48,26 @@ func _capture() -> void:
 	print("SETTINGS_PREVIEW_RESULT ", settings_result, " ", settings_image.get_size())
 	if settings_result != OK:
 		result = settings_result
+	world.set_paused(false)
+	var order = world.state.reserve(1, "beans")
+	world.state.checkout(order)
+	world.state.close_store()
+	world._message("Prototype review: daily report complete.")
+	for frame in range(8):
+		world._layout_hud()
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var report_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-day-report-preview.png"))
+	print("DAY_REPORT_PREVIEW_RESULT ", report_result)
+	if report_result != OK:
+		result = report_result
+	world.compact_panels()
+	for frame in range(8):
+		world._layout_hud()
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var compact_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-compact-preview.png"))
+	print("COMPACT_PREVIEW_RESULT ", compact_result)
+	if compact_result != OK:
+		result = compact_result
 	quit(result)

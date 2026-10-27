@@ -23,6 +23,8 @@ Version-2 saves preserve product inventory/prices, shelf assignments, cash, day,
 
 The three front shelves can swap product assignments while both affected shelves are empty and the store is closed. Runtime stock, labels and shopper routes use the current mapping. Esc pauses simulation and opens control settings, with manual save/load and a save-and-quit action. Preferences are separate from store progress.
 
+First-day guidance derives the next action from real progress and follows reassigned fixture locations. H and a pause-menu checkbox control visibility. The dashboard, guide and report minimize to title bars; F2 compacts/restores them together, and Tab exposes a panel cursor while store time continues. Their layout preferences persist separately from store accounts.
+
 ## Milestones
 
 | ID | Deliverable | Acceptance gate |

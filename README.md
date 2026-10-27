@@ -29,6 +29,8 @@ The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract an
 
 ## Play a store day
 
+A first-day guide shows the next useful action and marks Receiving, the matching shelf or Checkout 01 when relevant. It adapts to saved progress and shelf reassignment. **H** hides/shows it; the pause menu remembers your preference. It does not lock normal gameplay and disappears after day one.
+
 1. **1 / 2 / 3** selects beans, oats or hand soap. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00). Delivery takes four seconds.
 2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
 3. Approach the matching **Pantry**, **Breakfast** or **Household** shelf and press **E** to stock it. A case cannot fill a different product's shelf.
@@ -42,7 +44,9 @@ While closed, select goods with **1/2/3**, look at a nearby empty shelf and pres
 
 ## Pause and control settings
 
-**Esc** pauses deliveries, shoppers and movement. The menu offers Resume, Save, Load and Save and quit. Sliders adjust mouse sensitivity, movement speed and UI scale (80–125%); Tab and arrow keys work too. Preferences are saved separately in `cornerfield-settings.cfg`, so loading store progress does not reset controls. Invalid preferences leave existing defaults unchanged.
+The dashboard, guide and day report each have **− / +** minimize/restore buttons. The dashboard starts compact, retaining cash, day and selected goods. **F2** compacts/restores all panels. **Tab** releases the mouse for individual buttons and returns to movement when pressed again. Store time continues in panel-cursor mode; Esc pauses it. Panel states are remembered separately from store progress.
+
+**Esc** pauses deliveries, shoppers and movement. The menu offers Resume, Save, Load and Save and quit. Sliders adjust mouse sensitivity, movement speed and UI scale (80–125%); Tab and arrow keys work too. A checkbox controls first-day guidance. Preferences are saved separately in `cornerfield-settings.cfg`, so loading store progress does not reset controls. Invalid preferences leave existing defaults unchanged.
 
 ![Pause/settings menu at 125% UI scale](art/previews/godot-settings.png)
 
@@ -61,7 +65,7 @@ Resume starts closed, returns unpaid baskets to their shelves, and preserves she
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real geometry/materials, physics, product shopping and reassignment, pricing/accounting, save migration/recovery, pause behavior and settings persistence. Scripted frames are inspected, including the menu at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing are pending.
+Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression and panel controls. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
 
 ## Source layout
 
