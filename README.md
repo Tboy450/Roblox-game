@@ -2,7 +2,7 @@
 
 A standalone simulator built in **Godot**, with **Houdini** procedural buildings and shelves and a **Blender** checkout. Development uses source files, background generation, headless engine tests and scripted renders. Roblox is the reference; Studio and Rojo are not required for this game.
 
-**Status: first playable prototype.** Order a case, collect it, stock the pantry shelf, open, serve a shopper and close with a reconciled report. One product and one active shopper are implemented. Final art, supporting rooms, saves, staff and multiplayer remain open work.
+**Status: playable prototype with saved progress.** Order cases, stock three product shelves, edit prices, serve shoppers and close with a reconciled report. Beans, oats and hand soap have separate stock and costs; one shopper is active at a time. Final art, supporting rooms, staff and multiplayer remain open work.
 
 ![Actual Godot prototype, captured by script](art/previews/godot-prototype.png)
 
@@ -29,14 +29,20 @@ The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract an
 
 ## Play a store day
 
-1. **B** orders twelve cans of Harvest Beans for **$8.40**. Delivery takes four seconds.
+1. **1 / 2 / 3** selects beans, oats or hand soap. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00). Delivery takes four seconds.
 2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
-3. Approach the marked **Pantry** shelf and press **E** to stock it.
-4. **O** opens. A shopper enters, takes an available item and walks to Checkout 01.
-5. Approach checkout and press **E** to complete the **$1.49** purchase.
+3. Approach the matching **Pantry**, **Breakfast** or **Household** shelf and press **E** to stock it. A case cannot fill a different product's shelf.
+4. **[ / ]** adjusts the selected product's sale price by ten cents. **O** opens; shoppers rotate among stocked goods and walk to Checkout 01.
+5. Approach checkout and press **E** to complete the purchase. Baskets retain the price quoted at pickup; the display and receipt show the actual sale.
 6. **O** closes and returns unpaid reservations to stock. The report separates revenue, cost of goods, purchases and cash movement. **N** starts the next day.
 
 **WASD** moves, the **mouse** looks, and **Esc** releases/captures the mouse. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
+
+## Saved progress
+
+**F5** saves and **F9** loads. The game loads automatically on startup and autosaves after transactions and normal window close. Files live in Godot's Cornerfield Market user-data folder: `cornerfield-save.json` and its previous valid `.bak`. See [save behavior and recovery](docs/SAVES.md).
+
+Resume starts closed, returns unpaid baskets to their shelves, and preserves product stock/prices, carried and incoming cases, delivery time, cash, day and daily totals. Damaged primary saves can recover from backup. Failed loads preserve the current game and pause autosaving; newer-version saves are not overwritten.
 
 ## Build and verify without editor interaction
 
@@ -47,7 +53,7 @@ The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract an
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real imported geometry/materials, collision proxies, character landing, delivery/stock conservation, shopper movement, distance checks, duplicate payments/refunds, day transitions and cash reconciliation. A scripted frame was inspected. Human playtesting, hardware profiling and multiplayer testing are pending.
+Verification covers real geometry/materials, physics, three-product shopping, quoted prices, duplicate payments/refunds, day transitions, cash reconciliation, save round-trips, backup recovery, damaged/newer saves and scene-level save/load. Scripted frames are inspected. Human playtesting, hardware profiling and multiplayer testing are pending.
 
 ## Source layout
 

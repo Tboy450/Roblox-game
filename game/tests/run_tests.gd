@@ -1,5 +1,6 @@
 extends SceneTree
 const State = preload("res://scripts/retail_state.gd")
+const Progression = preload("res://tests/progression_tests.gd")
 var failures: Array[String] = []
 var checks := 0
 
@@ -74,7 +75,11 @@ func _asset_stats(node: Node) -> Dictionary:
 
 func _run() -> void:
 	_ledger_tests()
+	var test_directory = ProjectSettings.globalize_path("res://").path_join("../builds/save-tests-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]).simplify_path()
+	DirAccess.make_dir_recursive_absolute(test_directory)
+	Progression.run(check, test_directory)
 	var world = load("res://main.tscn").instantiate()
+	world.persistence_enabled = false
 	root.add_child(world)
 	world.set_process(false)
 	world.player.set_physics_process(false)
@@ -99,7 +104,7 @@ func _run() -> void:
 	world.player.position = Vector3(-8, 0.3, 8.5)
 	check(world.perform_action("receiving"), "Player can collect delivered case nearby")
 	world.player.position = Vector3(-7, 0.3, 5.7)
-	check(world.perform_action("shelf") and world.stock_root.get_child_count() == 24, "Restocking drives twelve products and twelve labels")
+	check(world.perform_action("shelf") and world.stock_root.get_child_count() == 12, "Restocking drives twelve product visuals with labels")
 	world.state.open_store()
 	for index in range(600):
 		world.simulate(0.1)
@@ -137,6 +142,7 @@ func _run() -> void:
 		await physics_frame
 	world.player.set_physics_process(false)
 	check(absf(world.player.position.y - 0.28) < 0.08, "Character controller lands on the imported store's floor")
+	Progression.scene_checks(world, check, test_directory)
 	var result = {"passed": failures.is_empty(), "checks": checks, "failures": failures,
 		"checkout": checkout, "shelf": shelf, "shell": shell,
 		"scope": "Headless engine import, physics and retail loop; human playtesting and multiplayer remain pending."}

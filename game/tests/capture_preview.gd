@@ -5,18 +5,20 @@ func _initialize() -> void:
 
 func _capture() -> void:
 	var world = load("res://main.tscn").instantiate()
+	world.persistence_enabled = false
 	root.add_child(world)
 	world.set_process(false)
 	world.player.set_physics_process(false)
 	world.player.position = Vector3(-2.8, 0.3, 7.7)
 	world.player.rotation.y = 0.0
 	world.player.camera.rotation.x = -0.08
-	world.state.order_case()
-	world.state.tick(4.0)
-	world.state.collect_case()
-	world.state.restock()
+	for product in world.Catalog.IDS:
+		world.state.order_case(product)
+		world.state.tick(4.0)
+		world.state.collect_case()
+		world.state.restock(product)
 	world.state.open_store()
-	world._message("Prototype review: pantry stocked, store open.")
+	world._message("Prototype review: three products stocked, editable prices, store open.")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for frame in range(8):
 		await process_frame

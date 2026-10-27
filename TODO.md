@@ -42,7 +42,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Reserve real stock; restore unpaid orders on close or timeout.
 - [x] Check actual shelf/checkout material imports in the engine.
 - [ ] Replace fixed shopper waypoints with navigation and occupancy handling.
-- [ ] Add multiple products, assignment, price editing and live receipt/display updates.
+- [x] Add three separate product shelves, case matching, price editing and live receipt/display totals.
+- [ ] Allow reassignment of shelf product types and expand the catalog.
 - [ ] Add accessible controls, rebinding, settings and tutorial prompts.
 
 ## M4 — First playable slice
@@ -54,7 +55,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Start a new day with cash/stock preserved and counters reset.
 - [x] Pass automated engine tests and packaged startup verification.
 - [ ] Human playtest the complete loop and resolve usability issues.
-- [ ] Expand beyond one product and one active shopper.
+- [x] Expand to beans, oats and hand soap with separate stock, costs and prices.
+- [ ] Expand beyond one active shopper and implement real queues.
 
 ## M5 — Management and multiplayer
 
@@ -62,7 +64,9 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [ ] Shopping lists, demand, patience, price sensitivity and satisfaction.
 - [ ] Operating expenses, upgrades and progression.
 - [ ] Cashier/stocker staff and reliable work queues.
-- [ ] Versioned saves, migrations, recovery and load/save tests.
+- [x] Add versioned saves, atomic primary replacement, previous-valid backup, autosave and recovery tests.
+- [x] Preserve cash, prices, stock, carried/incoming cases and daily progress across load.
+- [ ] Add migrations when the save schema changes and validate long-running campaigns.
 - [ ] Authoritative co-op simulation, permissions and request validation.
 - [ ] Complete two-player receive → stock → sell → close tests.
 - [ ] Decide companion/lottery scope after the core game is stable.

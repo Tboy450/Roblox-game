@@ -2,6 +2,8 @@ extends Node3D
 ## First standalone slice. Build the scene and UI from source; no editor clicks.
 const State = preload("res://scripts/retail_state.gd")
 const Player = preload("res://scripts/player.gd")
+const Catalog = preload("res://scripts/catalog.gd")
+const Saves = preload("res://scripts/save_store.gd")
 const UNIT := 0.28
 var state = State.new()
 var player: CharacterBody3D
@@ -18,6 +20,19 @@ var shopper_patience := 0.0
 var arrival_timer := 2.0
 var targets: Array[Dictionary] = []
 var notice_timer := 0.0
+var selected_product := "beans"
+var shelf_signs: Dictionary = {}
+var supplier_hint: Label
+var save_hint: Label
+var register_display: Label3D
+var receipt_display: Label3D
+var last_receipt := ""
+var shopper_product := "beans"
+var shopper_choice := 0
+var persistence_enabled := true
+var save_path := Saves.DEFAULT_PATH
+var save_countdown := -1.0
+var save_blocked := false
 
 func _ready() -> void:
 	name = "CornerfieldMarket"
@@ -29,9 +44,15 @@ func _ready() -> void:
 	player.position = Vector3(-2.8, 0.4, 7.7)
 	add_child(player)
 	player.interacted.connect(_interact)
-	state.changed.connect(_refresh)
+	state.changed.connect(_on_state_changed)
+	persistence_enabled = persistence_enabled and not "--no-save" in OS.get_cmdline_user_args() and not "--verify-prototype" in OS.get_cmdline_user_args()
+	if persistence_enabled:
+		get_tree().auto_accept_quit = false
+		if FileAccess.file_exists(save_path) or FileAccess.file_exists(save_path + ".bak"):
+			_load_game(false)
 	_refresh()
-	_message("Welcome. Order your first case with B, then collect it from Receiving.")
+	if notice.text.is_empty():
+		_message("Choose goods with 1 / 2 / 3, then B to order. E collects or stocks a case.")
 	if "--verify-prototype" in OS.get_cmdline_user_args():
 		print("CORNERFIELD_SCENE_READY")
 		get_tree().quit(0)
@@ -140,13 +161,22 @@ func _build_fixtures() -> void:
 	stock_root = Node3D.new()
 	stock_root.name = "DynamicStock"
 	add_child(stock_root)
-	_sign("PANTRY  /  HARVEST BEANS  $1.49", Vector3(-7, 2.9, 4.45), 36, 0.005)
-	targets.append({"id": "shelf", "at": Vector3(-7, 1.1, 4.65), "label": "E  Stock pantry shelf"})
+	for product in Catalog.IDS:
+		var info: Dictionary = Catalog.PRODUCTS[product]
+		shelf_signs[product] = _sign("", Vector3(info.shelf_x, 2.9, 4.45), 32, 0.005)
+		targets.append({"id": "shelf" if product == "beans" else "shelf_" + product,
+			"product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "E  Stock " + info.name})
 	_asset("res://assets/generated/checkout.glb", "BlenderCheckout", Vector3(5, 0.28, 6.5))
 	_collider("CheckoutCabinet", Vector3(5, 0.77, 6.5), Vector3(1.176, 0.98, 2.408))
 	_collider("BaggingReturn", Vector3(6.106, 1.184, 5.884), Vector3(0.896, 0.0784, 1.176))
 	targets.append({"id": "checkout", "at": Vector3(4.55, 1.4, 6.0), "label": "E  Complete customer's purchase"})
 	_sign("CHECKOUT 01", Vector3(5, 2.5, 6.3), 44, 0.005)
+	register_display = _sign("READY", Vector3(4.776, 1.753, 5.754), 28, 0.0009)
+	register_display.outline_size = 0
+	receipt_display = _sign("", Vector3(5.308, 1.438, 5.682), 24, 0.00035)
+	receipt_display.rotation.x = -PI / 2
+	receipt_display.modulate = Color("182c24")
+	receipt_display.outline_size = 0
 	_box(self, "ReceivingTable", Vector3(-8, 0.73, 7.45), Vector3(2.2, 0.9, 0.9), Color("725f48"))
 	_sign("RECEIVING  /  B TO ORDER", Vector3(-8, 1.7, 7.45), 36, 0.005)
 	targets.append({"id": "receiving", "at": Vector3(-8, 1.2, 7.9), "label": "E  Collect delivered case"})
@@ -181,7 +211,9 @@ func _build_hud() -> void:
 	panel.add_child(column)
 	_label(column, "CORNERFIELD  /  MARKET", 22, Color("f2e6bc"))
 	hud = _label(column, "", 17, Color("e3e8dc"))
-	_label(column, "B  Order 12 beans ($8.40)\nO  Open / close    N  Next day", 15, Color("aebeb2"))
+	supplier_hint = _label(column, "", 15, Color("dfd0a4"))
+	_label(column, "1 / 2 / 3  Select goods    [ / ]  Price ±10¢\nB  Order case    O  Open / close    N  Next day", 15, Color("aebeb2"))
+	save_hint = _label(column, "F5  Save    F9  Load", 14, Color("aebeb2"))
 	prompt = _label(layer, "", 22, Color("fff0c4"))
 	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	prompt.position = Vector2(450, 585)
@@ -200,19 +232,29 @@ func _money(cents: int) -> String:
 func _refresh() -> void:
 	if not is_instance_valid(hud):
 		return
-	hud.text = "DAY %d  /  %s\nCash %s    Sales %s\nShelf %d / 12    Carrying %d\nReceiving %d    On order %d\nCustomer: %s" % [
-		state.day, "OPEN" if state.is_open else "CLOSED", _money(state.cash), _money(state.revenue),
-		state.shelf, state.carried, state.receiving, state.incoming, shopper_phase.replace("_", " ")]
+	var stock_lines := ""
+	for product in Catalog.IDS:
+		stock_lines += "\n%s %d / 12  @ %s" % [Catalog.PRODUCTS[product].short, state.stocks[product], _money(state.prices[product])]
+		shelf_signs[product].text = "%s\n%s  %s" % [Catalog.PRODUCTS[product].department, Catalog.PRODUCTS[product].name, _money(state.prices[product])]
+	var carried_name = Catalog.PRODUCTS[state.carried_product].short if state.carried > 0 else "—"
+	hud.text = "DAY %d  /  %s\nCash %s    Sales %s%s\nCarrying %d %s\nReceiving %d    On order %d\nCustomer: %s" % [
+		state.day, "OPEN" if state.is_open else "CLOSED", _money(state.cash), _money(state.revenue), stock_lines,
+		state.carried, carried_name, state.receiving, state.incoming, shopper_phase.replace("_", " ")]
+	supplier_hint.text = "BUY: %s · 12 units / %s" % [Catalog.PRODUCTS[selected_product].name, _money(12 * int(Catalog.PRODUCTS[selected_product].cost))]
 	for child in stock_root.get_children():
 		stock_root.remove_child(child)
 		child.queue_free()
-	for index in range(state.shelf):
-		var tier = index / 3
-		var slot = index % 3
-		var at = Vector3(-7.92 + slot * 0.92, 0.28 + 0.65 * UNIT + tier * 2.45 * UNIT + 0.17, 4.12)
-		_box(stock_root, "HarvestBeans", at, Vector3(0.22, 0.34, 0.2), Color("c17b38"), false)
-		var wrap = _box(stock_root, "PaperLabel", at + Vector3(0, 0, 0.102), Vector3(0.2, 0.16, 0.006), Color("e9dfb5"), false)
-		wrap.set_meta("decorative", true)
+	for product in Catalog.IDS:
+		for index in range(int(state.stocks[product])):
+			var tier = index / 3
+			var slot = index % 3
+			var at = Vector3(float(Catalog.PRODUCTS[product].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.65 * UNIT + tier * 2.45 * UNIT + 0.17, 4.12)
+			_product_visual(product, at)
+	register_display.text = "READY"
+	if state.orders.has(shopper_order):
+		var basket: Dictionary = state.orders[shopper_order]
+		register_display.text = "TOTAL\n" + _money(int(basket.quantity) * int(basket.unit_price))
+	receipt_display.text = last_receipt
 	if state.last_report.is_empty():
 		report.text = ""
 	else:
@@ -224,6 +266,78 @@ func _refresh() -> void:
 func _message(text: String) -> void:
 	notice.text = text
 	notice_timer = 7.0
+
+func _product_visual(product: String, at: Vector3) -> void:
+	var root = Node3D.new()
+	root.name = product
+	root.position = at
+	root.set_meta("product_id", product)
+	stock_root.add_child(root, true)
+	var color = Color(Catalog.PRODUCTS[product].color)
+	if product == "oats":
+		_box(root, "Carton", Vector3(0, 0.03, 0), Vector3(0.24, 0.4, 0.2), color, false)
+	else:
+		var body = MeshInstance3D.new()
+		var cylinder = CylinderMesh.new()
+		cylinder.top_radius = 0.11 if product == "beans" else 0.08
+		cylinder.bottom_radius = 0.11
+		cylinder.height = 0.34
+		cylinder.radial_segments = 16
+		body.mesh = cylinder
+		body.material_override = _material(color)
+		root.add_child(body)
+		_box(root, "Lid" if product == "beans" else "Pump", Vector3(0, 0.18, 0), Vector3(0.18 if product == "beans" else 0.1, 0.025 if product == "beans" else 0.06, 0.16), Color("b9bbae"), false)
+	_box(root, "Label", Vector3(0, 0, 0.106), Vector3(0.19, 0.15, 0.007), Color("e9dfb5"), false)
+
+func _on_state_changed() -> void:
+	_refresh()
+	if persistence_enabled and not save_blocked:
+		save_countdown = 0.75
+
+func _save_game(manual: bool = true) -> bool:
+	if not persistence_enabled:
+		return false
+	var result = Saves.save(state, save_path)
+	save_countdown = -1.0
+	save_blocked = not result.ok
+	save_hint.text = "F5  Save    F9  Load  /  " + ("Saved" if result.ok else "Save paused")
+	if manual or not result.ok:
+		_message("Progress saved. Unpaid baskets return to shelves on resume." if result.ok else result.error)
+	return result.ok
+
+func _load_game(manual: bool = true) -> bool:
+	if not persistence_enabled:
+		return false
+	var result = Saves.load_into(state, save_path)
+	if not result.ok:
+		save_blocked = true
+		save_countdown = -1.0
+		save_hint.text = "F5  Save    F9  Load  /  Save paused"
+		_message("Load failed; current progress unchanged. " + result.error)
+		return false
+	if is_instance_valid(shopper):
+		shopper.queue_free()
+	shopper = null
+	shopper_order = -1
+	shopper_phase = "absent"
+	shopper_path.clear()
+	arrival_timer = 2.0
+	last_receipt = ""
+	save_countdown = -1.0
+	save_blocked = false
+	player.position = Vector3(-2.8, 0.4, 7.7)
+	player.velocity = Vector3.ZERO
+	_refresh()
+	save_hint.text = "F5  Save    F9  Load  /  " + ("Backup recovered" if result.recovered else "Loaded")
+	if manual or result.recovered:
+		_message("Recovered the previous valid save. Store resumed closed." if result.recovered else "Loaded. Store resumed closed; unpaid goods returned to shelves.")
+	return true
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and persistence_enabled:
+		if not save_blocked:
+			_save_game(false)
+		get_tree().quit()
 
 func nearest_target() -> Dictionary:
 	var nearest: Dictionary = {}
@@ -244,20 +358,22 @@ func perform_action(id: String) -> bool:
 			target = item
 	if target.is_empty() or player.camera.global_position.distance_to(target.at) > 2.4:
 		return false
+	if target.has("product"):
+		var added = state.restock(target.product)
+		_message("Stocked %d %s." % [added, Catalog.PRODUCTS[target.product].short] if added > 0 else "Carry the matching case, and leave room on this shelf.")
+		return added > 0
 	match id:
 		"receiving":
 			var success = state.collect_case()
 			_message("Carrying a case. Stock the marked pantry shelf." if success else "No case ready. B orders one; delivery takes four seconds.")
 			return success
-		"shelf":
-			var added = state.restock()
-			_message("Stocked %d units." % added if added > 0 else "Collect a case first, or wait until there is shelf space.")
-			return added > 0
 		"checkout":
+			var basket: Dictionary = state.orders.get(shopper_order, {})
 			if shopper_phase == "waiting_at_checkout" and state.checkout(shopper_order):
+				last_receipt = Catalog.PRODUCTS[basket.product].short + "\n" + _money(int(basket.quantity) * int(basket.unit_price))
 				shopper_order = -1
 				_leave_shop()
-				_message("Sale complete. Harvest beans: $1.49. Thank you!")
+				_message("Sale complete: " + last_receipt.replace("\n", " ") + ". Thank you!")
 				return true
 			_message("No customer ready at checkout.")
 	return false
@@ -270,8 +386,18 @@ func _interact() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_1, KEY_2, KEY_3:
+				selected_product = Catalog.IDS[event.keycode - KEY_1]
+				_refresh()
+			KEY_BRACKETLEFT, KEY_BRACKETRIGHT:
+				var change = -10 if event.keycode == KEY_BRACKETLEFT else 10
+				state.set_price(selected_product, clampi(int(state.prices[selected_product]) + change, 1, 9999))
 			KEY_B:
-				_message("Case ordered. Delivery arrives in four seconds." if state.order_case() else "Collect the waiting case first, or check your cash.")
+				_message("Ordered " + Catalog.PRODUCTS[selected_product].name + ". Delivery in four seconds." if state.order_case(selected_product) else "Collect the waiting case first, or check your cash.")
+			KEY_F5:
+				_save_game()
+			KEY_F9:
+				_load_game()
 			KEY_O:
 				if state.is_open:
 					state.close_store()
@@ -287,6 +413,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					_message("New day. Stock and cash carried forward.")
 
 func _spawn_shopper() -> void:
+	for offset in range(Catalog.IDS.size()):
+		var candidate: String = Catalog.IDS[(shopper_choice + offset) % Catalog.IDS.size()]
+		if int(state.stocks[candidate]) > 0:
+			shopper_product = candidate
+			break
+	shopper_choice += 1
 	shopper = Node3D.new()
 	shopper.name = "ShopperPrototype"
 	shopper.position = Vector3(-1, 0.28, 10.8)
@@ -310,7 +442,10 @@ func _spawn_shopper() -> void:
 	_box(shopper, "Basket", Vector3(0.32, 0.65, 0), Vector3(0.4, 0.3, 0.3), Color("315d48"), false)
 	shopper_phase = "browsing"
 	shopper_order = -1
-	shopper_path = [Vector3(-3, 0.28, 7.3), Vector3(-4.7, 0.28, 5.4), Vector3(-7, 0.28, 5.4)]
+	if shopper_product == "soap":
+		shopper_path = [Vector3(0, 0.28, 8.4), Vector3(8, 0.28, 8.4), Vector3(8, 0.28, 5.4), Vector3(7, 0.28, 5.4)]
+	else:
+		shopper_path = [Vector3(-3, 0.28, 7.3), Vector3(-3, 0.28, 5.4), Vector3(float(Catalog.PRODUCTS[shopper_product].shelf_x), 0.28, 5.4)]
 	_refresh()
 
 func _leave_shop() -> void:
@@ -338,13 +473,16 @@ func simulate(delta: float) -> void:
 		return
 	match shopper_phase:
 		"browsing":
-			shopper_order = state.reserve(1)
+			shopper_order = state.reserve(1, shopper_product)
 			if shopper_order < 0:
 				state.walkouts += 1
 				_leave_shop()
 			else:
 				shopper_phase = "walking_to_checkout"
-				shopper_path = [Vector3(-4.7, 0.28, 5.4), Vector3(-3, 0.28, 7.3), Vector3(2, 0.28, 8), Vector3(5, 0.28, 8)]
+				if shopper_product == "soap":
+					shopper_path = [Vector3(8, 0.28, 5.4), Vector3(8, 0.28, 8.4), Vector3(5, 0.28, 8)]
+				else:
+					shopper_path = [Vector3(-3, 0.28, 5.4), Vector3(-3, 0.28, 7.3), Vector3(2, 0.28, 8), Vector3(5, 0.28, 8)]
 				_refresh()
 		"walking_to_checkout":
 			shopper_phase = "waiting_at_checkout"
@@ -366,6 +504,10 @@ func simulate(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	simulate(delta)
+	if save_countdown >= 0 and not save_blocked:
+		save_countdown -= delta
+		if save_countdown <= 0:
+			_save_game(false)
 	var target = nearest_target()
 	prompt.text = str(target.label) if not target.is_empty() else ""
 	notice_timer -= delta
