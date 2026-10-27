@@ -1,6 +1,7 @@
 extends SceneTree
 const State = preload("res://scripts/retail_state.gd")
 const Progression = preload("res://tests/progression_tests.gd")
+const Usability = preload("res://tests/usability_tests.gd")
 var failures: Array[String] = []
 var checks := 0
 
@@ -78,6 +79,7 @@ func _run() -> void:
 	var test_directory = ProjectSettings.globalize_path("res://").path_join("../builds/save-tests-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]).simplify_path()
 	DirAccess.make_dir_recursive_absolute(test_directory)
 	Progression.run(check, test_directory)
+	Usability.run(check, test_directory)
 	var world = load("res://main.tscn").instantiate()
 	world.persistence_enabled = false
 	root.add_child(world)
@@ -143,6 +145,7 @@ func _run() -> void:
 	world.player.set_physics_process(false)
 	check(absf(world.player.position.y - 0.28) < 0.08, "Character controller lands on the imported store's floor")
 	Progression.scene_checks(world, check, test_directory)
+	Usability.scene_checks(world, check, test_directory)
 	var result = {"passed": failures.is_empty(), "checks": checks, "failures": failures,
 		"checkout": checkout, "shelf": shelf, "shell": shell,
 		"scope": "Headless engine import, physics and retail loop; human playtesting and multiplayer remain pending."}

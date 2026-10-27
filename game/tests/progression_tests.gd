@@ -64,7 +64,7 @@ static func run(check: Callable, directory: String) -> void:
 	bad.delivery_seconds = 3
 	damaged.append(bad)
 	bad = snapshot.duplicate(true)
-	bad.version = 2
+	bad.version = State.SAVE_VERSION + 1
 	damaged.append(bad)
 	bad = snapshot.duplicate(true)
 	bad.day_closed = "true"
@@ -101,7 +101,7 @@ static func run(check: Callable, directory: String) -> void:
 	_write(path, "{broken again")
 	check.call(Saves.load_into(file_loaded, path).ok and file_loaded.prices.oats == 249, "Saving after corruption preserves the existing valid backup")
 	var future = loaded.save_data()
-	future.version = 2
+	future.version = State.SAVE_VERSION + 1
 	var future_text = JSON.stringify(future)
 	_write(path, future_text)
 	baseline = JSON.stringify(file_loaded.save_data())

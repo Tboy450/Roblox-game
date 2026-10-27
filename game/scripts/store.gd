@@ -4,6 +4,8 @@ const State = preload("res://scripts/retail_state.gd")
 const Player = preload("res://scripts/player.gd")
 const Catalog = preload("res://scripts/catalog.gd")
 const Saves = preload("res://scripts/save_store.gd")
+const Preferences = preload("res://scripts/player_settings.gd")
+const PauseMenu = preload("res://scripts/pause_menu.gd")
 const UNIT := 0.28
 var state = State.new()
 var player: CharacterBody3D
@@ -33,6 +35,14 @@ var persistence_enabled := true
 var save_path := Saves.DEFAULT_PATH
 var save_countdown := -1.0
 var save_blocked := false
+var preferences = Preferences.new()
+var settings_path := Preferences.DEFAULT_PATH
+var pause_menu: CanvasLayer
+var game_paused := false
+var hud_layer: CanvasLayer
+var crosshair: Label
+var controls_hint: Label
+var shopper_slot := "beans"
 
 func _ready() -> void:
 	name = "CornerfieldMarket"
@@ -46,6 +56,17 @@ func _ready() -> void:
 	player.interacted.connect(_interact)
 	state.changed.connect(_on_state_changed)
 	persistence_enabled = persistence_enabled and not "--no-save" in OS.get_cmdline_user_args() and not "--verify-prototype" in OS.get_cmdline_user_args()
+	if persistence_enabled:
+		preferences.load_file(settings_path)
+	pause_menu = PauseMenu.new()
+	pause_menu.preferences = preferences
+	add_child(pause_menu)
+	pause_menu.resume_requested.connect(set_paused.bind(false))
+	pause_menu.save_requested.connect(_menu_save)
+	pause_menu.load_requested.connect(_menu_load)
+	pause_menu.quit_requested.connect(_quit_game)
+	pause_menu.settings_changed.connect(_settings_changed)
+	_apply_settings()
 	if persistence_enabled:
 		get_tree().auto_accept_quit = false
 		if FileAccess.file_exists(save_path) or FileAccess.file_exists(save_path + ".bak"):
@@ -165,7 +186,7 @@ func _build_fixtures() -> void:
 		var info: Dictionary = Catalog.PRODUCTS[product]
 		shelf_signs[product] = _sign("", Vector3(info.shelf_x, 2.9, 4.45), 32, 0.005)
 		targets.append({"id": "shelf" if product == "beans" else "shelf_" + product,
-			"product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "E  Stock " + info.name})
+			"slot": product, "product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "E  Stock " + info.name})
 	_asset("res://assets/generated/checkout.glb", "BlenderCheckout", Vector3(5, 0.28, 6.5))
 	_collider("CheckoutCabinet", Vector3(5, 0.77, 6.5), Vector3(1.176, 0.98, 2.408))
 	_collider("BaggingReturn", Vector3(6.106, 1.184, 5.884), Vector3(0.896, 0.0784, 1.176))
@@ -192,6 +213,7 @@ func _label(parent: Node, text: String, size: int, color: Color) -> Label:
 
 func _build_hud() -> void:
 	var layer = CanvasLayer.new()
+	hud_layer = layer
 	layer.name = "RetailHUD"
 	add_child(layer)
 	var panel = PanelContainer.new()
@@ -212,16 +234,16 @@ func _build_hud() -> void:
 	_label(column, "CORNERFIELD  /  MARKET", 22, Color("f2e6bc"))
 	hud = _label(column, "", 17, Color("e3e8dc"))
 	supplier_hint = _label(column, "", 15, Color("dfd0a4"))
-	_label(column, "1 / 2 / 3  Select goods    [ / ]  Price ±10¢\nB  Order case    O  Open / close    N  Next day", 15, Color("aebeb2"))
+	_label(column, "1 / 2 / 3  Select goods    [ / ]  Price ±10¢\nB  Order case    O  Open / close    N  Next day\nR  Swap empty shelf with selected goods (closed)", 15, Color("aebeb2"))
 	save_hint = _label(column, "F5  Save    F9  Load", 14, Color("aebeb2"))
 	prompt = _label(layer, "", 22, Color("fff0c4"))
 	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	prompt.position = Vector2(450, 585)
 	notice = _label(layer, "", 17, Color("fff6df"))
+	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notice.position = Vector2(24, 660)
-	var controls = _label(layer, "WASD  Move     Mouse  Look     E  Interact     Esc  Release mouse", 15, Color("d4ddd7"))
-	controls.position = Vector2(24, 694)
-	var crosshair = _label(layer, "+", 24, Color("f2edd9"))
+	controls_hint = _label(layer, "WASD  Move     Mouse  Look     E  Interact     Esc  Pause / settings", 15, Color("d4ddd7"))
+	crosshair = _label(layer, "+", 24, Color("f2edd9"))
 	crosshair.position = Vector2(632, 344)
 	report = _label(layer, "", 20, Color("f6e9be"))
 	report.position = Vector2(870, 32)
@@ -235,7 +257,13 @@ func _refresh() -> void:
 	var stock_lines := ""
 	for product in Catalog.IDS:
 		stock_lines += "\n%s %d / 12  @ %s" % [Catalog.PRODUCTS[product].short, state.stocks[product], _money(state.prices[product])]
-		shelf_signs[product].text = "%s\n%s  %s" % [Catalog.PRODUCTS[product].department, Catalog.PRODUCTS[product].name, _money(state.prices[product])]
+	for slot in Catalog.IDS:
+		var product: String = state.shelf_assignments[slot]
+		shelf_signs[slot].text = "%s\n%s  %s" % [Catalog.PRODUCTS[product].department, Catalog.PRODUCTS[product].name, _money(state.prices[product])]
+	for target in targets:
+		if target.has("slot"):
+			target.product = state.shelf_assignments[target.slot]
+			target.label = "E  Stock " + Catalog.PRODUCTS[target.product].name + "  /  R swap when empty"
 	var carried_name = Catalog.PRODUCTS[state.carried_product].short if state.carried > 0 else "—"
 	hud.text = "DAY %d  /  %s\nCash %s    Sales %s%s\nCarrying %d %s\nReceiving %d    On order %d\nCustomer: %s" % [
 		state.day, "OPEN" if state.is_open else "CLOSED", _money(state.cash), _money(state.revenue), stock_lines,
@@ -245,10 +273,11 @@ func _refresh() -> void:
 		stock_root.remove_child(child)
 		child.queue_free()
 	for product in Catalog.IDS:
+		var slot_id = state.slot_for_product(product)
 		for index in range(int(state.stocks[product])):
 			var tier = index / 3
 			var slot = index % 3
-			var at = Vector3(float(Catalog.PRODUCTS[product].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.65 * UNIT + tier * 2.45 * UNIT + 0.17, 4.12)
+			var at = Vector3(float(Catalog.PRODUCTS[slot_id].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.65 * UNIT + tier * 2.45 * UNIT + 0.17, 4.12)
 			_product_visual(product, at)
 	register_display.text = "READY"
 	if state.orders.has(shopper_order):
@@ -266,6 +295,72 @@ func _refresh() -> void:
 func _message(text: String) -> void:
 	notice.text = text
 	notice_timer = 7.0
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		set_paused(not game_paused)
+		get_viewport().set_input_as_handled()
+
+func set_paused(paused: bool) -> void:
+	game_paused = paused
+	player.controls_enabled = not paused
+	pause_menu.visible = paused
+	pause_menu.panel.visible = paused
+	pause_menu.veil.visible = paused
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if paused else Input.MOUSE_MODE_CAPTURED
+	if paused:
+		pause_menu.buttons.Resume.grab_focus()
+	else:
+		get_viewport().gui_release_focus()
+	_layout_hud()
+
+func _apply_settings() -> void:
+	player.sensitivity = float(preferences.values.sensitivity)
+	player.move_speed = float(preferences.values.move_speed)
+	hud_layer.scale = Vector2.ONE * float(preferences.values.ui_scale)
+	_layout_hud()
+
+func _settings_changed() -> void:
+	_apply_settings()
+	if persistence_enabled:
+		pause_menu.status.text = "Settings saved." if preferences.save_file(settings_path) else "Settings apply now; file could not be saved."
+
+func _layout_hud() -> void:
+	if not is_instance_valid(pause_menu):
+		return
+	var ui_scale = float(preferences.values.ui_scale)
+	var screen = get_viewport().get_visible_rect().size
+	var logical = screen / ui_scale
+	crosshair.position = logical / 2 - crosshair.get_combined_minimum_size() / 2
+	prompt.position = Vector2((logical.x - prompt.get_combined_minimum_size().x) / 2, logical.y - 120)
+	notice.position = Vector2(24, logical.y - 68)
+	notice.size.x = logical.x - 48
+	controls_hint.position = Vector2(24, logical.y - 28)
+	report.position = Vector2(maxf(24, logical.x - 350), 24)
+	pause_menu.layout(screen, ui_scale)
+
+func _menu_save() -> void:
+	pause_menu.status.text = "Progress saved." if _save_game() else "Could not save. Current progress remains in memory."
+
+func _menu_load() -> void:
+	pause_menu.status.text = "Loaded; store is closed." if _load_game() else "Could not load; current progress is unchanged."
+
+func _quit_game() -> void:
+	if persistence_enabled and not _save_game(false):
+		pause_menu.status.text = "Could not save. Stay here and retry before quitting."
+		return
+	get_tree().quit()
+
+func reassign_nearby_shelf() -> bool:
+	if game_paused:
+		return false
+	var target = nearest_target()
+	if target.is_empty() or not target.has("slot"):
+		_message("Look at an empty shelf nearby to reassign it.")
+		return false
+	var assigned = state.assign_shelf(target.slot, selected_product)
+	_message("Shelf assigned to " + Catalog.PRODUCTS[selected_product].name + "." if assigned else "Close the store first; both affected shelves must be empty, including unpaid goods.")
+	return assigned
 
 func _product_visual(product: String, at: Vector3) -> void:
 	var root = Node3D.new()
@@ -352,6 +447,8 @@ func nearest_target() -> Dictionary:
 
 func perform_action(id: String) -> bool:
 	# All physical actions validate distance here, including programmatic callers.
+	if game_paused:
+		return false
 	var target: Dictionary = {}
 	for item in targets:
 		if item.id == id:
@@ -379,13 +476,19 @@ func perform_action(id: String) -> bool:
 	return false
 
 func _interact() -> void:
+	if game_paused:
+		return
 	var target = nearest_target()
 	if not target.is_empty():
 		perform_action(target.id)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if game_paused:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_R:
+				reassign_nearby_shelf()
 			KEY_1, KEY_2, KEY_3:
 				selected_product = Catalog.IDS[event.keycode - KEY_1]
 				_refresh()
@@ -419,6 +522,7 @@ func _spawn_shopper() -> void:
 			shopper_product = candidate
 			break
 	shopper_choice += 1
+	shopper_slot = state.slot_for_product(shopper_product)
 	shopper = Node3D.new()
 	shopper.name = "ShopperPrototype"
 	shopper.position = Vector3(-1, 0.28, 10.8)
@@ -442,10 +546,10 @@ func _spawn_shopper() -> void:
 	_box(shopper, "Basket", Vector3(0.32, 0.65, 0), Vector3(0.4, 0.3, 0.3), Color("315d48"), false)
 	shopper_phase = "browsing"
 	shopper_order = -1
-	if shopper_product == "soap":
+	if shopper_slot == "soap":
 		shopper_path = [Vector3(0, 0.28, 8.4), Vector3(8, 0.28, 8.4), Vector3(8, 0.28, 5.4), Vector3(7, 0.28, 5.4)]
 	else:
-		shopper_path = [Vector3(-3, 0.28, 7.3), Vector3(-3, 0.28, 5.4), Vector3(float(Catalog.PRODUCTS[shopper_product].shelf_x), 0.28, 5.4)]
+		shopper_path = [Vector3(-3, 0.28, 7.3), Vector3(-3, 0.28, 5.4), Vector3(float(Catalog.PRODUCTS[shopper_slot].shelf_x), 0.28, 5.4)]
 	_refresh()
 
 func _leave_shop() -> void:
@@ -454,6 +558,8 @@ func _leave_shop() -> void:
 	_refresh()
 
 func simulate(delta: float) -> void:
+	if game_paused:
+		return
 	state.tick(delta)
 	if not is_instance_valid(shopper):
 		if state.is_open:
@@ -479,7 +585,7 @@ func simulate(delta: float) -> void:
 				_leave_shop()
 			else:
 				shopper_phase = "walking_to_checkout"
-				if shopper_product == "soap":
+				if shopper_slot == "soap":
 					shopper_path = [Vector3(8, 0.28, 5.4), Vector3(8, 0.28, 8.4), Vector3(5, 0.28, 8)]
 				else:
 					shopper_path = [Vector3(-3, 0.28, 5.4), Vector3(-3, 0.28, 7.3), Vector3(2, 0.28, 8), Vector3(5, 0.28, 8)]
@@ -503,6 +609,10 @@ func simulate(delta: float) -> void:
 			_refresh()
 
 func _process(delta: float) -> void:
+	_layout_hud()
+	if game_paused:
+		prompt.text = ""
+		return
 	simulate(delta)
 	if save_countdown >= 0 and not save_blocked:
 		save_countdown -= delta

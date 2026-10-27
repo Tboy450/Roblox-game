@@ -37,4 +37,15 @@ func _capture() -> void:
 	print("CHECKOUT_PREVIEW_RESULT ", checkout_result, " ", checkout.get_size())
 	if checkout_result != OK:
 		result = checkout_result
+	world.pause_menu.sliders.ui_scale.value = 1.25
+	world.set_paused(true)
+	for frame in range(8):
+		world._layout_hud()
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var settings_image = root.get_texture().get_image()
+	var settings_result = settings_image.save_png(ProjectSettings.globalize_path("res://../builds/godot-settings-preview.png"))
+	print("SETTINGS_PREVIEW_RESULT ", settings_result, " ", settings_image.get_size())
+	if settings_result != OK:
+		result = settings_result
 	quit(result)

@@ -36,13 +36,21 @@ The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract an
 5. Approach checkout and press **E** to complete the purchase. Baskets retain the price quoted at pickup; the display and receipt show the actual sale.
 6. **O** closes and returns unpaid reservations to stock. The report separates revenue, cost of goods, purchases and cash movement. **N** starts the next day.
 
-**WASD** moves, the **mouse** looks, and **Esc** releases/captures the mouse. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
+**WASD** moves, the **mouse** looks, and **Esc** opens the pause/settings menu. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
+
+While closed, select goods with **1/2/3**, look at a nearby empty shelf and press **R**. Its label swaps with that product's other empty shelf. Both affected shelves must have no stock or unpaid reservations. Stocking, shopper routes and saved progress follow the new layout.
+
+## Pause and control settings
+
+**Esc** pauses deliveries, shoppers and movement. The menu offers Resume, Save, Load and Save and quit. Sliders adjust mouse sensitivity, movement speed and UI scale (80–125%); Tab and arrow keys work too. Preferences are saved separately in `cornerfield-settings.cfg`, so loading store progress does not reset controls. Invalid preferences leave existing defaults unchanged.
+
+![Pause/settings menu at 125% UI scale](art/previews/godot-settings.png)
 
 ## Saved progress
 
 **F5** saves and **F9** loads. The game loads automatically on startup and autosaves after transactions and normal window close. Files live in Godot's Cornerfield Market user-data folder: `cornerfield-save.json` and its previous valid `.bak`. See [save behavior and recovery](docs/SAVES.md).
 
-Resume starts closed, returns unpaid baskets to their shelves, and preserves product stock/prices, carried and incoming cases, delivery time, cash, day and daily totals. Damaged primary saves can recover from backup. Failed loads preserve the current game and pause autosaving; newer-version saves are not overwritten.
+Resume starts closed, returns unpaid baskets to their shelves, and preserves shelf assignments, product stock/prices, carried and incoming cases, delivery time, cash, day and daily totals. Version-1 saves migrate automatically to version 2 with the original shelf layout. Damaged primaries can recover from backup; failed loads preserve current progress and pause autosaving. Unsupported newer saves are not overwritten.
 
 ## Build and verify without editor interaction
 
@@ -53,7 +61,7 @@ Resume starts closed, returns unpaid baskets to their shelves, and preserves pro
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real geometry/materials, physics, three-product shopping, quoted prices, duplicate payments/refunds, day transitions, cash reconciliation, save round-trips, backup recovery, damaged/newer saves and scene-level save/load. Scripted frames are inspected. Human playtesting, hardware profiling and multiplayer testing are pending.
+Verification covers real geometry/materials, physics, product shopping and reassignment, pricing/accounting, save migration/recovery, pause behavior and settings persistence. Scripted frames are inspected, including the menu at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing are pending.
 
 ## Source layout
 

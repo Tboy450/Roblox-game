@@ -21,23 +21,31 @@ Run CornerfieldMarket.exe. No Roblox Studio, Rojo or Godot editor setup required
 Keep the .exe and .pck together. This portable prototype bundles the official
 Godot editor runtime in game mode; it is not a size-optimized release export.
 
-WASD move; mouse look; E interact; Esc release/capture mouse.
+WASD move; mouse look; E interact; Esc pause/settings.
 1 / 2 / 3 select beans, oats or hand soap. B orders a matching twelve-unit case.
 After four seconds, E collects it at Receiving; E stocks its matching shelf.
 [ / ] adjust the selected product's sale price by ten cents. Active baskets
 keep their quoted pickup price. O opens/closes; E serves a shopper at checkout.
 N starts the next day after closing and reviewing the report.
+While closed, select goods and press R facing an empty shelf. Both affected
+shelves must be empty; labels, stock locations and shopper routes swap together.
+
+Pause/settings includes Resume, Save, Load and Save and quit. Mouse sensitivity,
+movement speed and UI scale (80-125%) save separately in cornerfield-settings.cfg.
+Tab and arrow keys can navigate the menu. Pausing stops all store timers.
 
 F5 saves; F9 loads. Progress loads automatically on startup and autosaves after
 transactions and on normal window close. Files use Godot's Cornerfield Market
 user-data folder: cornerfield-save.json, with a previous-valid-save .bak.
 Resume starts closed and returns unpaid baskets to their shelves. In-transit
 deliveries, carried cases, prices, cash, day and daily totals are preserved.
+Shelf assignments persist too. Older version-1 saves migrate automatically to
+version 2 with the original shelf layout.
 If the primary is damaged, load tries the backup. Unsupported newer saves are
 left unchanged; failed loads pause autosaving until a successful save/load.
 
 First slice only: three products, one active shopper, fixed waypoint routes.
-No staff, multiplayer, settings menu or final character art yet.
+No staff, multiplayer, input rebinding or final character art yet.
 Source: https://github.com/Tboy450/Roblox-game (existing repository).
 Godot Engine: https://godotengine.org/license/ — see GODOT-LICENSE.txt.
 '@ | Set-Content -LiteralPath (Join-Path $RetailPackage 'README.txt') -Encoding utf8

@@ -20,7 +20,7 @@ static func _read(path: String) -> Dictionary:
 		return {"ok": false, "error": "Save JSON is damaged."}
 	if json.data is Dictionary:
 		var version = json.data.get("version")
-		if (typeof(version) == TYPE_INT or typeof(version) == TYPE_FLOAT) and is_finite(float(version)) and version > 1:
+		if (typeof(version) == TYPE_INT or typeof(version) == TYPE_FLOAT) and is_finite(float(version)) and version > State.SAVE_VERSION:
 			return {"ok": false, "future": true, "error": "Save belongs to a newer game version; it was left unchanged."}
 	var probe = State.new()
 	var validation = probe.apply_save(json.data)

@@ -2,6 +2,9 @@ extends CharacterBody3D
 signal interacted
 var camera: Camera3D
 const SPEED := 4.2
+var controls_enabled := true
+var move_speed := SPEED
+var sensitivity := 0.002
 
 func _ready() -> void:
 	var shape := CollisionShape3D.new()
@@ -18,25 +21,33 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not controls_enabled:
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * 0.002)
-		camera.rotation.x = clampf(camera.rotation.x - event.relative.y * 0.002, -1.3, 1.3)
+		apply_look(event.relative)
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 		if event.keycode == KEY_E:
 			interacted.emit()
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
+func apply_look(relative: Vector2) -> void:
+	if not controls_enabled:
+		return
+	rotate_y(-relative.x * sensitivity)
+	camera.rotation.x = clampf(camera.rotation.x - relative.y * sensitivity, -1.3, 1.3)
+
 func _physics_process(delta: float) -> void:
+	if not controls_enabled:
+		velocity = Vector3.ZERO
+		return
 	var axis := Vector2.ZERO
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		axis = Vector2(float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)),
 			float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W))).normalized()
 	var direction := global_basis * Vector3(axis.x, 0, axis.y)
-	velocity.x = direction.x * SPEED
-	velocity.z = direction.z * SPEED
+	velocity.x = direction.x * move_speed
+	velocity.z = direction.z * move_speed
 	if not is_on_floor():
 		velocity.y -= 18.0 * delta
 	else:

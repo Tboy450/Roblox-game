@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "cash": 47077,
+  "day": 3,
+  "opening_cash": 50000,
+  "revenue": 737,
+  "cost_of_goods": 305,
+  "purchases": 3660,
+  "sold": 3,
+  "walkouts": 1,
+  "next_order_id": 5,
+  "stocks": {"beans": 11, "oats": 11, "soap": 11},
+  "prices": {"beans": 149, "oats": 289, "soap": 299},
+  "carried": 0,
+  "carried_product": "",
+  "receiving": 0,
+  "receiving_product": "",
+  "incoming": 0,
+  "incoming_product": "",
+  "delivery_seconds": 0.0,
+  "day_closed": true
+}

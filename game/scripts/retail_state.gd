@@ -4,6 +4,7 @@ signal changed
 const Catalog = preload("res://scripts/catalog.gd")
 const CASE_SIZE := 12
 const CAPACITY := 12
+const SAVE_VERSION := 2
 # Legacy first-product constants/accessor retain the original regression contract.
 const UNIT_COST := 70
 const PRICE := 149
@@ -12,6 +13,7 @@ var day := 1
 var is_open := false
 var stocks: Dictionary = {"beans": 0, "oats": 0, "soap": 0}
 var prices: Dictionary = {"beans": 149, "oats": 249, "soap": 299}
+var shelf_assignments: Dictionary = {"beans": "beans", "oats": "oats", "soap": "soap"}
 var shelf: int:
 	get: return int(stocks["beans"])
 	set(value): stocks["beans"] = value
@@ -95,6 +97,27 @@ func set_price(product: String, cents: int) -> bool:
 	changed.emit()
 	return true
 
+func slot_for_product(product: String) -> String:
+	for slot in shelf_assignments:
+		if shelf_assignments[slot] == product:
+			return slot
+	return ""
+
+func assign_shelf(slot: String, product: String) -> bool:
+	if is_open or not shelf_assignments.has(slot) or not Catalog.PRODUCTS.has(product):
+		return false
+	var current: String = shelf_assignments[slot]
+	if current == product:
+		return true
+	if int(stocks[current]) > 0 or int(stocks[product]) > 0 or reserved_units(current) > 0 or reserved_units(product) > 0:
+		return false
+	# One shelf per product. Swap both empty labels rather than orphaning a product.
+	var previous_slot = slot_for_product(product)
+	shelf_assignments[previous_slot] = current
+	shelf_assignments[slot] = product
+	changed.emit()
+	return true
+
 func reserve(quantity: int = 1, product: String = "beans") -> int:
 	if not stocks.has(product) or not is_open or quantity <= 0 or int(stocks[product]) < quantity:
 		return -1
@@ -168,7 +191,7 @@ func save_data() -> Dictionary:
 	var saved_stocks = stocks.duplicate()
 	for order in orders.values():
 		saved_stocks[order.product] += int(order.quantity)
-	return {"version": 1, "cash": cash, "day": day, "opening_cash": opening_cash,
+	return {"version": SAVE_VERSION, "shelf_assignments": shelf_assignments.duplicate(), "cash": cash, "day": day, "opening_cash": opening_cash,
 		"revenue": revenue, "cost_of_goods": cost_of_goods, "purchases": purchases,
 		"sold": sold, "walkouts": walkouts, "next_order_id": next_order_id,
 		"stocks": saved_stocks, "prices": prices.duplicate(),
@@ -182,8 +205,20 @@ static func _whole(value: Variant, minimum: int, maximum: int) -> bool:
 
 func apply_save(data: Variant) -> String:
 	# Validate everything before touching live state. JSON numbers may be floats.
-	if not data is Dictionary or not _whole(data.get("version"), 1, 1):
+	if data is Dictionary and _whole(data.get("version"), 1, 1):
+		data = data.duplicate(true)
+		data.version = SAVE_VERSION
+		data.shelf_assignments = {"beans": "beans", "oats": "oats", "soap": "soap"}
+	if not data is Dictionary or not _whole(data.get("version"), SAVE_VERSION, SAVE_VERSION):
 		return "Unsupported save version or malformed save."
+	if not data.get("shelf_assignments") is Dictionary or data.shelf_assignments.size() != Catalog.IDS.size():
+		return "Invalid shelf assignments."
+	var assigned: Array = []
+	for slot in Catalog.IDS:
+		var product = data.shelf_assignments.get(slot)
+		if not product is String or not Catalog.PRODUCTS.has(product) or product in assigned:
+			return "Invalid or duplicate shelf product."
+		assigned.append(product)
 	for field in ["cash", "opening_cash", "revenue", "cost_of_goods", "purchases"]:
 		if not _whole(data.get(field), 0, 9000000000000):
 			return "Invalid money field: " + field
@@ -227,6 +262,7 @@ func apply_save(data: Variant) -> String:
 		set(field, int(data[field]))
 	stocks = saved_stocks
 	prices = saved_prices
+	shelf_assignments = data.shelf_assignments.duplicate()
 	carried_product = data.carried_product
 	receiving_product = data.receiving_product
 	incoming_product = data.incoming_product

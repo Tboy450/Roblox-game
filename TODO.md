@@ -43,8 +43,9 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Check actual shelf/checkout material imports in the engine.
 - [ ] Replace fixed shopper waypoints with navigation and occupancy handling.
 - [x] Add three separate product shelves, case matching, price editing and live receipt/display totals.
-- [ ] Allow reassignment of shelf product types and expand the catalog.
-- [ ] Add accessible controls, rebinding, settings and tutorial prompts.
+- [x] Swap the three front shelves' products while closed and empty; update labels, stock locations, shopper routes and saves.
+- [x] Add pause/settings with sensitivity, movement speed, UI scale and keyboard navigation.
+- [ ] Expand the catalog, add input rebinding and improve tutorial/accessibility coverage.
 
 ## M4 — First playable slice
 
@@ -66,7 +67,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [ ] Cashier/stocker staff and reliable work queues.
 - [x] Add versioned saves, atomic primary replacement, previous-valid backup, autosave and recovery tests.
 - [x] Preserve cash, prices, stock, carried/incoming cases and daily progress across load.
-- [ ] Add migrations when the save schema changes and validate long-running campaigns.
+- [x] Migrate version-1 saves to version 2 with a checked-in legacy fixture.
+- [ ] Validate long-running campaigns and add migrations for future schema changes.
 - [ ] Authoritative co-op simulation, permissions and request validation.
 - [ ] Complete two-player receive → stock → sell → close tests.
 - [ ] Decide companion/lottery scope after the core game is stable.

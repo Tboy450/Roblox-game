@@ -19,7 +19,9 @@ The first shell is 22.4 × 17.92 metres, scaled from an 80 × 64 source-unit Hou
 
 The prototype implements beans, oats and hand soap with one active shopper. Money uses integer cents. Inventory includes receiving, carried, shelf and reserved quantities; sales/cancellations consume order IDs once. Reserved capacity prevents cancellation from overfilling a restocked shelf. Purchases affect cash when ordered; cost of goods affects profit when sold. Prices are editable, with active baskets retaining their pickup quote. Staff and networking are not implemented yet.
 
-Version-1 saves preserve product inventory/prices, cash, day, delivery/carry state and daily counters. Resume starts closed and normalizes unpaid baskets back into shelf stock. Validated temporary writes replace the primary, retaining a previous-valid backup. Invalid loads never partially modify live state; unsupported future schemas are left unchanged. See [save behavior](SAVES.md).
+Version-2 saves preserve product inventory/prices, shelf assignments, cash, day, delivery/carry state and daily counters. Version-1 progress migrates with its original shelf layout. Resume starts closed and normalizes unpaid baskets into shelf stock. Validated temporary writes replace the primary, retaining a previous-valid backup. Invalid loads never partially modify live state; unsupported future schemas are left unchanged. See [save behavior](SAVES.md).
+
+The three front shelves can swap product assignments while both affected shelves are empty and the store is closed. Runtime stock, labels and shopper routes use the current mapping. Esc pauses simulation and opens control settings, with manual save/load and a save-and-quit action. Preferences are separate from store progress.
 
 ## Milestones
 
