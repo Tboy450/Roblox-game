@@ -71,3 +71,25 @@ static func scene_checks(world, check: Callable, directory: String) -> void:
 	world._layout_hud()
 	check.call(world.report_panel.body.visible and world.guide_panel.position.y >= world.report_panel.position.y + world.report_panel.get_combined_minimum_size().y, "Restoring a report keeps the guide stacked below it")
 	world.persistence_enabled = false
+	# Guide placement: lower right, clear of overhead signs, the prompt row and the dashboard.
+	world.state = State.new()
+	world.state.changed.connect(world._on_state_changed)
+	world.preferences.values = Settings.DEFAULTS.duplicate()
+	world.dashboard_panel.set_collapsed(false, false)
+	world.prompt.text = "E  Stock Cedar Hand Soap  /  R swap when empty"
+	var placed := true
+	for scale in [1.0, 1.25]:
+		world.preferences.values.ui_scale = scale
+		world.hud_layer.scale = Vector2.ONE * scale
+		world._refresh()
+		world._layout_hud()
+		var logical: Vector2 = world.get_viewport().get_visible_rect().size / scale
+		var guide := Rect2(world.guide_panel.position, world.guide_panel.get_combined_minimum_size())
+		var prompt := Rect2(world.prompt.position, world.prompt.get_combined_minimum_size())
+		var dashboard := Rect2(world.dashboard_panel.position, world.dashboard_panel.get_combined_minimum_size())
+		placed = placed and world.guide_panel.visible and guide.position.y >= logical.y * 0.4 and guide.end.y <= world.notice.position.y
+		placed = placed and guide.end.x <= logical.x and not guide.intersects(prompt) and not guide.intersects(dashboard)
+	check.call(placed, "First-day guide sits lower right, clear of overhead signs, the prompt and the dashboard at 100% and 125%")
+	world.prompt.text = ""
+	world.preferences.values = Settings.DEFAULTS.duplicate()
+	world._apply_settings()

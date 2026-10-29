@@ -50,6 +50,7 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add pause/settings with sensitivity, movement speed, UI scale and keyboard navigation.
 - [x] Add contextual first-day guidance for ordering, delivery, stocking, checkout and closing; follow reassigned shelves and resumed progress.
 - [x] Add a remembered guide toggle and destination marker without locking normal gameplay.
+- [x] Keep the first-day guide off overhead shelf signs: lower-right placement, checked at 100% and 125% UI scale.
 - [x] Add minimize/restore controls to dashboard, guide and day report; remember layouts and provide compact-all/cursor shortcuts.
 - [x] Add keyboard rebinding with conflict swaps, fixed pause/panel keys, saved preferences and live key hints.
 - [x] Expand the catalog to a fourth product, Meadow Honey: middle-row shelf, packaging, select key, routes and version-3 save migration.

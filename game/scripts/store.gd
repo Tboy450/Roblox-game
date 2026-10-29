@@ -537,7 +537,11 @@ func _layout_hud() -> void:
 	notice.size.x = logical.x - 48
 	controls_hint.position = Vector2(24, logical.y - 28)
 	report_panel.position = Vector2(maxf(24, logical.x - 344), 24)
-	guide_panel.position = Vector2(maxf(24, logical.x - 344), 24 if report.text.is_empty() else 40 + report_panel.get_combined_minimum_size().y)
+	# Lower right, above the prompt row, keeps the guide off overhead shelf signs;
+	# a day report pushes it further down if needed.
+	var below_report := 24.0 if report.text.is_empty() else 40 + report_panel.get_combined_minimum_size().y
+	var above_prompt: float = logical.y - 132 - guide_panel.get_combined_minimum_size().y
+	guide_panel.position = Vector2(maxf(24, logical.x - 344), maxf(below_report, above_prompt))
 	pause_menu.layout(screen, ui_scale)
 
 func _menu_save() -> void:

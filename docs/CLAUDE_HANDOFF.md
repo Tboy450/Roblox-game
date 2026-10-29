@@ -137,7 +137,7 @@ Default keys are listed below. Every gameplay key can be rebound under Pause →
 | Enter / keypad Enter / Space in panel mode | Minimize/restore the focused panel |
 | − / + panel button | Minimize/restore an individual panel |
 
-The dashboard starts compact but retains day, store status, cash and selected goods. Entering panel mode focuses its button, releases the mouse and disables player movement/gameplay shortcuts. **Store time continues in panel mode.** Esc pauses the game and exits panel mode safely. Tab back to movement releases GUI focus. In the pause menu, Tab retains normal menu-navigation behavior.
+The dashboard starts compact but retains day, store status, cash and selected goods. The guide panel sits lower right above the prompt row (below the report when one is shown) so overhead shelf signs stay visible; scripted captures must call `_layout_hud()` because they disable `_process`. Entering panel mode focuses its button, releases the mouse and disables player movement/gameplay shortcuts. **Store time continues in panel mode.** Esc pauses the game and exits panel mode safely. Tab back to movement releases GUI focus. In the pause menu, Tab retains normal menu-navigation behavior.
 
 The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with regression checks in `panel_tests.gd`. Do not accidentally turn Tab into ordinary focus traversal during gameplay and lose the exit-to-movement behavior.
 

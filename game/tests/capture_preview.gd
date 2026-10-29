@@ -21,6 +21,7 @@ func _capture() -> void:
 	world._message("Prototype review: four products stocked, editable prices, store open.")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for frame in range(8):
+		world._layout_hud()
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var image = root.get_texture().get_image()
@@ -30,6 +31,7 @@ func _capture() -> void:
 	world.player.position = Vector3(-6.4, 0.3, 5.9)
 	world.player.camera.look_at(Vector3(-7, 0.95, 4.56))
 	for frame in range(4):
+		world._layout_hud()
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var tags_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-price-tags-preview.png"))
@@ -39,6 +41,7 @@ func _capture() -> void:
 	world.player.position = Vector3(6.2, 0.3, 5.8)
 	world.player.camera.look_at(Vector3(7.1, 1.05, 4.2))
 	for frame in range(4):
+		world._layout_hud()
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var packaging_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-packaging-preview.png"))
@@ -48,6 +51,7 @@ func _capture() -> void:
 	world.player.position = Vector3(-6.2, 0.3, 1.9)
 	world.player.camera.look_at(Vector3(-7, 1.0, 0.35))
 	for frame in range(4):
+		world._layout_hud()
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var honey_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-honey-preview.png"))
@@ -57,6 +61,7 @@ func _capture() -> void:
 	world.player.position = Vector3(2.5, 0.3, 8.7)
 	world.player.camera.look_at(Vector3(5.1, 1.1, 6.4))
 	for frame in range(4):
+		world._layout_hud()
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var checkout = root.get_texture().get_image()

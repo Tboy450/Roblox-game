@@ -30,7 +30,7 @@ The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract an
 
 ## Play a store day
 
-A first-day guide shows the next useful action and marks Receiving, the matching shelf or Checkout 01 when relevant. It adapts to saved progress and shelf reassignment. **H** hides/shows it; the pause menu remembers your preference. It does not lock normal gameplay and disappears after day one.
+A first-day guide shows the next useful action and marks Receiving, the matching shelf or Checkout 01 when relevant. It adapts to saved progress and shelf reassignment. **H** hides/shows it; the pause menu remembers your preference. It sits in the lower right, above the interaction prompt, so overhead shelf signs stay visible; a day report pushes it lower. It does not lock normal gameplay and disappears after day one.
 
 1. **1 / 2 / 3 / 4** selects beans, oats, hand soap or honey. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00 / $21.60). Delivery takes four seconds.
 2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
