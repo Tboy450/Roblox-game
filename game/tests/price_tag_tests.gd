@@ -41,7 +41,7 @@ static func scene_checks(world, check: Callable, _directory: String) -> void:
 	for slot in Catalog.IDS:
 		for tier in range(4):
 			var at: Vector3 = world.price_tags[slot][tier].card.global_position
-			on_rail = on_rail and is_equal_approx(at.x, Catalog.PRODUCTS[slot].shelf_x) and at.z > 4.546 and at.z < 4.56
+			on_rail = on_rail and is_equal_approx(at.x, Catalog.PRODUCTS[slot].shelf_x) and at.z > float(Catalog.PRODUCTS[slot].shelf_z) + 0.546 and at.z < float(Catalog.PRODUCTS[slot].shelf_z) + 0.56
 			on_rail = on_rail and (tier == 0 or at.y > world.price_tags[slot][tier - 1].card.global_position.y + 0.6)
 	check.call(on_rail, "Tags sit on each tier's rail face, inside the shelf collision proxy")
 	_key(world, KEY_2)

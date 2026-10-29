@@ -93,7 +93,7 @@ In the previous Codex environment, native executables and some Git/network comma
 
 - First-person movement with camera look, fixture collision, ceiling, practical lighting and signs.
 - A 22.4 × 17.92 metre store shell, nine shelf instances and a detailed checkout imported as real GLBs.
-- Three interactive product shelves: Harvest Beans, Morning Oats and Cedar Hand Soap.
+- Four interactive product shelves: Harvest Beans, Morning Oats and Cedar Hand Soap on the front row, Meadow Honey on the middle-row left shelf.
 - Product selection, supplier case ordering, four-second delivery, receiving, carrying and partial stocking.
 - Separate stock, supplier costs and editable selling prices per product.
 - One active shopper at a time, selecting stocked goods in rotation, walking to a shelf and then checkout.
@@ -112,6 +112,7 @@ The start balance is **$500.00**. Cases contain 12 units, and each product shelf
 | `beans` | Harvest Beans | $0.70 | $1.49 | $8.40 |
 | `oats` | Morning Oats | $1.10 | $2.49 | $13.20 |
 | `soap` | Cedar Hand Soap | $1.25 | $2.99 | $15.00 |
+| `honey` | Meadow Honey | $1.80 | $3.99 | $21.60 |
 
 ## 6. Controls and panel behavior
 
@@ -121,7 +122,7 @@ Default keys are listed below. Every gameplay key can be rebound under Pause →
 | --- | --- |
 | WASD / mouse | Move / look |
 | E | Interact with the nearby receiving table, matching shelf or checkout |
-| 1 / 2 / 3 | Select beans / oats / soap |
+| 1 / 2 / 3 / 4 | Select beans / oats / soap / honey |
 | B | Buy a case of the selected product |
 | [ / ] | Adjust selected product's sale price by ten cents |
 | O | Open or close the store |
@@ -163,7 +164,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/tests/packaging_tests.gd` | Packaging textures, size, origin, aisle-facing labels, triangle budget and deck placement |
 | `game/tests/binding_tests.gd` | Binding validation, swaps, settings files, capture UI, rebound gameplay/movement and hints |
 | `game/tests/capture_preview.gd` | Staged actual-engine screenshots without editor interaction |
-| `game/tests/fixtures/save-v1.json` | Checked-in historical save migration fixture |
+| `game/tests/fixtures/save-v1.json`, `save-v2.json` | Checked-in historical save migration fixtures (v2 has swapped shelves and a delivery in transit) |
 
 `store.gd` is still a fairly large scene/controller script, around 740 lines. Keep simulation rules in `retail_state.gd` rather than duplicating them in HUD code. A later extraction of shopper/navigation or HUD responsibilities can be useful, but avoid a broad refactor just to start the handoff.
 
@@ -178,14 +179,14 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 - Reserved shelf capacity remains occupied. Restocking must not consume capacity needed when an unpaid basket is restored.
 - Closing and shopper timeout restore unpaid goods once.
 - There is one incoming/receiving pipeline and one carried case; case product identity matters. Partial restocking is supported.
-- `shelf_assignments` is a bijection from three physical slots to three products. Current slot IDs happen to be named `beans`, `oats`, `soap`; these are **not always the product occupying that slot** after reassignment.
+- `shelf_assignments` is a bijection from four physical slots to four products. Slot IDs are each product's home shelf (`shelf_x`, `shelf_z` in `catalog.gd`) and happen to be named `beans`, `oats`, `soap`, `honey`; these are **not always the product occupying that slot** after reassignment.
 - Resolve a product's current physical slot with `slot_for_product()`. Update interactions, visuals, guide destinations and shopper paths together.
 - Swaps are permitted only while closed and when both affected shelves are empty, including no reserved stock.
 - Legacy bean aliases/constants remain for earlier tests; they are not the full multi-product model.
 
 ### Saves and preferences
 
-- Gameplay schema is **version 2**. Version 1 migrates to the original shelf mapping, preserving its other progress.
+- Gameplay schema is **version 3**. Version 1 gains the original shelf mapping; every older save gains products whose catalog `since` is newer than it, empty at default price on their home shelf. Adding a product means bumping `SAVE_VERSION`, giving the product that `since`, and adding a fixture test.
 - Validate a complete candidate before mutating live state. Failed load must leave the running game unchanged.
 - Newer unsupported schema versions must not be overwritten or silently replaced by an older backup. Do not add an arbitrary upper version ceiling that weakens that protection.
 - Primary: `user://cornerfield-save.json`; previous valid backup: `.bak`. Use Godot's user-data location, not a hard-coded workspace path.
@@ -214,7 +215,7 @@ Runtime assets are versioned in `game/assets/generated/`:
 - `store-shell.glb` — Houdini shell, 7,932 triangles in the current engine report.
 - `shelf.glb` — Houdini shelving, 10,368 triangles per source asset.
 - `checkout.glb` — detailed Blender checkout, 84 mesh instances / 25,144 triangles in the report.
-- `merch-beans.glb`, `merch-oats.glb`, `merch-soap.glb` — Blender packaging with embedded labels, in metres (1,344 / 12 / 1,836 triangles).
+- `merch-beans.glb`, `merch-oats.glb`, `merch-soap.glb`, `merch-honey.glb` — Blender packaging with embedded labels, in metres (1,344 / 12 / 1,836 / 1,440 triangles). The generator is byte-reproducible.
 - `manifest.json` — tool/source information, scale and hashes.
 
 The checked-in GLBs allow a fresh clone to run without Houdini or Blender. Larger native/intermediate files are ignored under `art/exports/`, but exist in the current workspace, including:
@@ -260,6 +261,7 @@ Versioned scripted review images:
 - `art/previews/godot-compact.png` — compact panel layout.
 - `art/previews/godot-price-tags.png` — shelf-edge price tags close-up.
 - `art/previews/godot-packaging.png` — soap packaging close-up.
+- `art/previews/godot-honey.png` — middle-row honey shelf close-up.
 
 These are actual engine frames. The final keyboard-only pass changed input behavior and documentation; it did not regenerate screenshots. Rendering uses a script and hidden process, not UI automation. Inspect new frames when changing visual layout. Existing tests are meaningful regression coverage; add focused tests for changed behavior rather than mirroring implementation details.
 
@@ -285,7 +287,7 @@ This is a playable single-player prototype, with the following major limits:
 - No target-hardware budgets, production export optimization or sustained campaign/multiplayer soak testing.
 - Human playtesting of the guide, navigation and complete store day remains pending.
 
-If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags, keyboard rebinding and merchandise packaging are done; a good next option is a first catalog expansion (new products need a `build_packaging.py` label/model and a `model` entry in `catalog.gd`). Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
+If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags, keyboard rebinding, merchandise packaging and a fourth product are done. Another product needs a catalog entry (`shelf_x`/`shelf_z`, `model`, `since`), a `select_N` binding, packaging in `build_packaging.py` and a save-version bump; shopper routes in `store.gd` are still hand-written per aisle, so make slots and routes data-driven before adding many more. Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
 
 Suggested continuation procedure:
 

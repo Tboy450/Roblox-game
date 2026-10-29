@@ -37,4 +37,9 @@ static func current(state, shopper_phase: String, keys: Dictionary = {}) -> Dict
 		if shopper_phase == "waiting_at_checkout":
 			return _step(6, "Serve your first shopper", "Approach Checkout 01 and press %s to complete the quoted sale." % keys.interact, "checkout")
 		return _step(6, "A shopper is on the way", "Leave the store open while a shopper picks up goods. Wait at Checkout 01 until they are ready.", "checkout")
-	return _step(1, "Order your first case", "Choose beans, oats or soap with %s / %s / %s, then press %s to order a case." % [keys.select_1, keys.select_2, keys.select_3, keys.buy_case])
+	var goods := PackedStringArray()
+	var select := PackedStringArray()
+	for index in range(Catalog.IDS.size()):
+		goods.append(Catalog.PRODUCTS[Catalog.IDS[index]].short.to_lower())
+		select.append(keys["select_%d" % (index + 1)])
+	return _step(1, "Order your first case", "Choose %s or %s with %s, then press %s to order a case." % [", ".join(goods.slice(0, -1)), goods[-1], " / ".join(select), keys.buy_case])

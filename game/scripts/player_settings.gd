@@ -10,13 +10,16 @@ const ACTIONS := {
 	"move_left": ["Move left", KEY_A], "move_right": ["Move right", KEY_D],
 	"interact": ["Interact", KEY_E], "toggle_guide": ["Show / hide guide", KEY_H],
 	"select_1": ["Select beans", KEY_1], "select_2": ["Select oats", KEY_2],
-	"select_3": ["Select soap", KEY_3], "buy_case": ["Order case", KEY_B],
+	"select_3": ["Select soap", KEY_3], "select_4": ["Select honey", KEY_4],
+	"buy_case": ["Order case", KEY_B],
 	"price_down": ["Price −10¢", KEY_BRACKETLEFT], "price_up": ["Price +10¢", KEY_BRACKETRIGHT],
 	"open_close": ["Open / close", KEY_O], "next_day": ["Next day", KEY_N],
 	"reassign_shelf": ["Swap empty shelf", KEY_R], "save_game": ["Save", KEY_F5],
 	"load_game": ["Load", KEY_F9],
 }
 const RESERVED_KEYS := [KEY_ESCAPE, KEY_TAB, KEY_F2]
+## Keys offered to actions added after a settings file was written when their default is taken.
+const SPARE_KEYS := [KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_G, KEY_J, KEY_L, KEY_U, KEY_Y]
 var values: Dictionary = DEFAULTS.duplicate()
 var bindings: Dictionary = default_bindings()
 
@@ -124,8 +127,18 @@ func load_file(path: String = DEFAULT_PATH) -> bool:
 			return false
 		candidate[key] = value if key in BOOL_KEYS else float(value)
 	var keys: Dictionary = {}
+	var added: Array = []
 	for action in ACTIONS:
-		keys[action] = config.get_value("bindings", action, ACTIONS[action][1])
+		if config.has_section_key("bindings", action):
+			keys[action] = config.get_value("bindings", action)
+		else:
+			added.append(action)
+	# Actions newer than the file take their default, or the first spare key still free.
+	for action in added:
+		for code in [ACTIONS[action][1]] + SPARE_KEYS:
+			if not code in keys.values():
+				keys[action] = code
+				break
 	if not valid_bindings(keys):
 		return false
 	values = candidate

@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "shelf_assignments": {"beans": "soap", "oats": "oats", "soap": "beans"},
+  "cash": 48196,
+  "day": 4,
+  "opening_cash": 48500,
+  "revenue": 1196,
+  "cost_of_goods": 500,
+  "purchases": 1500,
+  "sold": 4,
+  "walkouts": 0,
+  "next_order_id": 9,
+  "stocks": {"beans": 0, "oats": 6, "soap": 8},
+  "prices": {"beans": 159, "oats": 249, "soap": 299},
+  "carried": 0,
+  "carried_product": "",
+  "receiving": 0,
+  "receiving_product": "",
+  "incoming": 12,
+  "incoming_product": "beans",
+  "delivery_seconds": 2.5,
+  "day_closed": false
+}

@@ -1,6 +1,6 @@
 # Saved progress and recovery
 
-The standalone game uses a version-2 JSON save in Godot's Cornerfield Market user-data directory. `cornerfield-save.json` is the primary; `.bak` retains the previous valid save. **F5** saves, **F9** loads. Startup loads existing progress automatically. Transactions trigger a short debounced autosave, and normal window close saves synchronously. A forced process kill can lose changes since the last completed save.
+The standalone game uses a version-3 JSON save in Godot's Cornerfield Market user-data directory. `cornerfield-save.json` is the primary; `.bak` retains the previous valid save. **F5** saves, **F9** loads. Startup loads existing progress automatically. Transactions trigger a short debounced autosave, and normal window close saves synchronously. A forced process kill can lose changes since the last completed save.
 
 ## What survives restart
 
@@ -17,7 +17,7 @@ The writer validates the snapshot, writes and flushes a temporary file, reads it
 
 Loading validates the complete document before assigning live fields. It checks schema version, product IDs, integer-cent fields, cash reconciliation, capacities, case types and delivery timing. If the primary is damaged or missing, loading tries the backup and reports recovery. If both fail, current progress remains unchanged and autosaving pauses. F5 explicitly retries saving current progress; F9 retries loading. A future schema is rejected without falling back to an older backup or allowing this older game to overwrite it.
 
-Version-1 saves migrate automatically: existing stock, cash, prices, deliveries and day totals are preserved, and the original shelf mapping is added. The next successful write uses version 2. A checked-in version-1 fixture verifies migration. Future schema changes need additional explicit migrations. Saves are local single-player data, not an authority for future multiplayer accounts.
+Older saves migrate automatically, preserving stock, cash, prices, deliveries, day totals and any shelf swaps. Version 1 gains the original shelf mapping. Each catalog product records the save version that introduced it, so a version-1 or version-2 save gains Meadow Honey with no stock, its default price and its own middle-row shelf. An older save that already lists a later product is rejected rather than guessed at. The next successful write uses version 3, which older game builds treat as a newer, protected save. Checked-in version-1 and version-2 fixtures verify migration. Future schema changes need additional explicit migrations. Saves are local single-player data, not an authority for future multiplayer accounts.
 
 Control preferences use a separate `cornerfield-settings.cfg` file. Sensitivity, movement speed, UI scale, guide visibility, collapsed panel states and key bindings are validated before applying them. Bindings must give every action its own supported physical key and never use Esc, Tab or F2; otherwise the whole file is rejected. They are not rolled back by loading store progress. Missing new preference fields receive defaults, including a compact dashboard. Esc pauses simulation time and the autosave countdown; manual save/load remain available in the pause menu. Save and quit stays in the menu if writing progress fails.
 

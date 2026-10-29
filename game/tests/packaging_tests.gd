@@ -2,7 +2,7 @@ extends RefCounted
 const State = preload("res://scripts/retail_state.gd")
 const Catalog = preload("res://scripts/catalog.gd")
 ## Front art u-range per product: wrap labels centre on u = 0.5, the carton front is the atlas's left half.
-const FRONT_U := {"beans": Vector2(0.4, 0.6), "oats": Vector2(0.0, 0.5), "soap": Vector2(0.4, 0.6)}
+const FRONT_U := {"beans": Vector2(0.4, 0.6), "oats": Vector2(0.0, 0.5), "soap": Vector2(0.4, 0.6), "honey": Vector2(0.4, 0.6)}
 
 static func _meshes(node: Node) -> Array:
 	var found: Array = []
@@ -33,8 +33,9 @@ static func scene_checks(world, check: Callable, _directory: String) -> void:
 	var textured := true
 	var fits := true
 	var facing := true
-	var triangles := 0
+	var heaviest := 0
 	for product in Catalog.IDS:
+		var triangles := 0
 		var model = world.merchandise[product].instantiate() as Node3D
 		var size: AABB = _bounds(model)
 		fits = fits and size.size.x <= 0.25 and size.size.z <= 0.25 and size.size.y > 0.25 and size.size.y < 0.6
@@ -59,11 +60,12 @@ static func scene_checks(world, check: Callable, _directory: String) -> void:
 				front_u /= maxi(count, 1)
 				facing = facing and count > 0 and front_u >= FRONT_U[product].x and front_u <= FRONT_U[product].y
 		textured = textured and label_found
+		heaviest = maxi(heaviest, triangles)
 		model.free()
 	check.call(textured, "Each product imports Blender packaging with its printed label texture")
 	check.call(fits, "Packaging fits one shelf facing and stands on its own base origin")
 	check.call(facing, "Printed pack fronts face the aisle after glTF axis conversion")
-	check.call(triangles < 5000, "Three packaging models stay within a 5,000-triangle budget")
+	check.call(heaviest < 2500, "Each packaging model stays within a 2,500-triangle budget")
 	if is_instance_valid(world.shopper):
 		world.shopper.queue_free()
 	world.shopper = null
@@ -82,12 +84,13 @@ static func scene_checks(world, check: Callable, _directory: String) -> void:
 		var deck_top: float = 0.28 + (0.71 + tier * 2.45) * world.UNIT
 		var next_deck: float = deck_top + 2.45 * world.UNIT - 0.12 * world.UNIT
 		on_decks = on_decks and tier >= 0 and tier < 4 and absf(bounds.position.y - deck_top) < 0.002 and bounds.end.y < next_deck - 0.05
-		on_decks = on_decks and bounds.end.z < 4.546 and bounds.position.z > 3.6
+		var shelf_z := float(Catalog.PRODUCTS[world.state.slot_for_product(unit.get_meta("product_id"))].shelf_z)
+		on_decks = on_decks and bounds.end.z < shelf_z + 0.546 and bounds.position.z > shelf_z - 0.4
 		var mesh: Mesh = _meshes(unit)[0].mesh
 		shared[unit.get_meta("product_id")] = shared.get(unit.get_meta("product_id"), {})
 		shared[unit.get_meta("product_id")][mesh] = true
-	var reused := shared.size() == 3
+	var reused := shared.size() == Catalog.IDS.size()
 	for product in shared:
 		reused = reused and shared[product].size() == 1
-	check.call(world.stock_root.get_child_count() == 36 and on_decks, "Stocked packs rest on deck tops, clear the deck above and stay behind the price rail")
+	check.call(world.stock_root.get_child_count() == 12 * Catalog.IDS.size() and on_decks, "Stocked packs rest on deck tops, clear the deck above and stay behind the price rail")
 	check.call(reused, "Every stocked unit of a product reuses one imported mesh")

@@ -23,8 +23,8 @@ static func run(check: Callable, directory: String) -> void:
 		if product != "beans":
 			check.call(state.restock("beans") == 0 and state.carried == 12, "Mismatched case cannot stock beans")
 		check.call(state.restock(product) == 12, "Matching case stocks " + product)
-	check.call(state.cash == 46340 and state.purchases == 3660, "Three supplier costs reconcile independently")
-	check.call(state.stocks == {"beans": 12, "oats": 12, "soap": 12}, "Product inventory is separate")
+	check.call(state.cash == 44180 and state.purchases == 5820, "Four supplier costs reconcile independently")
+	check.call(state.stocks == {"beans": 12, "oats": 12, "soap": 12, "honey": 12}, "Product inventory is separate")
 	check.call(not state.order_case("unknown") and not state.set_price("unknown", 100), "Unknown products are rejected")
 	check.call(not state.set_price("beans", 0) and not state.set_price("beans", 10000), "Editable prices stay in supported cent range")
 	state.set_price("beans", 199)
@@ -131,9 +131,9 @@ static func scene_checks(world, check: Callable, directory: String) -> void:
 		world.simulate(4)
 		world.player.position = Vector3(-8, 0.3, 8.5)
 		check.call(world.perform_action("receiving"), "Scene receiving action handles " + product)
-		world.player.position = Vector3(float(Catalog.PRODUCTS[product].shelf_x), 0.3, 5.7)
+		world.player.position = Vector3(float(Catalog.PRODUCTS[product].shelf_x), 0.3, float(Catalog.PRODUCTS[product].shelf_z) + 1.7)
 		check.call(world.perform_action("shelf" if product == "beans" else "shelf_" + product), "Scene stocks matching product shelf: " + product)
-	check.call(world.stock_root.get_child_count() == 36, "Three shelves render separate stock visuals")
+	check.call(world.stock_root.get_child_count() == 48, "Four shelves, including the middle-row honey shelf, render separate stock visuals")
 	_key(world, KEY_2)
 	for adjustment in range(4):
 		_key(world, KEY_BRACKETRIGHT)
@@ -154,7 +154,7 @@ static func scene_checks(world, check: Callable, directory: String) -> void:
 				break
 			world.simulate(0.1)
 		check.call(not is_instance_valid(world.shopper), "Shopper exits after a completed purchase")
-	check.call(world.state.revenue == 737 and world.state.cost_of_goods == 305 and world.state.cash == 47077, "Three in-scene sales reconcile mixed prices and costs")
+	check.call(world.state.revenue == 1136 and world.state.cost_of_goods == 485 and world.state.cash == 45316, "Four in-scene sales, including middle-row honey, reconcile mixed prices and costs")
 	world.persistence_enabled = true
 	world.save_path = directory.path_join("scene.json")
 	world.state.reserve(1, "soap")

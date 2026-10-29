@@ -18,7 +18,7 @@ func _capture() -> void:
 		world.state.collect_case()
 		world.state.restock(product)
 	world.state.open_store()
-	world._message("Prototype review: three products stocked, editable prices, store open.")
+	world._message("Prototype review: four products stocked, editable prices, store open.")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for frame in range(8):
 		await process_frame
@@ -45,6 +45,15 @@ func _capture() -> void:
 	print("PACKAGING_PREVIEW_RESULT ", packaging_result)
 	if packaging_result != OK:
 		result = packaging_result
+	world.player.position = Vector3(-6.2, 0.3, 1.9)
+	world.player.camera.look_at(Vector3(-7, 1.0, 0.35))
+	for frame in range(4):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var honey_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-honey-preview.png"))
+	print("HONEY_PREVIEW_RESULT ", honey_result)
+	if honey_result != OK:
+		result = honey_result
 	world.player.position = Vector3(2.5, 0.3, 8.7)
 	world.player.camera.look_at(Vector3(5.1, 1.1, 6.4))
 	for frame in range(4):

@@ -11,6 +11,7 @@ import math
 import random
 from pathlib import Path
 import bmesh
+import numpy
 import bpy
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,6 +64,9 @@ class Label:
         scene.view_settings.look = "None"
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGB"
+        for setting in dir(scene.render):
+            if setting.startswith("use_stamp"):
+                setattr(scene.render, setting, False)  # no date/time metadata: reproducible PNGs
         scene.world = bpy.data.worlds.new(name + "_World")
         camera = bpy.data.cameras.new(name + "_Camera")
         camera.type = "ORTHO"
@@ -141,6 +145,17 @@ class Label:
         path = LABELS / filename
         self.scene.render.filepath = str(path)
         bpy.ops.render.render(write_still=True, scene=self.scene.name)
+        # Cycles stamps render timings into the PNG; re-save bare pixels so builds are reproducible.
+        rendered = bpy.data.images.load(str(path))
+        pixels = numpy.empty(self.width * self.height * 4, dtype=numpy.float32)
+        rendered.pixels.foreach_get(pixels)
+        clean = bpy.data.images.new(path.stem + "_Print", self.width, self.height)
+        clean.pixels.foreach_set(pixels)
+        clean.filepath_raw = str(path)
+        clean.file_format = "PNG"
+        clean.save()
+        bpy.data.images.remove(rendered)
+        bpy.data.images.remove(clean)
         return path
 
 
@@ -217,6 +232,32 @@ def soap_label():
     art.barcode(888, 136, 104, 70, "0 41862 50500 1")
     art.text("Rinse well.", 140, 128, 22, "eef2ea")
     return art.render("soap.png")
+
+
+def hexagon(art, x, y, radius, color):
+    art.poly([(x + radius * math.cos(i * math.pi / 3), y + radius * math.sin(i * math.pi / 3)) for i in range(6)], color)
+
+
+def honey_label():
+    # Jar wrap: cream paper with green rules; honeycomb mark and name on the front.
+    art = Label("Honey", 1024, 256)
+    art.rect(512, 128, 1024, 256, "f6ecd2")
+    for y in (10, 246):
+        art.rect(512, y, 1024, 20, GREEN)
+    for y in (26, 230):
+        art.rect(512, y, 1024, 3, "c98a1c")
+    comb_x = 404
+    for dx, dy in [(0, 0), (0, 44), (0, -44), (38, 22), (38, -22), (-38, 22), (-38, -22)]:
+        hexagon(art, comb_x + dx, 128 + dy, 23, "a8650f")
+        hexagon(art, comb_x + dx, 128 + dy, 18, "e3a52b")
+    art.text("CORNERFIELD PANTRY", 586, 186, 15, GREEN, bold=0.4, spacing=1.2)
+    art.text("MEADOW", 586, 150, 30, "8a5a12", bold=1.0, max_width=190)
+    art.text("HONEY", 586, 102, 58, "8a5a12", bold=2.0, max_width=200)
+    art.text("PURE SET HONEY  ·  340 g", 586, 60, 14, GREEN, bold=0.3)
+    for index, line in enumerate(["Spread on warm toast", "or stir into oats."]):
+        art.text(line, 200, 140 - index * 30, 16, "5a3a12")
+    art.barcode(870, 136, 104, 70, "0 41862 70340 9")
+    return art.render("honey.png")
 
 
 def solid(name, hex_color, roughness, metallic=0.0):
@@ -341,7 +382,7 @@ def export(product, objects):
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
-images = {"beans": beans_label(), "oats": oats_label(), "soap": soap_label()}
+images = {"beans": beans_label(), "oats": oats_label(), "soap": soap_label(), "honey": honey_label()}
 scene = bpy.context.scene
 assets = []
 
@@ -377,6 +418,16 @@ bm = bmesh.new()
 box(bm, bm.loops.layers.uv.new("UVMap"), (0, -.042, .350), (.018, .060, .014))
 nozzle = finish(bm, "Soap_Nozzle", [pump], soap)
 assets.append(export("soap", [bottle, nozzle]))
+
+honey = bpy.data.collections.new("Merch_Honey")
+scene.collection.children.link(honey)
+jar = lathe("Honey_Jar", [(0, .004), (.078, .004), (.086, 0), (.092, .006), (.095, .022), (.095, .040),
+                          (.095, .190), (.095, .205), (.088, .228), (.070, .242), (.066, .246), (.066, .252),
+                          (.072, .252), (.074, .258), (.074, .296), (.070, .300), (0, .300)],
+            [0] * 5 + [1] + [0] * 5 + [2] * 5, (.040, .190),
+            [solid("Honey_Glass", "b8741a", .14), textured("Honey_Label", images["honey"], .6),
+             solid("Honey_Lid", "c9a23a", .34, .4)], honey)
+assets.append(export("honey", [jar]))
 
 (OUT / "merchandise-manifest.json").write_text(json.dumps({
     "tool": "Blender " + bpy.app.version_string, "source": "art/blender/build_packaging.py",

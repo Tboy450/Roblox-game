@@ -92,7 +92,7 @@ func _ready() -> void:
 			_load_game(false)
 	_refresh()
 	if notice.text.is_empty():
-		_message("Choose goods with %s / %s / %s, then %s to order. %s collects or stocks a case." % [_key("select_1"), _key("select_2"), _key("select_3"), _key("buy_case"), _key("interact")])
+		_message("Choose goods with %s, then %s to order. %s collects or stocks a case." % [_select_keys(), _key("buy_case"), _key("interact")])
 	if "--verify-prototype" in OS.get_cmdline_user_args():
 		print("CORNERFIELD_SCENE_READY")
 		get_tree().quit(0)
@@ -221,13 +221,13 @@ func _build_fixtures() -> void:
 		var info: Dictionary = Catalog.PRODUCTS[product]
 		merchandise[product] = load("res://assets/generated/" + info.model) as PackedScene
 		assert(merchandise[product] != null, "Missing packaging: run scripts/prepare-game-assets.ps1")
-		shelf_signs[product] = _sign("", Vector3(info.shelf_x, 2.9, 4.45), 32, 0.005)
+		shelf_signs[product] = _sign("", Vector3(info.shelf_x, 2.9, info.shelf_z + 0.45), 32, 0.005)
 		# One tag per tier, hung from the Houdini price rail under the middle facing.
 		price_tags[product] = []
 		for tier in range(4):
-			price_tags[product].append(_price_tag(Vector3(info.shelf_x, 0.28 + (0.85 + tier * 2.45) * UNIT - 0.065, 4.556)))
+			price_tags[product].append(_price_tag(Vector3(info.shelf_x, 0.28 + (0.85 + tier * 2.45) * UNIT - 0.065, info.shelf_z + 0.556)))
 		targets.append({"id": "shelf" if product == "beans" else "shelf_" + product,
-			"slot": product, "product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "Stock " + info.name})
+			"slot": product, "product": product, "at": Vector3(info.shelf_x, 1.1, info.shelf_z + 0.65), "label": "Stock " + info.name})
 	_asset("res://assets/generated/checkout.glb", "BlenderCheckout", Vector3(5, 0.28, 6.5))
 	_collider("CheckoutCabinet", Vector3(5, 0.77, 6.5), Vector3(1.176, 0.98, 2.408))
 	_collider("BaggingReturn", Vector3(6.106, 1.184, 5.884), Vector3(0.896, 0.0784, 1.176))
@@ -341,7 +341,7 @@ func _refresh() -> void:
 		for index in range(int(state.stocks[product])):
 			var tier = index / 3
 			var slot = index % 3
-			var at = Vector3(float(Catalog.PRODUCTS[slot_id].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.71 * UNIT + tier * 2.45 * UNIT, 4.12)
+			var at = Vector3(float(Catalog.PRODUCTS[slot_id].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.71 * UNIT + tier * 2.45 * UNIT, float(Catalog.PRODUCTS[slot_id].shelf_z) + 0.12)
 			_product_visual(product, at)
 	register_display.text = "READY"
 	if state.orders.has(shopper_order):
@@ -478,13 +478,19 @@ func _update_key_text() -> void:
 		move.append(_key(action))
 		single = single and _key(action).length() == 1
 	controls_hint.text = "%s Move   %s Interact   Esc Pause   Tab Panel cursor   F2 Compact/restore   %s Guide" % ["".join(move) if single else " / ".join(move), _key("interact"), _key("toggle_guide")]
-	controls_list.text = "%s / %s / %s  Select goods    %s / %s  Price ±10¢\n%s  Order case    %s  Open / close    %s  Next day\n%s  Swap empty shelf with selected goods (closed)" % [
-		_key("select_1"), _key("select_2"), _key("select_3"), _key("price_down"), _key("price_up"),
+	controls_list.text = "%s  Select goods    %s / %s  Price ±10¢\n%s  Order case    %s  Open / close    %s  Next day\n%s  Swap empty shelf with selected goods (closed)" % [
+		_select_keys(), _key("price_down"), _key("price_up"),
 		_key("buy_case"), _key("open_close"), _key("next_day"), _key("reassign_shelf")]
 	receiving_sign.text = "RECEIVING  /  %s TO ORDER" % _key("buy_case")
 	hours_sign.text = "%s  OPEN / CLOSE\n%s  NEXT DAY" % [_key("open_close"), _key("next_day")]
 	_save_note(save_note)
 	_refresh()
+
+func _select_keys() -> String:
+	var keys := PackedStringArray()
+	for index in range(Catalog.IDS.size()):
+		keys.append(_key("select_%d" % (index + 1)))
+	return " / ".join(keys)
 
 func _save_note(note: String) -> void:
 	save_note = note
@@ -649,7 +655,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			pause_menu.guide_toggle.button_pressed = not pause_menu.guide_toggle.button_pressed
 		"reassign_shelf":
 			reassign_nearby_shelf()
-		"select_1", "select_2", "select_3":
+		"select_1", "select_2", "select_3", "select_4":
 			selected_product = Catalog.IDS[int(action.right(1)) - 1]
 			_refresh()
 		"price_down", "price_up":
@@ -706,11 +712,26 @@ func _spawn_shopper() -> void:
 	_box(shopper, "Basket", Vector3(0.32, 0.65, 0), Vector3(0.4, 0.3, 0.3), Color("315d48"), false)
 	shopper_phase = "browsing"
 	shopper_order = -1
-	if shopper_slot == "soap":
-		shopper_path = [Vector3(0, 0.28, 8.4), Vector3(8, 0.28, 8.4), Vector3(8, 0.28, 5.4), Vector3(7, 0.28, 5.4)]
-	else:
-		shopper_path = [Vector3(-3, 0.28, 7.3), Vector3(-3, 0.28, 5.4), Vector3(float(Catalog.PRODUCTS[shopper_slot].shelf_x), 0.28, 5.4)]
+	shopper_path = _route_to_shelf(shopper_slot)
 	_refresh()
+
+## Fixed aisle waypoints: the east aisle serves shelves right of the checkout, the
+## x = -3 aisle serves the rest, turning 1.4 m in front of the slot's shelf row.
+func _route_to_shelf(slot: String) -> Array[Vector3]:
+	var info: Dictionary = Catalog.PRODUCTS[slot]
+	var stand := Vector3(float(info.shelf_x), 0.28, float(info.shelf_z) + 1.4)
+	var route: Array[Vector3] = [Vector3(-3, 0.28, 7.3), Vector3(-3, 0.28, stand.z), stand]
+	if float(info.shelf_x) > 4:
+		route = [Vector3(0, 0.28, 8.4), Vector3(8, 0.28, 8.4), Vector3(8, 0.28, stand.z), stand]
+	return route
+
+func _route_to_checkout(slot: String) -> Array[Vector3]:
+	var info: Dictionary = Catalog.PRODUCTS[slot]
+	var aisle_z := float(info.shelf_z) + 1.4
+	var route: Array[Vector3] = [Vector3(-3, 0.28, aisle_z), Vector3(-3, 0.28, 7.3), Vector3(2, 0.28, 8), Vector3(5, 0.28, 8)]
+	if float(info.shelf_x) > 4:
+		route = [Vector3(8, 0.28, aisle_z), Vector3(8, 0.28, 8.4), Vector3(5, 0.28, 8)]
+	return route
 
 func _leave_shop() -> void:
 	shopper_phase = "leaving"
@@ -745,10 +766,7 @@ func simulate(delta: float) -> void:
 				_leave_shop()
 			else:
 				shopper_phase = "walking_to_checkout"
-				if shopper_slot == "soap":
-					shopper_path = [Vector3(8, 0.28, 5.4), Vector3(8, 0.28, 8.4), Vector3(5, 0.28, 8)]
-				else:
-					shopper_path = [Vector3(-3, 0.28, 5.4), Vector3(-3, 0.28, 7.3), Vector3(2, 0.28, 8), Vector3(5, 0.28, 8)]
+				shopper_path = _route_to_checkout(shopper_slot)
 				_refresh()
 		"walking_to_checkout":
 			shopper_phase = "waiting_at_checkout"

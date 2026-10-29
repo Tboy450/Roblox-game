@@ -4,16 +4,16 @@ signal changed
 const Catalog = preload("res://scripts/catalog.gd")
 const CASE_SIZE := 12
 const CAPACITY := 12
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 # Legacy first-product constants/accessor retain the original regression contract.
 const UNIT_COST := 70
 const PRICE := 149
 var cash := 50000
 var day := 1
 var is_open := false
-var stocks: Dictionary = {"beans": 0, "oats": 0, "soap": 0}
-var prices: Dictionary = {"beans": 149, "oats": 249, "soap": 299}
-var shelf_assignments: Dictionary = {"beans": "beans", "oats": "oats", "soap": "soap"}
+var stocks: Dictionary = {}
+var prices: Dictionary = {}
+var shelf_assignments: Dictionary = {}
 var shelf: int:
 	get: return int(stocks["beans"])
 	set(value): stocks["beans"] = value
@@ -33,6 +33,35 @@ var sold := 0
 var walkouts := 0
 var opening_cash := 50000
 var last_report: Dictionary = {}
+
+func _init() -> void:
+	for product in Catalog.IDS:
+		stocks[product] = 0
+		prices[product] = int(Catalog.PRODUCTS[product].price)
+		shelf_assignments[product] = product
+
+## Older saves gain products introduced after them: empty, at the default price,
+## on their own home shelf. An older save that already lists such a product is rejected.
+static func _migrate(data: Dictionary) -> Dictionary:
+	var version := int(data.version)
+	if version == 1:
+		data.shelf_assignments = {}
+		for product in Catalog.IDS:
+			if int(Catalog.PRODUCTS[product].since) <= 1:
+				data.shelf_assignments[product] = product
+	for product in Catalog.IDS:
+		if int(Catalog.PRODUCTS[product].since) <= version:
+			continue
+		for field in ["stocks", "prices", "shelf_assignments"]:
+			if not data.get(field) is Dictionary:
+				return data
+		if data.stocks.has(product) or data.prices.has(product) or data.shelf_assignments.has(product) or product in data.shelf_assignments.values():
+			return {}
+		data.stocks[product] = 0
+		data.prices[product] = int(Catalog.PRODUCTS[product].price)
+		data.shelf_assignments[product] = product
+	data.version = SAVE_VERSION
+	return data
 
 func order_case(product: String = "beans") -> bool:
 	if not Catalog.PRODUCTS.has(product):
@@ -205,12 +234,11 @@ static func _whole(value: Variant, minimum: int, maximum: int) -> bool:
 
 func apply_save(data: Variant) -> String:
 	# Validate everything before touching live state. JSON numbers may be floats.
-	if data is Dictionary and _whole(data.get("version"), 1, 1):
-		data = data.duplicate(true)
-		data.version = SAVE_VERSION
-		data.shelf_assignments = {"beans": "beans", "oats": "oats", "soap": "soap"}
-	if not data is Dictionary or not _whole(data.get("version"), SAVE_VERSION, SAVE_VERSION):
+	if not data is Dictionary or not _whole(data.get("version"), 1, SAVE_VERSION):
 		return "Unsupported save version or malformed save."
+	data = _migrate(data.duplicate(true))
+	if data.is_empty():
+		return "Save lists goods its version did not have."
 	if not data.get("shelf_assignments") is Dictionary or data.shelf_assignments.size() != Catalog.IDS.size():
 		return "Invalid shelf assignments."
 	var assigned: Array = []

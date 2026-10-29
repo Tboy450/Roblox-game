@@ -24,7 +24,7 @@ for source, target, tool in [("gondola-01.obj", "shelf.glb", "Houdini"), ("store
 shutil.copyfile(SOURCE/"checkout-01.glb", DEST/"checkout.glb")
 assets.append({"file": "checkout.glb", "source": "art/blender/build_store.py", "tool": "Blender"})
 # Merchandise is authored in metres and instanced per stocked unit by Godot.
-for product in ("beans", "oats", "soap"):
+for product in ("beans", "oats", "soap", "honey"):
     target = f"merch-{product}.glb"
     shutil.copyfile(SOURCE/target, DEST/target)
     assets.append({"file": target, "source": "art/blender/build_packaging.py", "tool": "Blender", "units": "metres"})

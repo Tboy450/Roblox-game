@@ -17,14 +17,14 @@ DCC paths default to installed Houdini 22.0.466 `hython.exe` and portable `.tool
 | `store-shell.glb` | Cooked Houdini shell variant: 80 × 64 source units, masonry, glazing, canopy and tile joints |
 | `shelf.glb` | Houdini uprights, slots, decks, brackets, rails and labels; static merchandise excluded |
 | `checkout.glb` | Blender casework, conveyor/rollers, scanner, till, monitor, terminal, printer, bagging return and lettering |
-| `merch-beans.glb`, `merch-oats.glb`, `merch-soap.glb` | Blender packaging with embedded printed labels; metres, base centred at the origin |
+| `merch-beans.glb`, `merch-oats.glb`, `merch-soap.glb`, `merch-honey.glb` | Blender packaging with embedded printed labels; metres, base centred at the origin |
 | `manifest.json` | Source files/tools, scale and SHA-256 hashes |
 
 These compact runtime files are versioned so fresh clones do not require DCC tools. Larger native/intermediate outputs live in ignored `art/exports/`. The full Houdini starter, roof/HVAC and hidden reference remain there; compact shell export does not overwrite the native HIP.
 
 ## Merchandise packaging
 
-`art/blender/build_packaging.py` draws each label from flat shapes and lettering, renders it to PNG with Cycles (`art/exports/packaging-labels/`), then wraps it onto a lathed tin, a box-mapped carton or a lathed pump bottle and exports one GLB per product. Brands, copy and barcodes are fictional. Lettering uses the Latin glyphs of **Noto Sans CJK Regular** bundled with Blender (SIL Open Font License 1.1, The Noto Project Authors); Blender's bundled variable Inter font was tried first but its overlapping strokes fill with holes. `prepare-game-assets.ps1` runs the generator only when a `merch-*.glb` export is missing, so run it directly after editing labels or models. Godot extracts the embedded labels to ignored `merch-*_*.png` files on import and generates mipmaps.
+`art/blender/build_packaging.py` draws each label from flat shapes and lettering, renders it to PNG with Cycles (`art/exports/packaging-labels/`), then wraps it onto a lathed tin, a box-mapped carton, a lathed pump bottle or a lathed honey jar and exports one GLB per product. Label PNGs are re-saved without Cycles' render-time metadata, so rebuilding produces byte-identical GLBs. Brands, copy and barcodes are fictional. Lettering uses the Latin glyphs of **Noto Sans CJK Regular** bundled with Blender (SIL Open Font License 1.1, The Noto Project Authors); Blender's bundled variable Inter font was tried first but its overlapping strokes fill with holes. `prepare-game-assets.ps1` runs the generator only when a `merch-*.glb` export is missing, so run it directly after editing labels or models. Godot extracts the embedded labels to ignored `merch-*_*.png` files on import and generates mipmaps.
 
 ## Coordinates and ownership
 

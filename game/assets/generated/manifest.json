@@ -26,21 +26,28 @@
       "source": "art/blender/build_packaging.py",
       "tool": "Blender",
       "units": "metres",
-      "sha256": "f4a3437f5e157d732fac6e1afaad7626dc3ea33644d19e3118ab43a87b696b48"
+      "sha256": "2ab4ce2480407b8028d63ac20eb52a96ec56060246322141da06a6d4090eb04a"
     },
     {
       "file": "merch-oats.glb",
       "source": "art/blender/build_packaging.py",
       "tool": "Blender",
       "units": "metres",
-      "sha256": "54708c43357c7155897fb86cc97230446976009f95108c51ebd7dcf9448e7822"
+      "sha256": "3afbc142644a767388438d71b08617a389d9dbde26b9160a352d1bb244b78101"
     },
     {
       "file": "merch-soap.glb",
       "source": "art/blender/build_packaging.py",
       "tool": "Blender",
       "units": "metres",
-      "sha256": "93c1580e543bbc4a88d87e3db8b3e24715b738b8acd5bb00153de83c707552fb"
+      "sha256": "3c7608bc99ecc6ed5db3c4f9159f6e855a532b347dfb93051b054adaba2a8d49"
+    },
+    {
+      "file": "merch-honey.glb",
+      "source": "art/blender/build_packaging.py",
+      "tool": "Blender",
+      "units": "metres",
+      "sha256": "1a8495bc4ddafd2b56cf0ac606f09a7f78425d59837f61b56bc35196c46ac60f"
     }
   ],
   "note": "source_to_metres applies to fixtures; merchandise is authored in metres. Fixture textures, LODs and final art remain work in progress."

@@ -2,7 +2,7 @@
 
 A standalone simulator built in **Godot**, with **Houdini** procedural buildings and shelves and a **Blender** checkout. Development uses source files, background generation, headless engine tests and scripted renders. Roblox is the reference; Studio and Rojo are not required for this game.
 
-**Status: playable prototype with saved progress.** Order cases, stock three product shelves, edit prices, serve shoppers and close with a reconciled report. Beans, oats and hand soap have separate stock and costs; one shopper is active at a time. Final art, supporting rooms, staff and multiplayer remain open work.
+**Status: playable prototype with saved progress.** Order cases, stock four product shelves, edit prices, serve shoppers and close with a reconciled report. Beans, oats, hand soap and honey have separate stock and costs; one shopper is active at a time. Final art, supporting rooms, staff and multiplayer remain open work.
 
 ![Actual Godot prototype, captured by script](art/previews/godot-prototype.png)
 
@@ -24,7 +24,7 @@ Windows / PowerShell, from this repository:
 .\scripts\run-game.ps1       # background import, then launch the game
 ```
 
-The three runtime GLBs are checked in. Houdini and Blender are needed only to regenerate them. Supply an existing Godot executable with `-Godot C:\path\to\godot_console.exe`.
+The runtime fixture and merchandise GLBs are checked in. Houdini and Blender are needed only to regenerate them. Supply an existing Godot executable with `-Godot C:\path\to\godot_console.exe`.
 
 The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract and run `CornerfieldMarket.exe`, keeping its `.pck` beside it. This prototype bundles the official Godot editor runtime in game mode; it is not a size-optimized production export. Build outputs are ignored by Git, not published GitHub releases.
 
@@ -32,18 +32,20 @@ The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract an
 
 A first-day guide shows the next useful action and marks Receiving, the matching shelf or Checkout 01 when relevant. It adapts to saved progress and shelf reassignment. **H** hides/shows it; the pause menu remembers your preference. It does not lock normal gameplay and disappears after day one.
 
-1. **1 / 2 / 3** selects beans, oats or hand soap. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00). Delivery takes four seconds.
+1. **1 / 2 / 3 / 4** selects beans, oats, hand soap or honey. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00 / $21.60). Delivery takes four seconds.
 2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
-3. Approach the matching **Pantry**, **Breakfast** or **Household** shelf and press **E** to stock it. A case cannot fill a different product's shelf.
+3. Approach the matching **Pantry**, **Breakfast** or **Household** shelf, or the **Spreads** shelf in the middle row behind Pantry, and press **E** to stock it. A case cannot fill a different product's shelf.
 4. **[ / ]** adjusts the selected product's sale price by ten cents. Shelf-edge tags on every tier show the goods and their current price. **O** opens; shoppers rotate among stocked goods and walk to Checkout 01.
 5. Approach checkout and press **E** to complete the purchase. Baskets retain the price quoted at pickup; the display and receipt show the actual sale.
 6. **O** closes and returns unpaid reservations to stock. The report separates revenue, cost of goods, purchases and cash movement. **N** starts the next day.
 
 ![Shelf-edge price tags on the pantry shelf, captured by script](art/previews/godot-price-tags.png)
 
-Stocked goods use original fictional *Cornerfield Pantry* packaging modelled in Blender: a labelled tin of Harvest Beans, a Morning Oats carton and a Cedar Hand Soap pump bottle. Each stocked unit is an instance of its product's GLB, standing on the shelf deck with its printed front toward the aisle.
+Stocked goods use original fictional *Cornerfield Pantry* packaging modelled in Blender: a labelled tin of Harvest Beans, a Morning Oats carton, a Cedar Hand Soap pump bottle and a Meadow Honey jar. Each stocked unit is an instance of its product's GLB, standing on the shelf deck with its printed front toward the aisle.
 
 ![Cedar Hand Soap bottles on the household shelf, captured by script](art/previews/godot-packaging.png)
+
+![Meadow Honey jars on the middle-row spreads shelf, captured by script](art/previews/godot-honey.png)
 
 **WASD** moves, the **mouse** looks, and **Esc** opens the pause/settings menu. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
 
@@ -65,7 +67,7 @@ The dashboard, guide and day report each have **− / +** minimize/restore butto
 
 **F5** saves and **F9** loads. The game loads automatically on startup and autosaves after transactions and normal window close. Files live in Godot's Cornerfield Market user-data folder: `cornerfield-save.json` and its previous valid `.bak`. See [save behavior and recovery](docs/SAVES.md).
 
-Resume starts closed, returns unpaid baskets to their shelves, and preserves shelf assignments, product stock/prices, carried and incoming cases, delivery time, cash, day and daily totals. Version-1 saves migrate automatically to version 2 with the original shelf layout. Damaged primaries can recover from backup; failed loads preserve current progress and pause autosaving. Unsupported newer saves are not overwritten.
+Resume starts closed, returns unpaid baskets to their shelves, and preserves shelf assignments, product stock/prices, carried and incoming cases, delivery time, cash, day and daily totals. Version-1 and version-2 saves migrate automatically to version 3: version 1 gains the original shelf layout, and both gain Meadow Honey, empty at its default price on its own shelf. Damaged primaries can recover from backup; failed loads preserve current progress and pause autosaving. Unsupported newer saves are not overwritten.
 
 ## Build and verify without editor interaction
 
@@ -76,7 +78,7 @@ Resume starts closed, returns unpaid baskets to their shelves, and preserves she
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls, shelf price tags, key rebinding and packaging import/placement. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
+Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls, shelf price tags, key rebinding, packaging import/placement and save migration across catalog changes. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
 
 ## Source layout
 

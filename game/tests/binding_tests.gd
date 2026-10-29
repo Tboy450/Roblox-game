@@ -50,8 +50,16 @@ static func run(check: Callable, directory: String) -> void:
 	older.save(older_path)
 	var upgraded = Settings.new()
 	check.call(upgraded.load_file(older_path) and upgraded.bindings == Settings.default_bindings() and is_equal_approx(upgraded.values.ui_scale, 1.1), "Settings saved before rebinding existed load with default keys")
+	var before_honey = ConfigFile.new()
+	for action in Settings.ACTIONS:
+		if action != "select_4":
+			before_honey.set_value("bindings", action, Settings.ACTIONS[action][1])
+	before_honey.set_value("bindings", "buy_case", KEY_4)
+	before_honey.save(older_path)
+	var spared = Settings.new()
+	check.call(spared.load_file(older_path) and spared.bindings.buy_case == KEY_4 and spared.bindings.select_4 == KEY_5, "An action added later takes a spare key when its default is already bound")
 	var whole = true
-	for bad in [{"interact": KEY_B}, {"interact": KEY_TAB}, {"interact": "E"}, {"interact": 69.0}]:
+	for bad in [{"interact": KEY_B, "buy_case": KEY_B}, {"interact": KEY_TAB}, {"interact": "E"}, {"interact": 69.0}]:
 		var config = ConfigFile.new()
 		config.set_value("controls", "ui_scale", 0.9)
 		for action in bad:

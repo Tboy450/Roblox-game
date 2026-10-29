@@ -50,7 +50,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add a remembered guide toggle and destination marker without locking normal gameplay.
 - [x] Add minimize/restore controls to dashboard, guide and day report; remember layouts and provide compact-all/cursor shortcuts.
 - [x] Add keyboard rebinding with conflict swaps, fixed pause/panel keys, saved preferences and live key hints.
-- [ ] Expand the catalog.
+- [x] Expand the catalog to a fourth product, Meadow Honey: middle-row shelf, packaging, select key, routes and version-3 save migration.
+- [ ] Make shelf slots and shopper routes data-driven before adding many more products.
 - [x] Add keyboard panel selection and toggling, skipping hidden panels and returning focus to gameplay.
 - [ ] Playtest the guide with new players and extend keyboard-only/accessibility coverage.
 
@@ -75,6 +76,7 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add versioned saves, atomic primary replacement, previous-valid backup, autosave and recovery tests.
 - [x] Preserve cash, prices, stock, carried/incoming cases and daily progress across load.
 - [x] Migrate version-1 saves to version 2 with a checked-in legacy fixture.
+- [x] Migrate version-1 and version-2 saves to version 3 when the catalog grows, with a checked-in version-2 fixture.
 - [ ] Validate long-running campaigns and add migrations for future schema changes.
 - [ ] Authoritative co-op simulation, permissions and request validation.
 - [ ] Complete two-player receive → stock → sell → close tests.
