@@ -18,6 +18,10 @@ if (-not (Test-Path (Join-Path $RetailRoot 'art/exports/checkout-01.glb'))) {
     & $Blender --background --python-exit-code 1 --python (Join-Path $RetailRoot 'art/blender/build_store.py')
     if ($LASTEXITCODE -ne 0) { throw 'Checkout export failed' }
 }
+if (@('beans', 'oats', 'soap') | Where-Object { -not (Test-Path (Join-Path $RetailRoot "art/exports/merch-$_.glb")) }) {
+    & $Blender --background --python-exit-code 1 --python (Join-Path $RetailRoot 'art/blender/build_packaging.py')
+    if ($LASTEXITCODE -ne 0) { throw 'Packaging export failed' }
+}
 & $Hython (Join-Path $RetailRoot 'art/houdini/export_game_shell.py')
 if ($LASTEXITCODE -ne 0) { throw 'Standalone shell export failed' }
 & $Blender --background --python-exit-code 1 --python (Join-Path $RetailRoot 'art/blender/prepare_godot_assets.py')

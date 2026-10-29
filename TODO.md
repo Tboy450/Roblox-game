@@ -30,7 +30,7 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Import actual GLBs with materials and a source/hash manifest.
 - [x] Keep merchandise dynamic and fixture collision separate from decoration.
 - [x] Add readable shelf-edge price tags that follow price edits, shelf swaps and loaded progress.
-- [ ] Replace block merchandise with fictional packaging.
+- [x] Replace block merchandise with fictional Blender packaging: labelled tin, carton and pump bottle.
 - [ ] Finish refrigeration, produce/bakery, pharmacy, receiving, staff/office and bathroom props.
 - [ ] Add carts, baskets, parking, delivery/customer vehicles and service-yard assets.
 - [ ] Replace the shopper capsule with a rigged, animated character.

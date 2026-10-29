@@ -160,6 +160,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/tests/guide_tests.gd` | Tutorial progress, recovery cases, markers and preference behavior |
 | `game/tests/panel_tests.gd` | Minimize/restore, keyboard focus, visibility, persistence and gameplay guards |
 | `game/tests/price_tag_tests.gd` | Shelf-edge tag text, fit, placement, price edits, swaps and load |
+| `game/tests/packaging_tests.gd` | Packaging textures, size, origin, aisle-facing labels, triangle budget and deck placement |
 | `game/tests/binding_tests.gd` | Binding validation, swaps, settings files, capture UI, rebound gameplay/movement and hints |
 | `game/tests/capture_preview.gd` | Staged actual-engine screenshots without editor interaction |
 | `game/tests/fixtures/save-v1.json` | Checked-in historical save migration fixture |
@@ -213,6 +214,7 @@ Runtime assets are versioned in `game/assets/generated/`:
 - `store-shell.glb` — Houdini shell, 7,932 triangles in the current engine report.
 - `shelf.glb` — Houdini shelving, 10,368 triangles per source asset.
 - `checkout.glb` — detailed Blender checkout, 84 mesh instances / 25,144 triangles in the report.
+- `merch-beans.glb`, `merch-oats.glb`, `merch-soap.glb` — Blender packaging with embedded labels, in metres (1,344 / 12 / 1,836 triangles).
 - `manifest.json` — tool/source information, scale and hashes.
 
 The checked-in GLBs allow a fresh clone to run without Houdini or Blender. Larger native/intermediate files are ignored under `art/exports/`, but exist in the current workspace, including:
@@ -235,11 +237,12 @@ Main authoring scripts:
 - `art/houdini/build_store.py`, `store_geometry.py`, `review_and_export.py`.
 - `art/houdini/export_game_shell.py` — compact runtime shell variant; does not overwrite the larger native source.
 - `art/blender/build_store.py`, `validate_checkout.py`.
+- `art/blender/build_packaging.py` — fictional label art (Cycles-rendered, Noto Sans CJK Latin glyphs, OFL) and merchandise GLBs.
 - `art/blender/prepare_godot_assets.py` — OBJ conversion, checkout copy, runtime manifest.
 
 Scale and axes matter: **one source unit is 0.28 metres in Godot**. Houdini is Y-up; Blender is Z-up and glTF export converts it to Y-up. OBJ conversion explicitly chooses Y-up. The runtime shell is 80 × 64 source units. Collision proxies, lights, merchandise and gameplay UI belong to Godot; do not bake dynamic inventory into fixture meshes.
 
-Current materials pass actual import checks, but they are prototype materials, not finished PBR work. Merchandise is simple colored geometry; the shopper is a capsule.
+Current materials pass actual import checks, but they are prototype materials, not finished PBR work. Merchandise uses Blender packaging GLBs with printed labels; the shopper is still a capsule.
 
 ## 10. Verification and evidence
 
@@ -256,6 +259,7 @@ Versioned scripted review images:
 - `art/previews/godot-day-report.png` — closed-day report.
 - `art/previews/godot-compact.png` — compact panel layout.
 - `art/previews/godot-price-tags.png` — shelf-edge price tags close-up.
+- `art/previews/godot-packaging.png` — soap packaging close-up.
 
 These are actual engine frames. The final keyboard-only pass changed input behavior and documentation; it did not regenerate screenshots. Rendering uses a script and hidden process, not UI automation. Inspect new frames when changing visual layout. Existing tests are meaningful regression coverage; add focused tests for changed behavior rather than mirroring implementation details.
 
@@ -276,12 +280,12 @@ This is a playable single-player prototype, with the following major limits:
 - Fixed shopper waypoints, one active shopper, no real queue/occupancy system.
 - No demand model, shopping lists, price sensitivity, staff, expenses, upgrades or co-op.
 - No complete office/stockroom/staff/bathroom/cooler/dock layout.
-- Placeholder merchandise and shopper; incomplete storefront detail, textures, LODs and supporting props.
+- Placeholder shopper; prototype packaging without LODs; incomplete storefront detail, fixture textures and supporting props.
 - Keyboard rebinding only: no mouse-button or controller bindings, controller validation or broad accessibility review.
 - No target-hardware budgets, production export optimization or sustained campaign/multiplayer soak testing.
 - Human playtesting of the guide, navigation and complete store day remains pending.
 
-If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags and keyboard rebinding are done; good next options are fictional merchandise packaging or a first catalog expansion. Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
+If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags, keyboard rebinding and merchandise packaging are done; a good next option is a first catalog expansion (new products need a `build_packaging.py` label/model and a `model` entry in `catalog.gd`). Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
 
 Suggested continuation procedure:
 

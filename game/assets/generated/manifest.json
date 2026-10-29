@@ -20,7 +20,28 @@
       "source": "art/blender/build_store.py",
       "tool": "Blender",
       "sha256": "1f164c8e5fa7c10c376030099d7df8787761ed4065b50cf2922bb198be655444"
+    },
+    {
+      "file": "merch-beans.glb",
+      "source": "art/blender/build_packaging.py",
+      "tool": "Blender",
+      "units": "metres",
+      "sha256": "f4a3437f5e157d732fac6e1afaad7626dc3ea33644d19e3118ab43a87b696b48"
+    },
+    {
+      "file": "merch-oats.glb",
+      "source": "art/blender/build_packaging.py",
+      "tool": "Blender",
+      "units": "metres",
+      "sha256": "54708c43357c7155897fb86cc97230446976009f95108c51ebd7dcf9448e7822"
+    },
+    {
+      "file": "merch-soap.glb",
+      "source": "art/blender/build_packaging.py",
+      "tool": "Blender",
+      "units": "metres",
+      "sha256": "93c1580e543bbc4a88d87e3db8b3e24715b738b8acd5bb00153de83c707552fb"
     }
   ],
-  "note": "Authored geometry; textures/LODs and final art remain work in progress."
+  "note": "source_to_metres applies to fixtures; merchandise is authored in metres. Fixture textures, LODs and final art remain work in progress."
 }

@@ -1,8 +1,9 @@
 extends RefCounted
 ## Prices and supplier costs are integer cents; stable IDs are used in saves.
+## Models are Blender packaging GLBs in metres, base centred at the origin.
 const IDS := ["beans", "oats", "soap"]
 const PRODUCTS := {
-	"beans": {"name": "Harvest Beans", "short": "Beans", "department": "PANTRY", "cost": 70, "price": 149, "color": "c17b38", "shelf_x": -7.0},
-	"oats": {"name": "Morning Oats", "short": "Oats", "department": "BREAKFAST", "cost": 110, "price": 249, "color": "d6b967", "shelf_x": 0.0},
-	"soap": {"name": "Cedar Hand Soap", "short": "Soap", "department": "HOUSEHOLD", "cost": 125, "price": 299, "color": "568c8c", "shelf_x": 7.0},
+	"beans": {"name": "Harvest Beans", "short": "Beans", "department": "PANTRY", "cost": 70, "price": 149, "color": "c17b38", "shelf_x": -7.0, "model": "merch-beans.glb"},
+	"oats": {"name": "Morning Oats", "short": "Oats", "department": "BREAKFAST", "cost": 110, "price": 249, "color": "d6b967", "shelf_x": 0.0, "model": "merch-oats.glb"},
+	"soap": {"name": "Cedar Hand Soap", "short": "Soap", "department": "HOUSEHOLD", "cost": 125, "price": 299, "color": "568c8c", "shelf_x": 7.0, "model": "merch-soap.glb"},
 }

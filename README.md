@@ -41,6 +41,10 @@ A first-day guide shows the next useful action and marks Receiving, the matching
 
 ![Shelf-edge price tags on the pantry shelf, captured by script](art/previews/godot-price-tags.png)
 
+Stocked goods use original fictional *Cornerfield Pantry* packaging modelled in Blender: a labelled tin of Harvest Beans, a Morning Oats carton and a Cedar Hand Soap pump bottle. Each stocked unit is an instance of its product's GLB, standing on the shelf deck with its printed front toward the aisle.
+
+![Cedar Hand Soap bottles on the household shelf, captured by script](art/previews/godot-packaging.png)
+
 **WASD** moves, the **mouse** looks, and **Esc** opens the pause/settings menu. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
 
 While closed, select goods with **1/2/3**, look at a nearby empty shelf and press **R**. Its sign and price tags swap with that product's other empty shelf. Both affected shelves must have no stock or unpaid reservations. Stocking, shopper routes and saved progress follow the new layout.
@@ -72,7 +76,7 @@ Resume starts closed, returns unpaid baskets to their shelves, and preserves she
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls, shelf price tags and key rebinding. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
+Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls, shelf price tags, key rebinding and packaging import/placement. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
 
 ## Source layout
 

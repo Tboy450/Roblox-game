@@ -23,8 +23,13 @@ for source, target, tool in [("gondola-01.obj", "shelf.glb", "Houdini"), ("store
     assets.append({"file": target, "source": source, "tool": tool})
 shutil.copyfile(SOURCE/"checkout-01.glb", DEST/"checkout.glb")
 assets.append({"file": "checkout.glb", "source": "art/blender/build_store.py", "tool": "Blender"})
+# Merchandise is authored in metres and instanced per stocked unit by Godot.
+for product in ("beans", "oats", "soap"):
+    target = f"merch-{product}.glb"
+    shutil.copyfile(SOURCE/target, DEST/target)
+    assets.append({"file": target, "source": "art/blender/build_packaging.py", "tool": "Blender", "units": "metres"})
 for asset in assets:
     asset["sha256"] = hashlib.sha256((DEST/asset["file"]).read_bytes()).hexdigest()
 (DEST/"manifest.json").write_text(json.dumps({"version": 1, "source_to_metres": .28, "axis": "Y up",
-    "assets": assets, "note": "Authored geometry; textures/LODs and final art remain work in progress."}, indent=2), encoding="utf-8")
+    "assets": assets, "note": "source_to_metres applies to fixtures; merchandise is authored in metres. Fixture textures, LODs and final art remain work in progress."}, indent=2), encoding="utf-8")
 print("GODOT_ASSETS_READY", len(assets))

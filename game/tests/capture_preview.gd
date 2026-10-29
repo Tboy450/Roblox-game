@@ -36,6 +36,15 @@ func _capture() -> void:
 	print("PRICE_TAGS_PREVIEW_RESULT ", tags_result)
 	if tags_result != OK:
 		result = tags_result
+	world.player.position = Vector3(6.2, 0.3, 5.8)
+	world.player.camera.look_at(Vector3(7.1, 1.05, 4.2))
+	for frame in range(4):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var packaging_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-packaging-preview.png"))
+	print("PACKAGING_PREVIEW_RESULT ", packaging_result)
+	if packaging_result != OK:
+		result = packaging_result
 	world.player.position = Vector3(2.5, 0.3, 8.7)
 	world.player.camera.look_at(Vector3(5.1, 1.1, 6.4))
 	for frame in range(4):

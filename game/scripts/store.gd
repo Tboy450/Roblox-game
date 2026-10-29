@@ -28,6 +28,7 @@ var notice_timer := 0.0
 var selected_product := "beans"
 var shelf_signs: Dictionary = {}
 var price_tags: Dictionary = {}
+var merchandise: Dictionary = {}
 var supplier_hint: Label
 var save_hint: Label
 var save_note := ""
@@ -218,6 +219,8 @@ func _build_fixtures() -> void:
 	add_child(stock_root)
 	for product in Catalog.IDS:
 		var info: Dictionary = Catalog.PRODUCTS[product]
+		merchandise[product] = load("res://assets/generated/" + info.model) as PackedScene
+		assert(merchandise[product] != null, "Missing packaging: run scripts/prepare-game-assets.ps1")
 		shelf_signs[product] = _sign("", Vector3(info.shelf_x, 2.9, 4.45), 32, 0.005)
 		# One tag per tier, hung from the Houdini price rail under the middle facing.
 		price_tags[product] = []
@@ -338,7 +341,7 @@ func _refresh() -> void:
 		for index in range(int(state.stocks[product])):
 			var tier = index / 3
 			var slot = index % 3
-			var at = Vector3(float(Catalog.PRODUCTS[slot_id].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.65 * UNIT + tier * 2.45 * UNIT + 0.17, 4.12)
+			var at = Vector3(float(Catalog.PRODUCTS[slot_id].shelf_x) - 0.92 + slot * 0.92, 0.28 + 0.71 * UNIT + tier * 2.45 * UNIT, 4.12)
 			_product_visual(product, at)
 	register_display.text = "READY"
 	if state.orders.has(shopper_order):
@@ -531,26 +534,11 @@ func reassign_nearby_shelf() -> bool:
 	return assigned
 
 func _product_visual(product: String, at: Vector3) -> void:
-	var root = Node3D.new()
+	var root = merchandise[product].instantiate() as Node3D
 	root.name = product
 	root.position = at
 	root.set_meta("product_id", product)
 	stock_root.add_child(root, true)
-	var color = Color(Catalog.PRODUCTS[product].color)
-	if product == "oats":
-		_box(root, "Carton", Vector3(0, 0.03, 0), Vector3(0.24, 0.4, 0.2), color, false)
-	else:
-		var body = MeshInstance3D.new()
-		var cylinder = CylinderMesh.new()
-		cylinder.top_radius = 0.11 if product == "beans" else 0.08
-		cylinder.bottom_radius = 0.11
-		cylinder.height = 0.34
-		cylinder.radial_segments = 16
-		body.mesh = cylinder
-		body.material_override = _material(color)
-		root.add_child(body)
-		_box(root, "Lid" if product == "beans" else "Pump", Vector3(0, 0.18, 0), Vector3(0.18 if product == "beans" else 0.1, 0.025 if product == "beans" else 0.06, 0.16), Color("b9bbae"), false)
-	_box(root, "Label", Vector3(0, 0, 0.106), Vector3(0.19, 0.15, 0.007), Color("e9dfb5"), false)
 
 func _on_state_changed() -> void:
 	_refresh()
