@@ -5,7 +5,7 @@
 		"meshes": 84,
 		"triangles": 25144
 	},
-	"checks": 264,
+	"checks": 273,
 	"failures": [],
 	"passed": true,
 	"scope": "Headless engine import, physics and retail loop; human playtesting and multiplayer remain pending.",

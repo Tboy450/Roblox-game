@@ -7,6 +7,7 @@ const PanelTests = preload("res://tests/panel_tests.gd")
 const PriceTagTests = preload("res://tests/price_tag_tests.gd")
 const BindingTests = preload("res://tests/binding_tests.gd")
 const PackagingTests = preload("res://tests/packaging_tests.gd")
+const RouteTests = preload("res://tests/route_tests.gd")
 var failures: Array[String] = []
 var checks := 0
 
@@ -87,6 +88,7 @@ func _run() -> void:
 	Usability.run(check, test_directory)
 	GuideTests.run(check, test_directory)
 	BindingTests.run(check, test_directory)
+	RouteTests.run(check, test_directory)
 	var world = load("res://main.tscn").instantiate()
 	world.persistence_enabled = false
 	root.add_child(world)
@@ -158,6 +160,7 @@ func _run() -> void:
 	PriceTagTests.scene_checks(world, check, test_directory)
 	BindingTests.scene_checks(world, check, test_directory)
 	PackagingTests.scene_checks(world, check, test_directory)
+	RouteTests.scene_checks(world, check, test_directory)
 	var result = {"passed": failures.is_empty(), "checks": checks, "failures": failures,
 		"checkout": checkout, "shelf": shelf, "shell": shell,
 		"scope": "Headless engine import, physics and retail loop; human playtesting and multiplayer remain pending."}

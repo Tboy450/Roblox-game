@@ -42,7 +42,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Validate distance and prevent duplicate purchases/refunds.
 - [x] Reserve real stock; restore unpaid orders on close or timeout.
 - [x] Check actual shelf/checkout material imports in the engine.
-- [ ] Replace fixed shopper waypoints with navigation and occupancy handling.
+- [x] Replace fixed shopper waypoints with shortest routes planned around the real collider footprints.
+- [ ] Add shopper occupancy handling so several shoppers can share aisles and the checkout.
 - [x] Add three separate product shelves, case matching, price editing and live receipt/display totals.
 - [x] Swap the three front shelves' products while closed and empty; update labels, stock locations, shopper routes and saves.
 - [x] Add pause/settings with sensitivity, movement speed, UI scale and keyboard navigation.
@@ -51,7 +52,7 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add minimize/restore controls to dashboard, guide and day report; remember layouts and provide compact-all/cursor shortcuts.
 - [x] Add keyboard rebinding with conflict swaps, fixed pause/panel keys, saved preferences and live key hints.
 - [x] Expand the catalog to a fourth product, Meadow Honey: middle-row shelf, packaging, select key, routes and version-3 save migration.
-- [ ] Make shelf slots and shopper routes data-driven before adding many more products.
+- [x] Make shelf slots and shopper routes data-driven: gondola list, per-product home shelf and planned routes.
 - [x] Add keyboard panel selection and toggling, skipping hidden panels and returning focus to gameplay.
 - [ ] Playtest the guide with new players and extend keyboard-only/accessibility coverage.
 

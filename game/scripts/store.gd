@@ -8,8 +8,14 @@ const Preferences = preload("res://scripts/player_settings.gd")
 const PauseMenu = preload("res://scripts/pause_menu.gd")
 const Guide = preload("res://scripts/first_day_guide.gd")
 const Foldable = preload("res://scripts/foldable_panel.gd")
+const Routes = preload("res://scripts/store_routes.gd")
 const UNIT := 0.28
 const PRICE_TAG_WIDTH := 0.26
+## Gondola centres (x, z) in metres; every catalog home shelf must be one of them.
+const GONDOLAS := [Vector2(-7, -4), Vector2(0, -4), Vector2(7, -4), Vector2(-7, 0), Vector2(0, 0),
+	Vector2(7, 0), Vector2(-7, 4), Vector2(0, 4), Vector2(7, 4)]
+const SHOP_DOOR := Vector3(-1, 0.28, 10.8)
+const CHECKOUT_QUEUE := Vector3(5, 0.28, 8.15)
 var state = State.new()
 var player: CharacterBody3D
 var hud: Label
@@ -29,6 +35,7 @@ var selected_product := "beans"
 var shelf_signs: Dictionary = {}
 var price_tags: Dictionary = {}
 var merchandise: Dictionary = {}
+var routes = Routes.new()
 var supplier_hint: Label
 var save_hint: Label
 var save_note := ""
@@ -210,10 +217,9 @@ func _build_environment() -> void:
 	_sign("EVERYDAY GOODS  /  NEIGHBORHOOD PRICES", Vector3(0, 3.45, -8.8), 48, 0.007)
 
 func _build_fixtures() -> void:
-	for x in [-7.0, 0.0, 7.0]:
-		for z in [-4.0, 0.0, 4.0]:
-			_asset("res://assets/generated/shelf.glb", "HoudiniShelf", Vector3(x, 0.28, z))
-			_collider("ShelfCollision", Vector3(x, 1.47, z), Vector3(3.4, 2.38, 1.12))
+	for gondola in GONDOLAS:
+		_asset("res://assets/generated/shelf.glb", "HoudiniShelf", Vector3(gondola.x, 0.28, gondola.y))
+		_collider("ShelfCollision", Vector3(gondola.x, 1.47, gondola.y), Vector3(3.4, 2.38, 1.12))
 	stock_root = Node3D.new()
 	stock_root.name = "DynamicStock"
 	add_child(stock_root)
@@ -243,6 +249,24 @@ func _build_fixtures() -> void:
 	receiving_sign = _sign("", Vector3(-8, 1.7, 7.45), 36, 0.005)
 	targets.append({"id": "receiving", "at": Vector3(-8, 1.2, 7.9), "label": "Collect delivered case"})
 	hours_sign = _sign("", Vector3(0.9, 1.8, 8.7), 32, 0.005)
+	_build_routes()
+
+## Every box collider that blocks a walker's body becomes a route obstacle.
+func _build_routes() -> void:
+	for body in get_children():
+		if not body is StaticBody3D:
+			continue
+		for shape in body.get_children():
+			if shape is CollisionShape3D and shape.shape is BoxShape3D:
+				var centre: Vector3 = body.position + shape.position
+				var size: Vector3 = shape.shape.size
+				if centre.y - size.y / 2 < 1.9 and centre.y + size.y / 2 > 0.35:
+					routes.add_obstacle(centre, size)
+	routes.build(Rect2(-11.1, -8.86, 22.2, 20.6))
+
+func stand_point(slot: String) -> Vector3:
+	var info: Dictionary = Catalog.PRODUCTS[slot]
+	return Vector3(float(info.shelf_x), 0.28, float(info.shelf_z) + 1.4)
 
 func _label(parent: Node, text: String, size: int, color: Color) -> Label:
 	var label = Label.new()
@@ -655,8 +679,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			pause_menu.guide_toggle.button_pressed = not pause_menu.guide_toggle.button_pressed
 		"reassign_shelf":
 			reassign_nearby_shelf()
-		"select_1", "select_2", "select_3", "select_4":
-			selected_product = Catalog.IDS[int(action.right(1)) - 1]
+		_ when action.begins_with("select_") and int(action.trim_prefix("select_")) <= Catalog.IDS.size():
+			selected_product = Catalog.IDS[int(action.trim_prefix("select_")) - 1]
 			_refresh()
 		"price_down", "price_up":
 			var change = -10 if action == "price_down" else 10
@@ -691,7 +715,7 @@ func _spawn_shopper() -> void:
 	shopper_slot = state.slot_for_product(shopper_product)
 	shopper = Node3D.new()
 	shopper.name = "ShopperPrototype"
-	shopper.position = Vector3(-1, 0.28, 10.8)
+	shopper.position = SHOP_DOOR
 	add_child(shopper)
 	var torso = MeshInstance3D.new()
 	var capsule = CapsuleMesh.new()
@@ -712,30 +736,18 @@ func _spawn_shopper() -> void:
 	_box(shopper, "Basket", Vector3(0.32, 0.65, 0), Vector3(0.4, 0.3, 0.3), Color("315d48"), false)
 	shopper_phase = "browsing"
 	shopper_order = -1
-	shopper_path = _route_to_shelf(shopper_slot)
+	_walk_to(stand_point(shopper_slot))
 	_refresh()
 
-## Fixed aisle waypoints: the east aisle serves shelves right of the checkout, the
-## x = -3 aisle serves the rest, turning 1.4 m in front of the slot's shelf row.
-func _route_to_shelf(slot: String) -> Array[Vector3]:
-	var info: Dictionary = Catalog.PRODUCTS[slot]
-	var stand := Vector3(float(info.shelf_x), 0.28, float(info.shelf_z) + 1.4)
-	var route: Array[Vector3] = [Vector3(-3, 0.28, 7.3), Vector3(-3, 0.28, stand.z), stand]
-	if float(info.shelf_x) > 4:
-		route = [Vector3(0, 0.28, 8.4), Vector3(8, 0.28, 8.4), Vector3(8, 0.28, stand.z), stand]
-	return route
-
-func _route_to_checkout(slot: String) -> Array[Vector3]:
-	var info: Dictionary = Catalog.PRODUCTS[slot]
-	var aisle_z := float(info.shelf_z) + 1.4
-	var route: Array[Vector3] = [Vector3(-3, 0.28, aisle_z), Vector3(-3, 0.28, 7.3), Vector3(2, 0.28, 8), Vector3(5, 0.28, 8)]
-	if float(info.shelf_x) > 4:
-		route = [Vector3(8, 0.28, aisle_z), Vector3(8, 0.28, 8.4), Vector3(5, 0.28, 8)]
-	return route
+func _walk_to(target: Vector3) -> void:
+	shopper_path = routes.route(shopper.position, target)
+	if shopper_path.is_empty():
+		push_warning("No walkable route to %s; walking directly." % target)
+		shopper_path = [target]
 
 func _leave_shop() -> void:
 	shopper_phase = "leaving"
-	shopper_path = [Vector3(2, 0.28, 8), Vector3(-1, 0.28, 10.8)]
+	_walk_to(SHOP_DOOR)
 	_refresh()
 
 func simulate(delta: float) -> void:
@@ -766,7 +778,7 @@ func simulate(delta: float) -> void:
 				_leave_shop()
 			else:
 				shopper_phase = "walking_to_checkout"
-				shopper_path = _route_to_checkout(shopper_slot)
+				_walk_to(CHECKOUT_QUEUE)
 				_refresh()
 		"walking_to_checkout":
 			shopper_phase = "waiting_at_checkout"

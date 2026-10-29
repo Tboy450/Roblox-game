@@ -96,7 +96,7 @@ In the previous Codex environment, native executables and some Git/network comma
 - Four interactive product shelves: Harvest Beans, Morning Oats and Cedar Hand Soap on the front row, Meadow Honey on the middle-row left shelf.
 - Product selection, supplier case ordering, four-second delivery, receiving, carrying and partial stocking.
 - Separate stock, supplier costs and editable selling prices per product.
-- One active shopper at a time, selecting stocked goods in rotation, walking to a shelf and then checkout.
+- One active shopper at a time, selecting stocked goods in rotation, walking a planned route to its shelf, the checkout and the door.
 - Pickup-time quoted prices, real receipt/register totals, checkout, timeout cancellation and departure.
 - Store open/close, unpaid-stock restoration, reconciled daily report and next-day progression.
 - Versioned saves, previous-valid backup, autosave, manual save/load and version-1 migration.
@@ -153,6 +153,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/scripts/player.gd` | CharacterBody3D movement, look, camera and interaction signal |
 | `game/scripts/player_settings.gd` | Validated separate ConfigFile preferences and physical-key bindings |
 | `game/scripts/pause_menu.gd` | Pause overlay, sliders, checkbox, save/load/quit controls |
+| `game/scripts/store_routes.gd` | Visibility-graph route planner over inflated collider footprints (AStar2D); shoppers use it for every leg |
 | `game/scripts/first_day_guide.gd` | Derives useful next step from state without adding saved tutorial flags |
 | `game/scripts/foldable_panel.gd` | Shared panel header, toggle button, collapsible body and change signal |
 | `game/tests/run_tests.gd` | Aggregate real-engine test runner and JSON report |
@@ -279,7 +280,7 @@ Continue using the existing draft PR for ordinary continuation work. Do not crea
 
 This is a playable single-player prototype, with the following major limits:
 
-- Fixed shopper waypoints, one active shopper, no real queue/occupancy system.
+- Planned shopper routes, but one active shopper and no queue/occupancy system; routes ignore other walkers.
 - No demand model, shopping lists, price sensitivity, staff, expenses, upgrades or co-op.
 - No complete office/stockroom/staff/bathroom/cooler/dock layout.
 - Placeholder shopper; prototype packaging without LODs; incomplete storefront detail, fixture textures and supporting props.
@@ -287,7 +288,7 @@ This is a playable single-player prototype, with the following major limits:
 - No target-hardware budgets, production export optimization or sustained campaign/multiplayer soak testing.
 - Human playtesting of the guide, navigation and complete store day remains pending.
 
-If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags, keyboard rebinding, merchandise packaging and a fourth product are done. Another product needs a catalog entry (`shelf_x`/`shelf_z`, `model`, `since`), a `select_N` binding, packaging in `build_packaging.py` and a save-version bump; shopper routes in `store.gd` are still hand-written per aisle, so make slots and routes data-driven before adding many more. Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
+If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags, keyboard rebinding, merchandise packaging and a fourth product are done. Another product needs a catalog entry (`shelf_x`/`shelf_z`, `model`, `since`), a `select_N` binding, packaging in `build_packaging.py` and a save-version bump. Its home shelf must be one of `store.gd` `GONDOLAS`; routes are planned automatically from the colliders, and `route_tests.gd` checks every slot. Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
 
 Suggested continuation procedure:
 
