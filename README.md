@@ -9,6 +9,7 @@ A standalone simulator built in **Godot**, with **Houdini** procedural buildings
 ![Blender checkout running in the Godot scene](art/previews/godot-checkout.png)
 
 - [To-do checklist](TODO.md)
+- [Detailed handoff for Claude](docs/CLAUDE_HANDOFF.md)
 - [GitHub project board](https://github.com/users/Tboy450/projects/2)
 - [Design and milestones](docs/REBUILD_PLAN.md)
 - [Art pipeline](art/README.md)
