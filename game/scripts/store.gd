@@ -9,6 +9,7 @@ const PauseMenu = preload("res://scripts/pause_menu.gd")
 const Guide = preload("res://scripts/first_day_guide.gd")
 const Foldable = preload("res://scripts/foldable_panel.gd")
 const UNIT := 0.28
+const PRICE_TAG_WIDTH := 0.26
 var state = State.new()
 var player: CharacterBody3D
 var hud: Label
@@ -26,6 +27,7 @@ var targets: Array[Dictionary] = []
 var notice_timer := 0.0
 var selected_product := "beans"
 var shelf_signs: Dictionary = {}
+var price_tags: Dictionary = {}
 var supplier_hint: Label
 var save_hint: Label
 var register_display: Label3D
@@ -149,6 +151,22 @@ func _sign(text: String, at: Vector3, font_size: int = 48, pixel: float = 0.006)
 	add_child(label)
 	return label
 
+func _tag_text(parent: Node3D, at: Vector3, font_size: int) -> Label3D:
+	var label = Label3D.new()
+	label.position = at
+	label.font_size = font_size
+	label.pixel_size = 0.0004
+	label.modulate = Color("1b2621")
+	label.outline_size = 0
+	parent.add_child(label)
+	return label
+
+func _price_tag(at: Vector3) -> Dictionary:
+	var card = _box(self, "PriceTag", at, Vector3(PRICE_TAG_WIDTH, 0.13, 0.006), Color("f6f2e4"), false)
+	var accent = _box(card, "Accent", Vector3(0, 0.057, 0.0035), Vector3(PRICE_TAG_WIDTH, 0.016, 0.002), Color.WHITE, false)
+	return {"card": card, "accent": accent.get_child(0).material_override,
+		"title": _tag_text(card, Vector3(0, 0.029, 0.0045), 56), "price": _tag_text(card, Vector3(0, -0.022, 0.0045), 124)}
+
 func _build_environment() -> void:
 	var environment = WorldEnvironment.new()
 	environment.environment = Environment.new()
@@ -197,6 +215,10 @@ func _build_fixtures() -> void:
 	for product in Catalog.IDS:
 		var info: Dictionary = Catalog.PRODUCTS[product]
 		shelf_signs[product] = _sign("", Vector3(info.shelf_x, 2.9, 4.45), 32, 0.005)
+		# One tag per tier, hung from the Houdini price rail under the middle facing.
+		price_tags[product] = []
+		for tier in range(4):
+			price_tags[product].append(_price_tag(Vector3(info.shelf_x, 0.28 + (0.85 + tier * 2.45) * UNIT - 0.065, 4.556)))
 		targets.append({"id": "shelf" if product == "beans" else "shelf_" + product,
 			"slot": product, "product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "E  Stock " + info.name})
 	_asset("res://assets/generated/checkout.glb", "BlenderCheckout", Vector3(5, 0.28, 6.5))
@@ -290,6 +312,10 @@ func _refresh() -> void:
 	for slot in Catalog.IDS:
 		var product: String = state.shelf_assignments[slot]
 		shelf_signs[slot].text = "%s\n%s  %s" % [Catalog.PRODUCTS[product].department, Catalog.PRODUCTS[product].name, _money(state.prices[product])]
+		for tag in price_tags[slot]:
+			tag.title.text = Catalog.PRODUCTS[product].name.to_upper()
+			tag.price.text = _money(state.prices[product])
+			tag.accent.albedo_color = Color(Catalog.PRODUCTS[product].color)
 	for target in targets:
 		if target.has("slot"):
 			target.product = state.shelf_assignments[target.slot]

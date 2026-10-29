@@ -35,13 +35,15 @@ A first-day guide shows the next useful action and marks Receiving, the matching
 1. **1 / 2 / 3** selects beans, oats or hand soap. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00). Delivery takes four seconds.
 2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
 3. Approach the matching **Pantry**, **Breakfast** or **Household** shelf and press **E** to stock it. A case cannot fill a different product's shelf.
-4. **[ / ]** adjusts the selected product's sale price by ten cents. **O** opens; shoppers rotate among stocked goods and walk to Checkout 01.
+4. **[ / ]** adjusts the selected product's sale price by ten cents. Shelf-edge tags on every tier show the goods and their current price. **O** opens; shoppers rotate among stocked goods and walk to Checkout 01.
 5. Approach checkout and press **E** to complete the purchase. Baskets retain the price quoted at pickup; the display and receipt show the actual sale.
 6. **O** closes and returns unpaid reservations to stock. The report separates revenue, cost of goods, purchases and cash movement. **N** starts the next day.
 
+![Shelf-edge price tags on the pantry shelf, captured by script](art/previews/godot-price-tags.png)
+
 **WASD** moves, the **mouse** looks, and **Esc** opens the pause/settings menu. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
 
-While closed, select goods with **1/2/3**, look at a nearby empty shelf and press **R**. Its label swaps with that product's other empty shelf. Both affected shelves must have no stock or unpaid reservations. Stocking, shopper routes and saved progress follow the new layout.
+While closed, select goods with **1/2/3**, look at a nearby empty shelf and press **R**. Its sign and price tags swap with that product's other empty shelf. Both affected shelves must have no stock or unpaid reservations. Stocking, shopper routes and saved progress follow the new layout.
 
 ## Pause and control settings
 
@@ -66,7 +68,7 @@ Resume starts closed, returns unpaid baskets to their shelves, and preserves she
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression and panel controls. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
+Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls and shelf price tags. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
 
 ## Source layout
 

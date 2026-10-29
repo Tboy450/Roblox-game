@@ -157,6 +157,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/tests/usability_tests.gd` | Shelf mapping, migration, pause/settings and scene integration |
 | `game/tests/guide_tests.gd` | Tutorial progress, recovery cases, markers and preference behavior |
 | `game/tests/panel_tests.gd` | Minimize/restore, keyboard focus, visibility, persistence and gameplay guards |
+| `game/tests/price_tag_tests.gd` | Shelf-edge tag text, fit, placement, price edits, swaps and load |
 | `game/tests/capture_preview.gd` | Staged actual-engine screenshots without editor interaction |
 | `game/tests/fixtures/save-v1.json` | Checked-in historical save migration fixture |
 
@@ -249,6 +250,7 @@ Versioned scripted review images:
 - `art/previews/godot-settings.png` — pause menu at 125% scale.
 - `art/previews/godot-day-report.png` — closed-day report.
 - `art/previews/godot-compact.png` — compact panel layout.
+- `art/previews/godot-price-tags.png` — shelf-edge price tags close-up.
 
 These are actual engine frames. The final keyboard-only pass changed input behavior and documentation; it did not regenerate screenshots. Rendering uses a script and hidden process, not UI automation. Inspect new frames when changing visual layout. Existing tests are meaningful regression coverage; add focused tests for changed behavior rather than mirroring implementation details.
 

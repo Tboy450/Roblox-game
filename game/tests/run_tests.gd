@@ -4,6 +4,7 @@ const Progression = preload("res://tests/progression_tests.gd")
 const Usability = preload("res://tests/usability_tests.gd")
 const GuideTests = preload("res://tests/guide_tests.gd")
 const PanelTests = preload("res://tests/panel_tests.gd")
+const PriceTagTests = preload("res://tests/price_tag_tests.gd")
 var failures: Array[String] = []
 var checks := 0
 
@@ -151,6 +152,7 @@ func _run() -> void:
 	Usability.scene_checks(world, check, test_directory)
 	GuideTests.scene_checks(world, check, test_directory)
 	PanelTests.scene_checks(world, check, test_directory)
+	PriceTagTests.scene_checks(world, check, test_directory)
 	var result = {"passed": failures.is_empty(), "checks": checks, "failures": failures,
 		"checkout": checkout, "shelf": shelf, "shell": shell,
 		"scope": "Headless engine import, physics and retail loop; human playtesting and multiplayer remain pending."}

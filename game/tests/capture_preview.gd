@@ -27,6 +27,15 @@ func _capture() -> void:
 	var destination = ProjectSettings.globalize_path("res://../builds/godot-preview.png")
 	var result = image.save_png(destination)
 	print("PREVIEW_RESULT ", result, " ", image.get_size())
+	world.player.position = Vector3(-6.4, 0.3, 5.9)
+	world.player.camera.look_at(Vector3(-7, 0.95, 4.56))
+	for frame in range(4):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var tags_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-price-tags-preview.png"))
+	print("PRICE_TAGS_PREVIEW_RESULT ", tags_result)
+	if tags_result != OK:
+		result = tags_result
 	world.player.position = Vector3(2.5, 0.3, 8.7)
 	world.player.camera.look_at(Vector3(5.1, 1.1, 6.4))
 	for frame in range(4):
