@@ -53,6 +53,10 @@ The dashboard, guide and day report each have **− / +** minimize/restore butto
 
 ![Pause/settings menu at 125% UI scale](art/previews/godot-settings.png)
 
+**Key bindings** in the pause menu rebinds every gameplay key: movement, interact, goods selection, ordering, prices, open/close, next day, shelf swap, guide, save and load. Choose an action, then press its new key; Esc cancels. A key already in use swaps with the action's previous key, so every action keeps exactly one key. Esc, Tab and F2 stay fixed so pause and panel navigation always work. Keys are stored by physical position, so the defaults stay in place on non-QWERTY layouts and buttons show your layout's printed labels. On-screen hints, prompts, signs and the first-day guide follow your bindings. **Reset defaults** restores the original keys. Bindings save with the other preferences; a settings file with duplicate, fixed or malformed keys is rejected as a whole.
+
+![Key bindings page at 125% UI scale](art/previews/godot-controls.png)
+
 ## Saved progress
 
 **F5** saves and **F9** loads. The game loads automatically on startup and autosaves after transactions and normal window close. Files live in Godot's Cornerfield Market user-data folder: `cornerfield-save.json` and its previous valid `.bak`. See [save behavior and recovery](docs/SAVES.md).
@@ -68,7 +72,7 @@ Resume starts closed, returns unpaid baskets to their shelves, and preserves she
 .\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
 ```
 
-Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls and shelf price tags. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
+Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls, shelf price tags and key rebinding. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
 
 ## Source layout
 

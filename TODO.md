@@ -49,7 +49,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add contextual first-day guidance for ordering, delivery, stocking, checkout and closing; follow reassigned shelves and resumed progress.
 - [x] Add a remembered guide toggle and destination marker without locking normal gameplay.
 - [x] Add minimize/restore controls to dashboard, guide and day report; remember layouts and provide compact-all/cursor shortcuts.
-- [ ] Expand the catalog and add input rebinding.
+- [x] Add keyboard rebinding with conflict swaps, fixed pause/panel keys, saved preferences and live key hints.
+- [ ] Expand the catalog.
 - [x] Add keyboard panel selection and toggling, skipping hidden panels and returning focus to gameplay.
 - [ ] Playtest the guide with new players and extend keyboard-only/accessibility coverage.
 

@@ -30,6 +30,11 @@ var shelf_signs: Dictionary = {}
 var price_tags: Dictionary = {}
 var supplier_hint: Label
 var save_hint: Label
+var save_note := ""
+var controls_list: Label
+var receiving_sign: Label3D
+var hours_sign: Label3D
+var key_names: Dictionary = {}
 var register_display: Label3D
 var receipt_display: Label3D
 var last_receipt := ""
@@ -67,7 +72,6 @@ func _ready() -> void:
 	player.name = "Player"
 	player.position = Vector3(-2.8, 0.4, 7.7)
 	add_child(player)
-	player.interacted.connect(_interact)
 	state.changed.connect(_on_state_changed)
 	persistence_enabled = persistence_enabled and not "--no-save" in OS.get_cmdline_user_args() and not "--verify-prototype" in OS.get_cmdline_user_args()
 	if persistence_enabled:
@@ -87,7 +91,7 @@ func _ready() -> void:
 			_load_game(false)
 	_refresh()
 	if notice.text.is_empty():
-		_message("Choose goods with 1 / 2 / 3, then B to order. E collects or stocks a case.")
+		_message("Choose goods with %s / %s / %s, then %s to order. %s collects or stocks a case." % [_key("select_1"), _key("select_2"), _key("select_3"), _key("buy_case"), _key("interact")])
 	if "--verify-prototype" in OS.get_cmdline_user_args():
 		print("CORNERFIELD_SCENE_READY")
 		get_tree().quit(0)
@@ -220,11 +224,11 @@ func _build_fixtures() -> void:
 		for tier in range(4):
 			price_tags[product].append(_price_tag(Vector3(info.shelf_x, 0.28 + (0.85 + tier * 2.45) * UNIT - 0.065, 4.556)))
 		targets.append({"id": "shelf" if product == "beans" else "shelf_" + product,
-			"slot": product, "product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "E  Stock " + info.name})
+			"slot": product, "product": product, "at": Vector3(info.shelf_x, 1.1, 4.65), "label": "Stock " + info.name})
 	_asset("res://assets/generated/checkout.glb", "BlenderCheckout", Vector3(5, 0.28, 6.5))
 	_collider("CheckoutCabinet", Vector3(5, 0.77, 6.5), Vector3(1.176, 0.98, 2.408))
 	_collider("BaggingReturn", Vector3(6.106, 1.184, 5.884), Vector3(0.896, 0.0784, 1.176))
-	targets.append({"id": "checkout", "at": Vector3(4.55, 1.4, 6.0), "label": "E  Complete customer's purchase"})
+	targets.append({"id": "checkout", "at": Vector3(4.55, 1.4, 6.0), "label": "Complete customer's purchase"})
 	_sign("CHECKOUT 01", Vector3(5, 2.5, 6.3), 44, 0.005)
 	register_display = _sign("READY", Vector3(4.776, 1.753, 5.754), 28, 0.0009)
 	register_display.outline_size = 0
@@ -233,9 +237,9 @@ func _build_fixtures() -> void:
 	receipt_display.modulate = Color("182c24")
 	receipt_display.outline_size = 0
 	_box(self, "ReceivingTable", Vector3(-8, 0.73, 7.45), Vector3(2.2, 0.9, 0.9), Color("725f48"))
-	_sign("RECEIVING  /  B TO ORDER", Vector3(-8, 1.7, 7.45), 36, 0.005)
-	targets.append({"id": "receiving", "at": Vector3(-8, 1.2, 7.9), "label": "E  Collect delivered case"})
-	_sign("O  OPEN / CLOSE\nN  NEXT DAY", Vector3(0.9, 1.8, 8.7), 32, 0.005)
+	receiving_sign = _sign("", Vector3(-8, 1.7, 7.45), 36, 0.005)
+	targets.append({"id": "receiving", "at": Vector3(-8, 1.2, 7.9), "label": "Collect delivered case"})
+	hours_sign = _sign("", Vector3(0.9, 1.8, 8.7), 32, 0.005)
 
 func _label(parent: Node, text: String, size: int, color: Color) -> Label:
 	var label = Label.new()
@@ -267,15 +271,15 @@ func _build_hud() -> void:
 	var column = panel.body
 	hud = _label(column, "", 17, Color("e3e8dc"))
 	supplier_hint = _label(column, "", 15, Color("dfd0a4"))
-	_label(column, "1 / 2 / 3  Select goods    [ / ]  Price ±10¢\nB  Order case    O  Open / close    N  Next day\nR  Swap empty shelf with selected goods (closed)", 15, Color("aebeb2"))
-	save_hint = _label(column, "F5  Save    F9  Load", 14, Color("aebeb2"))
+	controls_list = _label(column, "", 15, Color("aebeb2"))
+	save_hint = _label(column, "", 14, Color("aebeb2"))
 	prompt = _label(layer, "", 22, Color("fff0c4"))
 	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	prompt.position = Vector2(450, 585)
 	notice = _label(layer, "", 17, Color("fff6df"))
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notice.position = Vector2(24, 660)
-	controls_hint = _label(layer, "WASD Move   E Interact   Esc Pause   Tab Panel cursor   F2 Compact/restore   H Guide", 15, Color("d4ddd7"))
+	controls_hint = _label(layer, "", 15, Color("d4ddd7"))
 	crosshair = _label(layer, "+", 24, Color("f2edd9"))
 	crosshair.position = Vector2(632, 344)
 	report_panel = Foldable.new("DAY REPORT")
@@ -319,7 +323,7 @@ func _refresh() -> void:
 	for target in targets:
 		if target.has("slot"):
 			target.product = state.shelf_assignments[target.slot]
-			target.label = "E  Stock " + Catalog.PRODUCTS[target.product].name + "  /  R swap when empty"
+			target.label = "Stock " + Catalog.PRODUCTS[target.product].name
 	var carried_name = Catalog.PRODUCTS[state.carried_product].short if state.carried > 0 else "—"
 	hud.text = "DAY %d  /  %s\nCash %s    Sales %s%s\nCarrying %d %s\nReceiving %d    On order %d\nCustomer: %s" % [
 		state.day, "OPEN" if state.is_open else "CLOSED", _money(state.cash), _money(state.revenue), stock_lines,
@@ -346,16 +350,16 @@ func _refresh() -> void:
 	else:
 		var summary: Dictionary = state.last_report
 		report_panel.set_title("DAY %d / CLOSED\nSales %s" % [summary.day, _money(summary.revenue)])
-		report.text = "Revenue      %s\nGoods sold   %s\nGross profit %s\nPurchases    %s\nCash change  %s\n\n%d sold · %d walkouts\nN  Begin next day" % [
+		report.text = "Revenue      %s\nGoods sold   %s\nGross profit %s\nPurchases    %s\nCash change  %s\n\n%d sold · %d walkouts\n%s  Begin next day" % [
 			_money(summary.revenue), _money(summary.cost_of_goods), _money(summary.gross_profit),
-			_money(summary.purchases), _money(summary.cash_change), summary.sold, summary.walkouts]
+			_money(summary.purchases), _money(summary.cash_change), summary.sold, summary.walkouts, _key("next_day")]
 	report_panel.visible = not report.text.is_empty()
 	_update_guide()
 
 func _update_guide() -> void:
 	if not is_instance_valid(guide_panel) or not is_instance_valid(guide_marker):
 		return
-	var step = Guide.current(state, shopper_phase)
+	var step = Guide.current(state, shopper_phase, key_names)
 	var enabled = bool(preferences.values.guide_enabled) and not step.is_empty()
 	guide_panel.visible = enabled and not game_paused
 	guide_marker.visible = false
@@ -377,7 +381,11 @@ func _message(text: String) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
+		if game_paused and not pause_menu.capture_action.is_empty():
+			# A key-binding capture owns the next key, including Esc to cancel it.
+			pause_menu.capture_key(event)
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_ESCAPE:
 			set_paused(not game_paused)
 			get_viewport().set_input_as_handled()
 		elif not game_paused and event.keycode == KEY_TAB:
@@ -428,6 +436,7 @@ func _panel_changed(collapsed: bool, key: String) -> void:
 		preferences.save_file(settings_path)
 
 func set_paused(paused: bool) -> void:
+	pause_menu.show_controls(false)
 	game_paused = paused
 	panel_cursor = false
 	player.controls_enabled = not paused
@@ -445,12 +454,38 @@ func set_paused(paused: bool) -> void:
 func _apply_settings() -> void:
 	player.sensitivity = float(preferences.values.sensitivity)
 	player.move_speed = float(preferences.values.move_speed)
+	player.move_keys = ["move_forward", "move_back", "move_left", "move_right"].map(func(action): return preferences.bindings[action])
+	if preferences.labels() != key_names:
+		key_names = preferences.labels()
+		_update_key_text()
 	hud_layer.scale = Vector2.ONE * float(preferences.values.ui_scale)
 	dashboard_panel.set_collapsed(preferences.values.dashboard_collapsed, false)
 	guide_panel.set_collapsed(preferences.values.guide_collapsed, false)
 	report_panel.set_collapsed(preferences.values.report_collapsed, false)
 	_update_guide()
 	_layout_hud()
+
+func _key(action: String) -> String:
+	return key_names.get(action, "?")
+
+func _update_key_text() -> void:
+	var move := PackedStringArray()
+	var single := true
+	for action in ["move_forward", "move_left", "move_back", "move_right"]:
+		move.append(_key(action))
+		single = single and _key(action).length() == 1
+	controls_hint.text = "%s Move   %s Interact   Esc Pause   Tab Panel cursor   F2 Compact/restore   %s Guide" % ["".join(move) if single else " / ".join(move), _key("interact"), _key("toggle_guide")]
+	controls_list.text = "%s / %s / %s  Select goods    %s / %s  Price ±10¢\n%s  Order case    %s  Open / close    %s  Next day\n%s  Swap empty shelf with selected goods (closed)" % [
+		_key("select_1"), _key("select_2"), _key("select_3"), _key("price_down"), _key("price_up"),
+		_key("buy_case"), _key("open_close"), _key("next_day"), _key("reassign_shelf")]
+	receiving_sign.text = "RECEIVING  /  %s TO ORDER" % _key("buy_case")
+	hours_sign.text = "%s  OPEN / CLOSE\n%s  NEXT DAY" % [_key("open_close"), _key("next_day")]
+	_save_note(save_note)
+	_refresh()
+
+func _save_note(note: String) -> void:
+	save_note = note
+	save_hint.text = "%s  Save    %s  Load" % [_key("save_game"), _key("load_game")] + ("" if note.is_empty() else "  /  " + note)
 
 func _settings_changed() -> void:
 	_apply_settings()
@@ -528,7 +563,7 @@ func _save_game(manual: bool = true) -> bool:
 	var result = Saves.save(state, save_path)
 	save_countdown = -1.0
 	save_blocked = not result.ok
-	save_hint.text = "F5  Save    F9  Load  /  " + ("Saved" if result.ok else "Save paused")
+	_save_note("Saved" if result.ok else "Save paused")
 	if manual or not result.ok:
 		_message("Progress saved. Unpaid baskets return to shelves on resume." if result.ok else result.error)
 	return result.ok
@@ -540,7 +575,7 @@ func _load_game(manual: bool = true) -> bool:
 	if not result.ok:
 		save_blocked = true
 		save_countdown = -1.0
-		save_hint.text = "F5  Save    F9  Load  /  Save paused"
+		_save_note("Save paused")
 		_message("Load failed; current progress unchanged. " + result.error)
 		return false
 	if is_instance_valid(shopper):
@@ -556,7 +591,7 @@ func _load_game(manual: bool = true) -> bool:
 	player.position = Vector3(-2.8, 0.4, 7.7)
 	player.velocity = Vector3.ZERO
 	_refresh()
-	save_hint.text = "F5  Save    F9  Load  /  " + ("Backup recovered" if result.recovered else "Loaded")
+	_save_note("Backup recovered" if result.recovered else "Loaded")
 	if manual or result.recovered:
 		_message("Recovered the previous valid save. Store resumed closed." if result.recovered else "Loaded. Store resumed closed; unpaid goods returned to shelves.")
 	return true
@@ -595,7 +630,7 @@ func perform_action(id: String) -> bool:
 	match id:
 		"receiving":
 			var success = state.collect_case()
-			_message("Carrying a case. Stock the marked pantry shelf." if success else "No case ready. B orders one; delivery takes four seconds.")
+			_message("Carrying a case. Stock the marked pantry shelf." if success else "No case ready. %s orders one; delivery takes four seconds." % _key("buy_case"))
 			return success
 		"checkout":
 			var basket: Dictionary = state.orders.get(shopper_order, {})
@@ -618,37 +653,39 @@ func _interact() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if game_paused or panel_cursor:
 		return
-	if event is InputEventKey and event.pressed and not event.echo:
-		match event.keycode:
-			KEY_H:
-				pause_menu.guide_toggle.button_pressed = not pause_menu.guide_toggle.button_pressed
-			KEY_R:
-				reassign_nearby_shelf()
-			KEY_1, KEY_2, KEY_3:
-				selected_product = Catalog.IDS[event.keycode - KEY_1]
-				_refresh()
-			KEY_BRACKETLEFT, KEY_BRACKETRIGHT:
-				var change = -10 if event.keycode == KEY_BRACKETLEFT else 10
-				state.set_price(selected_product, clampi(int(state.prices[selected_product]) + change, 1, 9999))
-			KEY_B:
-				_message("Ordered " + Catalog.PRODUCTS[selected_product].name + ". Delivery in four seconds." if state.order_case(selected_product) else "Collect the waiting case first, or check your cash.")
-			KEY_F5:
-				_save_game()
-			KEY_F9:
-				_load_game()
-			KEY_O:
-				if state.is_open:
-					state.close_store()
-					if is_instance_valid(shopper):
-						shopper_order = -1
-						_leave_shop()
-					_message("Closed. Unpaid stock returned; the daily report is ready.")
-				else:
-					state.open_store()
-					_message("Store open. Shoppers will visit the pantry shelf.")
-			KEY_N:
-				if state.next_day():
-					_message("New day. Stock and cash carried forward.")
+	var action: String = preferences.action_for(event)
+	match action:
+		"interact":
+			_interact()
+		"toggle_guide":
+			pause_menu.guide_toggle.button_pressed = not pause_menu.guide_toggle.button_pressed
+		"reassign_shelf":
+			reassign_nearby_shelf()
+		"select_1", "select_2", "select_3":
+			selected_product = Catalog.IDS[int(action.right(1)) - 1]
+			_refresh()
+		"price_down", "price_up":
+			var change = -10 if action == "price_down" else 10
+			state.set_price(selected_product, clampi(int(state.prices[selected_product]) + change, 1, 9999))
+		"buy_case":
+			_message("Ordered " + Catalog.PRODUCTS[selected_product].name + ". Delivery in four seconds." if state.order_case(selected_product) else "Collect the waiting case first, or check your cash.")
+		"save_game":
+			_save_game()
+		"load_game":
+			_load_game()
+		"open_close":
+			if state.is_open:
+				state.close_store()
+				if is_instance_valid(shopper):
+					shopper_order = -1
+					_leave_shop()
+				_message("Closed. Unpaid stock returned; the daily report is ready.")
+			else:
+				state.open_store()
+				_message("Store open. Shoppers will visit the pantry shelf.")
+		"next_day":
+			if state.next_day():
+				_message("New day. Stock and cash carried forward.")
 
 func _spawn_shopper() -> void:
 	for offset in range(Catalog.IDS.size()):
@@ -728,7 +765,7 @@ func simulate(delta: float) -> void:
 		"walking_to_checkout":
 			shopper_phase = "waiting_at_checkout"
 			shopper_patience = 45.0
-			_message("Customer ready at Checkout 01. E to serve.")
+			_message("Customer ready at Checkout 01. %s to serve." % _key("interact"))
 			_refresh()
 		"waiting_at_checkout":
 			shopper_patience -= delta
@@ -755,7 +792,9 @@ func _process(delta: float) -> void:
 		if save_countdown <= 0:
 			_save_game(false)
 	var target = {} if panel_cursor else nearest_target()
-	prompt.text = str(target.label) if not target.is_empty() else ""
+	prompt.text = "" if target.is_empty() else "%s  %s" % [_key("interact"), target.label]
+	if target.has("slot"):
+		prompt.text += "  /  %s swap when empty" % _key("reassign_shelf")
 	notice_timer -= delta
 	if notice_timer <= 0:
 		notice.text = ""

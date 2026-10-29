@@ -57,6 +57,15 @@ func _capture() -> void:
 	print("SETTINGS_PREVIEW_RESULT ", settings_result, " ", settings_image.get_size())
 	if settings_result != OK:
 		result = settings_result
+	world.pause_menu.show_controls(true)
+	for frame in range(8):
+		world._layout_hud()
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var controls_result = root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://../builds/godot-controls-preview.png"))
+	print("CONTROLS_PREVIEW_RESULT ", controls_result)
+	if controls_result != OK:
+		result = controls_result
 	world.set_paused(false)
 	var order = world.state.reserve(1, "beans")
 	world.state.checkout(order)

@@ -115,6 +115,8 @@ The start balance is **$500.00**. Cases contain 12 units, and each product shelf
 
 ## 6. Controls and panel behavior
 
+Default keys are listed below. Every gameplay key can be rebound under Pause → Key bindings; Esc, Tab, F2 and the panel-mode arrows/Enter/Space stay fixed.
+
 | Input | Action |
 | --- | --- |
 | WASD / mouse | Move / look |
@@ -148,7 +150,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/scripts/catalog.gd` | Stable product IDs, names, costs, default prices, colors and initial shelf positions |
 | `game/scripts/save_store.gd` | Validated local file writing, backup/recovery and future-save protection |
 | `game/scripts/player.gd` | CharacterBody3D movement, look, camera and interaction signal |
-| `game/scripts/player_settings.gd` | Validated separate ConfigFile preferences |
+| `game/scripts/player_settings.gd` | Validated separate ConfigFile preferences and physical-key bindings |
 | `game/scripts/pause_menu.gd` | Pause overlay, sliders, checkbox, save/load/quit controls |
 | `game/scripts/first_day_guide.gd` | Derives useful next step from state without adding saved tutorial flags |
 | `game/scripts/foldable_panel.gd` | Shared panel header, toggle button, collapsible body and change signal |
@@ -158,6 +160,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/tests/guide_tests.gd` | Tutorial progress, recovery cases, markers and preference behavior |
 | `game/tests/panel_tests.gd` | Minimize/restore, keyboard focus, visibility, persistence and gameplay guards |
 | `game/tests/price_tag_tests.gd` | Shelf-edge tag text, fit, placement, price edits, swaps and load |
+| `game/tests/binding_tests.gd` | Binding validation, swaps, settings files, capture UI, rebound gameplay/movement and hints |
 | `game/tests/capture_preview.gd` | Staged actual-engine screenshots without editor interaction |
 | `game/tests/fixtures/save-v1.json` | Checked-in historical save migration fixture |
 
@@ -191,6 +194,7 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 - A failed load pauses autosaving. Manual save/load lets the user retry. Do not immediately overwrite a damaged or future save via autosave.
 - Settings live separately in `user://cornerfield-settings.cfg`. Loading a game must not revert control/UI preferences.
 - Boolean settings remain booleans: guide visibility and each panel's collapsed state. Missing new settings get defaults; invalid input is rejected as a whole.
+- Key bindings live in the settings file's `[bindings]` section as physical keycodes. Every action needs its own key; a used key swaps rather than duplicates. Esc, Tab and F2 are never bindable. Route new gameplay shortcuts through `Settings.ACTIONS` and `preferences.action_for()`, and show keys with `_key()` rather than literal letters.
 - Sensitivity range: 0.0005–0.006; movement speed: 2–6.5; UI scale: 0.8–1.25.
 - The first-day guide derives its state from existing gameplay data; it currently needs no save-schema bump.
 - Local saves assume one writer. Multiple concurrent game instances are not supported.
@@ -248,6 +252,7 @@ Versioned scripted review images:
 - `art/previews/godot-prototype.png` — main aisle/gameplay.
 - `art/previews/godot-checkout.png` — imported checkout.
 - `art/previews/godot-settings.png` — pause menu at 125% scale.
+- `art/previews/godot-controls.png` — key bindings page at 125% scale.
 - `art/previews/godot-day-report.png` — closed-day report.
 - `art/previews/godot-compact.png` — compact panel layout.
 - `art/previews/godot-price-tags.png` — shelf-edge price tags close-up.
@@ -272,11 +277,11 @@ This is a playable single-player prototype, with the following major limits:
 - No demand model, shopping lists, price sensitivity, staff, expenses, upgrades or co-op.
 - No complete office/stockroom/staff/bathroom/cooler/dock layout.
 - Placeholder merchandise and shopper; incomplete storefront detail, textures, LODs and supporting props.
-- No input rebinding, controller validation or broad accessibility review.
+- Keyboard rebinding only: no mouse-button or controller bindings, controller validation or broad accessibility review.
 - No target-hardware budgets, production export optimization or sustained campaign/multiplayer soak testing.
 - Human playtesting of the guide, navigation and complete store day remains pending.
 
-If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Good next options are a scoped input-rebinding pass or a focused improvement to fictional packaging/readable price tags. Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
+If the user simply says “continue,” select **one small unchecked task** from `TODO.md`. Shelf price tags and keyboard rebinding are done; good next options are fictional merchandise packaging or a first catalog expansion. Navigation and multiple shoppers are larger changes and should be broken into stages with reservation/cancellation tests retained.
 
 Suggested continuation procedure:
 
