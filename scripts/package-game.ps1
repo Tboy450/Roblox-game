@@ -35,8 +35,9 @@ movement speed and UI scale (80-125%) save separately in cornerfield-settings.cf
 Tab and arrow keys can navigate the menu. Pausing stops all store timers.
 
 The dashboard starts compact. Click each panel's - / + button to minimize or
-restore it; Tab releases/recaptures the panel cursor. Store time continues in
-cursor mode. F2 compacts/restores all HUD panels, including while paused.
+restore it; Tab enters/exits panel mode. Arrows select visible panels and
+Enter/Space toggles the selected panel. Store time continues in panel mode.
+F2 compacts/restores all HUD panels, including while paused.
 These layout preferences are remembered separately from store progress.
 
 A first-day guide follows ordering, receiving, stocking, checkout and closing,

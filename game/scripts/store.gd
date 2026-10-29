@@ -358,13 +358,35 @@ func _input(event: InputEvent) -> void:
 			panel_cursor = not panel_cursor
 			player.controls_enabled = not panel_cursor
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if panel_cursor else Input.MOUSE_MODE_CAPTURED
-			if not panel_cursor:
+			if panel_cursor:
+				dashboard_panel.toggle_button.grab_focus()
+			else:
 				get_viewport().gui_release_focus()
-			_message("Panel cursor: click − or +. Store time continues; Tab returns to movement." if panel_cursor else "Movement restored.")
+			_message("Panels: arrows select, Enter toggles, Tab returns. Store time continues; Esc pauses." if panel_cursor else "Movement restored.")
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_F2:
 			compact_panels()
 			get_viewport().set_input_as_handled()
+		elif panel_cursor and event.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]:
+			_focus_panel(-1 if event.keycode in [KEY_LEFT, KEY_UP] else 1)
+			get_viewport().set_input_as_handled()
+		elif panel_cursor and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
+			var focused = get_viewport().gui_get_focus_owner()
+			for panel in [dashboard_panel, report_panel, guide_panel]:
+				if panel.is_visible_in_tree() and focused == panel.toggle_button:
+					panel.set_collapsed(not panel.collapsed)
+					break
+			get_viewport().set_input_as_handled()
+
+func _focus_panel(direction: int) -> void:
+	var buttons: Array[Button] = []
+	for panel in [dashboard_panel, report_panel, guide_panel]:
+		if panel.is_visible_in_tree():
+			buttons.append(panel.toggle_button)
+	if buttons.is_empty():
+		return
+	var index = buttons.find(get_viewport().gui_get_focus_owner())
+	buttons[posmod(index + direction, buttons.size()) if index >= 0 else 0].grab_focus()
 
 func compact_panels() -> void:
 	var compact = not (dashboard_panel.collapsed and guide_panel.collapsed and report_panel.collapsed)

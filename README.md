@@ -44,7 +44,7 @@ While closed, select goods with **1/2/3**, look at a nearby empty shelf and pres
 
 ## Pause and control settings
 
-The dashboard, guide and day report each have **− / +** minimize/restore buttons. The dashboard starts compact, retaining cash, day and selected goods. **F2** compacts/restores all panels. **Tab** releases the mouse for individual buttons and returns to movement when pressed again. Store time continues in panel-cursor mode; Esc pauses it. Panel states are remembered separately from store progress.
+The dashboard, guide and day report each have **− / +** minimize/restore buttons. The dashboard starts compact, retaining cash, day and selected goods. **F2** compacts/restores all panels. **Tab** enters panel mode and focuses the dashboard button. Arrow keys select visible panels; **Enter / Space** minimizes or restores the selected panel. You can also click the buttons. Press Tab again to return to movement. Store time continues in panel-cursor mode; Esc pauses it. Panel states are remembered separately from store progress.
 
 **Esc** pauses deliveries, shoppers and movement. The menu offers Resume, Save, Load and Save and quit. Sliders adjust mouse sensitivity, movement speed and UI scale (80–125%); Tab and arrow keys work too. A checkbox controls first-day guidance. Preferences are saved separately in `cornerfield-settings.cfg`, so loading store progress does not reset controls. Invalid preferences leave existing defaults unchanged.
 

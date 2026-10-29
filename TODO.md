@@ -49,6 +49,7 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Add a remembered guide toggle and destination marker without locking normal gameplay.
 - [x] Add minimize/restore controls to dashboard, guide and day report; remember layouts and provide compact-all/cursor shortcuts.
 - [ ] Expand the catalog and add input rebinding.
+- [x] Add keyboard panel selection and toggling, skipping hidden panels and returning focus to gameplay.
 - [ ] Playtest the guide with new players and extend keyboard-only/accessibility coverage.
 
 ## M4 — First playable slice
