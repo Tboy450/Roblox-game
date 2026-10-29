@@ -21,7 +21,8 @@ Runtime: **standalone Godot**. Modeling: **Houdini + Blender**. Build through fi
 - [x] Verify character landing and separate fixture collisions in the engine.
 - [ ] Refine glazing, doors, storefront, masonry and ceiling details.
 - [ ] Complete office, stockroom, staff room, bathrooms, cooler and dock layout.
-- [ ] Review all routes at player scale and adjust provisional dimensions.
+- [x] Automated walk-through: the real player capsule reaches every product shelf and Receiving, and restocks the middle-row honey shelf on foot.
+- [ ] Review all routes at player scale with people and adjust provisional dimensions.
 - [ ] Inspect exterior, checkout, aisle and overhead review views.
 
 ## M2 — Art kit

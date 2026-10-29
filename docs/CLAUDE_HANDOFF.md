@@ -162,6 +162,8 @@ The latest keyboard pass is in `store.gd::_input()` and `_focus_panel()`, with r
 | `game/tests/guide_tests.gd` | Tutorial progress, recovery cases, markers and preference behavior |
 | `game/tests/panel_tests.gd` | Minimize/restore, keyboard focus, visibility, persistence and gameplay guards |
 | `game/tests/price_tag_tests.gd` | Shelf-edge tag text, fit, placement, price edits, swaps and load |
+| `game/tests/route_tests.gd` | Planner geometry, every slot's shopper legs against real colliders, select keys, home gondolas |
+| `game/tests/walk_tests.gd` | Real player capsule walks to every shelf and Receiving and restocks honey on foot (automated, not a playtest) |
 | `game/tests/packaging_tests.gd` | Packaging textures, size, origin, aisle-facing labels, triangle budget and deck placement |
 | `game/tests/binding_tests.gd` | Binding validation, swaps, settings files, capture UI, rebound gameplay/movement and hints |
 | `game/tests/capture_preview.gd` | Staged actual-engine screenshots without editor interaction |
