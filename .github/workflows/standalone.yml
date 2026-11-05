@@ -1,0 +1,29 @@
+name: Standalone simulator
+on:
+  push:
+    paths: ['game/**', 'scripts/*game*.ps1', '.github/workflows/standalone.yml']
+  pull_request:
+    paths: ['game/**', 'scripts/*game*.ps1', '.github/workflows/standalone.yml']
+permissions:
+  contents: read
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get pinned official Godot runtime
+        shell: bash
+        run: |
+          mkdir -p .tools/godot
+          curl --fail --location --retry 3 'https://downloads.godotengine.org/?version=4.7.2&flavor=stable&slug=linux.x86_64.zip&platform=linux.64' -o .tools/godot/godot.zip
+          unzip -q .tools/godot/godot.zip -d .tools/godot
+          chmod +x .tools/godot/Godot_v4.7.2-stable_linux.x86_64
+      - name: Import, physics and retail-loop checks
+        shell: pwsh
+        run: ./scripts/test-game.ps1 -Godot "$PWD/.tools/godot/Godot_v4.7.2-stable_linux.x86_64"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: standalone-test-results
+          path: builds/*.json

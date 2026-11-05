@@ -3,7 +3,7 @@ local parts = {}
 for _, item in store:GetDescendants() do
 	if item:IsA("BasePart") then table.insert(parts, item) end
 end
-assert(store:GetAttribute("BlueprintVersion") == 55)
+assert(store:GetAttribute("BlueprintVersion") == 56)
 local function named(name)
 	for _, part in parts do if part.Name == name then return part end end
 	error("Missing part " .. name)
@@ -101,3 +101,9 @@ store = Blueprint.build({ parent = workspace })
 assert(oldStore.destroyed and #workspace:GetChildren() == 1, "Rebuild must replace the old model exactly once")
 assert(Blueprint.build({ parent = workspace, forceRebuild = false }) == store, "Non-forced build must preserve existing store")
 print(`PASS: {#parts} generated parts; sealed windows, shopper clearance, fixture spacing, rebuild lifecycle`)
+store:SetAttribute("ImportedArt", true)
+local importGuardOk = pcall(function() Blueprint.build({ parent = workspace }) end)
+assert(not importGuardOk and not store.destroyed and workspace:FindFirstChild("RetailStore") == store,
+	"Legacy blueprint must not replace imported art")
+store:SetAttribute("ImportedArt", nil)
+print("PASS: direct blueprint call preserves imported art")

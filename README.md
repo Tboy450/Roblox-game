@@ -1,406 +1,97 @@
-# Roblox Retail Game
+# Cornerfield Market — Retail Store Simulator
 
-> This repository now contains two separate Rojo projects. The retail game remains on `default.project.json`; the existing arena-based Shooter uses `shooter.project.json` and is documented in [`shooter/README.md`](shooter/README.md). Connecting the Shooter project preserves the arena already in Studio.
+A standalone simulator built in **Godot**, with **Houdini** procedural buildings and shelves and a **Blender** checkout. Development uses source files, background generation, headless engine tests and scripted renders. Roblox is the reference; Studio and Rojo are not required for this game.
 
-A Rojo-based Roblox Studio project for a playable retail store game. The map is generated from code, so layout changes, store props, shelves, prompts, registers, traffic markers, and exterior details can be edited in Luau and rebuilt in Studio with the custom **Retail Game** plugin.
+**Status: playable prototype with saved progress.** Order cases, stock four product shelves, edit prices, serve shoppers and close with a reconciled report. Beans, oats, hand soap and honey have separate stock and costs; one shopper is active at a time. Final art, supporting rooms, staff and multiplayer remain open work.
 
-## What Is In The Game
+![Actual Godot prototype, captured by script](art/previews/godot-prototype.png)
 
-This project currently builds a supermarket-style store with:
+![Blender checkout running in the Godot scene](art/previews/godot-checkout.png)
 
-- A procedural retail blueprint with exterior shell, front windows, entrance, parking lot, sidewalks, rooms, checkout lanes, shelves, signs, lighting, and service areas.
-- Player work mechanics for clocking in, stocking shelves, collecting products, helping customers, cleaning spills, handling trash, pickup orders, bakery/pharmacy tasks, and register sales.
-- Dynamic shelf assignment so players can choose what product a shelf should stock.
-- NPC customer/traffic systems for parking, entering the store, shopping from stocked shelves, and using the NPC checkout lane.
-- A resource-button HUD dock, shelf editor, register panel, player menu, and pet lottery/inventory UI.
-- A pet lottery system with resource-based pet icons, rarity odds, equip/unequip, visible companion pets, and pet-care discounts.
+- [To-do checklist](TODO.md)
+- [Detailed handoff for Claude](docs/CLAUDE_HANDOFF.md)
+- [GitHub project board](https://github.com/users/Tboy450/projects/2)
+- [Design and milestones](docs/REBUILD_PLAN.md)
+- [Art pipeline](art/README.md)
+- [Background test report](docs/standalone-test-report.json)
 
-## Important Files
+## Run
 
-| Path | Purpose |
+Windows / PowerShell, from this repository:
+
+```powershell
+.\scripts\setup-godot.ps1    # pinned official portable Godot 4.7.2
+.\scripts\run-game.ps1       # background import, then launch the game
+```
+
+The runtime fixture and merchandise GLBs are checked in. Houdini and Blender are needed only to regenerate them. Supply an existing Godot executable with `-Godot C:\path\to\godot_console.exe`.
+
+The local portable build is `builds/CornerfieldMarket-Prototype.zip`. Extract and run `CornerfieldMarket.exe`, keeping its `.pck` beside it. This prototype bundles the official Godot editor runtime in game mode; it is not a size-optimized production export. Build outputs are ignored by Git, not published GitHub releases.
+
+## Play a store day
+
+A first-day guide shows the next useful action and marks Receiving, the matching shelf or Checkout 01 when relevant. It adapts to saved progress and shelf reassignment. **H** hides/shows it; the pause menu remembers your preference. It sits in the lower right, above the interaction prompt, so overhead shelf signs stay visible; a day report pushes it lower. It does not lock normal gameplay and disappears after day one.
+
+1. **1 / 2 / 3 / 4** selects beans, oats, hand soap or honey. **B** orders a twelve-unit case ($8.40 / $13.20 / $15.00 / $21.60). Delivery takes four seconds.
+2. Walk to **Receiving**, look toward the table and press **E** to collect the case.
+3. Approach the matching **Pantry**, **Breakfast** or **Household** shelf, or the **Spreads** shelf in the middle row behind Pantry, and press **E** to stock it. A case cannot fill a different product's shelf.
+4. **[ / ]** adjusts the selected product's sale price by ten cents. Shelf-edge tags on every tier show the goods and their current price. **O** opens; shoppers rotate among stocked goods and walk to Checkout 01.
+5. Approach checkout and press **E** to complete the purchase. Baskets retain the price quoted at pickup; the display and receipt show the actual sale.
+6. **O** closes and returns unpaid reservations to stock. The report separates revenue, cost of goods, purchases and cash movement. **N** starts the next day.
+
+![Shelf-edge price tags on the pantry shelf, captured by script](art/previews/godot-price-tags.png)
+
+Stocked goods use original fictional *Cornerfield Pantry* packaging modelled in Blender: a labelled tin of Harvest Beans, a Morning Oats carton, a Cedar Hand Soap pump bottle and a Meadow Honey jar. Each stocked unit is an instance of its product's GLB, standing on the shelf deck with its printed front toward the aisle.
+
+![Cedar Hand Soap bottles on the household shelf, captured by script](art/previews/godot-packaging.png)
+
+![Meadow Honey jars on the middle-row spreads shelf, captured by script](art/previews/godot-honey.png)
+
+**WASD** moves, the **mouse** looks, and **Esc** opens the pause/settings menu. One sold can leaves **$493.09** from a $500 start after buying an $8.40 case.
+
+While closed, select goods with **1/2/3**, look at a nearby empty shelf and press **R**. Its sign and price tags swap with that product's other empty shelf. Both affected shelves must have no stock or unpaid reservations. Stocking, shopper routes and saved progress follow the new layout.
+
+## Pause and control settings
+
+The dashboard, guide and day report each have **− / +** minimize/restore buttons. The dashboard starts compact, retaining cash, day and selected goods. **F2** compacts/restores all panels. **Tab** enters panel mode and focuses the dashboard button. Arrow keys select visible panels; **Enter / Space** minimizes or restores the selected panel. You can also click the buttons. Press Tab again to return to movement. Store time continues in panel-cursor mode; Esc pauses it. Panel states are remembered separately from store progress.
+
+**Esc** pauses deliveries, shoppers and movement. The menu offers Resume, Save, Load and Save and quit. Sliders adjust mouse sensitivity, movement speed and UI scale (80–125%); Tab and arrow keys work too. A checkbox controls first-day guidance. Preferences are saved separately in `cornerfield-settings.cfg`, so loading store progress does not reset controls. Invalid preferences leave existing defaults unchanged.
+
+![Pause/settings menu at 125% UI scale](art/previews/godot-settings.png)
+
+**Key bindings** in the pause menu rebinds every gameplay key: movement, interact, goods selection, ordering, prices, open/close, next day, shelf swap, guide, save and load. Choose an action, then press its new key; Esc cancels. A key already in use swaps with the action's previous key, so every action keeps exactly one key. Esc, Tab and F2 stay fixed so pause and panel navigation always work. Keys are stored by physical position, so the defaults stay in place on non-QWERTY layouts and buttons show your layout's printed labels. On-screen hints, prompts, signs and the first-day guide follow your bindings. **Reset defaults** restores the original keys. Bindings save with the other preferences; a settings file with duplicate, fixed or malformed keys is rejected as a whole.
+
+![Key bindings page at 125% UI scale](art/previews/godot-controls.png)
+
+## Saved progress
+
+**F5** saves and **F9** loads. The game loads automatically on startup and autosaves after transactions and normal window close. Files live in Godot's Cornerfield Market user-data folder: `cornerfield-save.json` and its previous valid `.bak`. See [save behavior and recovery](docs/SAVES.md).
+
+Resume starts closed, returns unpaid baskets to their shelves, and preserves shelf assignments, product stock/prices, carried and incoming cases, delivery time, cash, day and daily totals. Version-1 and version-2 saves migrate automatically to version 3: version 1 gains the original shelf layout, and both gain Meadow Honey, empty at its default price on its own shelf. Damaged primaries can recover from backup; failed loads preserve current progress and pause autosaving. Unsupported newer saves are not overwritten.
+
+## Build and verify without editor interaction
+
+```powershell
+.\scripts\test-game.ps1             # real engine imports, physics and retail-loop tests
+.\scripts\render-game-preview.ps1  # scripted GPU render; no UI automation
+.\scripts\package-game.ps1          # portable pack, startup smoke test and ZIP
+.\scripts\prepare-game-assets.ps1   # Houdini + Blender background regeneration
+```
+
+Verification covers real geometry/materials, physics, trading, save migration/recovery, pause/settings, tutorial progression, panel controls, shelf price tags, key rebinding, packaging import/placement and save migration across catalog changes. Scripted frames are inspected, including the menu and day-end layout at maximum UI scale. Human playtesting, hardware profiling and multiplayer testing remain pending.
+
+## Source layout
+
+| Location | Purpose |
 | --- | --- |
-| `src/shared/RetailStoreBlueprint.luau` | Main generated map blueprint. Builds the store model in `Workspace.RetailStore`. |
-| `src/shared/RetailCatalog.luau` | Product departments, product visuals, sizes, prices, and shelf data. |
-| `src/shared/RetailAssets.luau` | Button image resources, pet image resources, pet definitions, rarity weights, and roll cost. |
-| `src/shared/RetailCurrency.luau` | Money formatting and register denominations. |
-| `src/server/BuildRetailMap.server.luau` | Rebuilds the store on Play from the blueprint. |
-| `src/server/RetailMechanics.server.luau` | Core work actions, shelf stock, shelf assignment, register sales, and store stats. |
-| `src/server/RetailTraffic.server.luau` | NPC shoppers, parking spots, store pathing, and NPC checkout flow. |
-| `src/server/RetailPets.server.luau` | Pet lottery, pet inventory, equip/unequip, and companion model spawning. |
-| `src/server/RetailRoomDoors.server.luau` | Bathroom door interactions with proximity and occupied-doorway checks. |
-| `src/client/init.client.luau` | Player HUD, shelf editor, register UI, player menu, pet lottery UI, and client event handling. |
-| `plugins/BuildRetailStore.lua` | Roblox Studio plugin for updating, clearing, selecting, and auto-updating the generated map. |
-| `plugins/LinkToCursor.lua` | Optional helper plugin for sending notes from Studio back to this project. |
-
-## Blueprint Overview
-
-The map is not hand-built in Studio. `RetailStoreBlueprint.build()` creates the store through Luau parts and models.
-
-The blueprint handles:
-
-- Main floor, ceiling, roof, fascia, windows, doors, and exterior wall segments.
-- Back rooms: stock room, walk-in cooler, loading dock.
-- Side rooms: bakery, pharmacy, restrooms, break room, and admin/staff areas.
-- Sales floor zones: produce, dairy, frozen, pantry/general, household.
-- Shelf units with product boards, product visuals, shelf controls, restock controls, and product selector prompts.
-- Checkout front end with player register, NPC register, service desk, bagging area, task board, and time clock.
-- Outdoor environment: sidewalk, parking lot, pickup spaces, landscaping, road markings, traffic markers, and service yard.
-
-The blueprint uses a version number near the top:
-
-```luau
-local BLUEPRINT_VERSION = 55
-```
-
-When making major map changes, bump this number and also update:
-
-- `src/server/BuildRetailMap.server.luau`
-
-The updater has its own version. Updater v52 accepts blueprint v52 and newer, so normal map updates no longer require reinstalling the plugin. Update the plugin only when its own code changes.
-
-That makes it obvious in Studio which map version is running.
-
-## Game Mechanics
-
-### Player Work Loop
-
-Players use prompts around the store to perform jobs:
-
-- Clock in at a time clock before most work actions.
-- Grab stock from the stock room or loading pallet.
-- Restock shelves when inventory is low or empty.
-- Pick products into the player basket.
-- Scan baskets at the player register.
-- Make exact change using the register panel.
-- Complete task-style interactions like spill cleanup, trash, pickup orders, bakery prep, pharmacy counter, dock controls, and temperature checks.
-
-Player stats are created as `leaderstats`:
-
-- `Cash`
-- `Basket`
-- `BasketValue`
-- `Stock`
-- `Tasks`
-- `Shift`
-- `Customers`
-- `Pets`
-- `StockOrders`
-- `RegisterStreak`
-
-### Shelf Assignment
-
-Shelves are generated from `RetailCatalog` departments and products.
-
-Each shelf has:
-
-- `ShelfControl` prompt: opens the shelf editor.
-- `RestockControl` prompt: restocks the current product.
-- `ProductSelector` prompt: lets players take the shelf item.
-- `TopSign`: shows the current department and product.
-
-The shelf editor lets clocked-in players select a department and product. Applying a new product returns the old shelf stock to the player's carried stock, updates the shelf, and empties it ready for restocking.
-
-### Register System
-
-The player register creates customer orders and tracks:
-
-- Item count.
-- Total due.
-- Customer payment.
-- Change due.
-- Change given.
-- Suggested tender.
-- Opening till cash.
-- Tender received, change paid, and net sales.
-
-The client register UI disables tender buttons that would overpay the remaining change. A sale can finish only when exact change is ready.
-
-Exact player-register sales now build a register streak. Each streak step adds a small checkout bonus, capped at `$2.00`, and clocking out resets the streak.
-
-The store drawer starts with a `$200.00` opening till. Player and NPC sales add customer tender, subtract change paid, and update net sales so the HUD shows the drawer balance instead of only raw sales totals.
-
-### HUD And Store Controls
-
-The HUD dock uses image/resource buttons for:
-
-- `HUD`: show or hide the top status panel.
-- `Menu`: open the player menu.
-- `Help`: open the controls panel.
-- `Pets`: open pet lottery and inventory.
-- `Stock`: show carried stock, low shelf, empty shelf, service bag status, and order more stock from the HUD.
-- `Open/Close`: toggle whether NPC shoppers can enter.
-- `Cash`: show player cash, basket value, opening till, drawer cash, tender, change, sales, and customer totals.
-
-Players start with enough test cash to roll pets while the economy is still being tuned.
-
-### NPC Traffic
-
-NPC traffic uses invisible markers generated by the blueprint:
-
-- Road spawn/approach/exit.
-- Parking spots.
-- Store entry markers.
-- Shopping markers.
-- Register queue and register spot.
-
-NPC shoppers pick from stocked shelves, reduce shelf inventory, and complete orders through the NPC register.
-
-In v52, shoppers use Roblox PathfindingService to walk around fixtures and use spaced, first-in-first-out checkout queue positions. Closing the store interrupts shopping routes, pauses new arrivals, and sends existing shoppers back to their cars. The HUD shows Closing until the remaining visits finish, plus the checkout queue count.
-
-NPC baskets reserve real shelf stock. An abandoned order restores those items exactly once. If its original shelf has been reassigned or filled, the units go into returned stock and are recovered on the next stock collection. Only a valid unpaid reservation can become an NPC sale.
-
-### Pet Lottery
-
-The player menu includes a pet lottery using assets from `RetailAssets.luau`.
-
-Current pet flow:
-
-- Rolls cost `$5.00`.
-- The menu shows rarity odds and rare safety progress.
-- A roll awards one pet based on rarity weights.
-- The lottery includes dog, cat, bunny, sprite, and dragon-style pets.
-- Pet cards draw cute species-specific portraits while still showing the resource thumbnail badge.
-- The first pet auto-equips.
-- Players can tap owned pet cards to switch or unequip immediately, or use the resource-based equip button for the selected pet.
-- Selecting a different owned pet keeps that pet selected, so switching companions works from the same equip button.
-- Equipped pets spawn as multi-part companion models with faces, ears, tails, paws, and dragon wings/horns where appropriate.
-- Pet care can be triggered from the pet menu or care station to discount the next roll, and some equipped pets improve that discount.
-
-Pet definitions live in:
-
-```text
-src/shared/RetailAssets.luau
-```
-
-Add or rebalance pets by editing the `RetailAssets.pets` table.
-
-## Rojo And Studio Workflow
-
-### One-Time Setup
-
-Install local tools if `.tools/` is missing:
-
-```powershell
-.\setup.ps1
-```
-
-Install the Rojo Studio plugin:
-
-1. Open Roblox Studio.
-2. Go to **Plugins -> Plugins Folder**.
-3. Copy `plugins/Rojo.rbxm` into that folder.
-4. Restart Roblox Studio.
-
-Or install Rojo from Roblox's plugin marketplace.
-
-### Daily Development
-
-Start Rojo:
-
-```powershell
-.\scripts\serve.ps1
-```
-
-Or start Rojo plus the optional Studio message bridge:
-
-```powershell
-.\scripts\dev.ps1
-```
-
-Then in Roblox Studio:
-
-1. Open a blank/baseplate place.
-2. Open the Rojo plugin.
-3. Connect to `localhost:34872`.
-4. Confirm `ReplicatedStorage.Shared`, `ServerScriptService.Server`, and `StarterPlayerScripts.Client` are synced.
-5. Press **Play** to test, or use the custom map updater plugin.
-
-### Build A Place File
-
-To build an `.rbxlx` place file from the project:
-
-```powershell
-.\scripts\build.ps1
-```
-
-Output:
-
-```text
-build.rbxlx
-```
-
-The build output is ignored by git. Source files are the real project.
-
-## Retail Game Studio Plugin
-
-The custom plugin is:
-
-```text
-plugins/BuildRetailStore.lua
-```
-
-In Studio, it appears under **Plugins -> Retail Game**.
-
-Buttons:
-
-- **Update Map**: rebuilds `Workspace.RetailStore` from the latest Rojo-synced blueprint.
-- **Check Sync**: shows the updater version, synced blueprint version, and built map version.
-- **Clear Map**: deletes the generated `RetailStore`.
-- **Select Map**: selects `RetailStore` in Explorer.
-- **Auto Update**: watches blueprint/catalog/HUD changes, handles Rojo reconnects, and rebuilds after sync. Rebuilds pause during Play.
-
-Rojo must be connected before **Update Map** can use the latest local files.
-
-Stop Play before updating. The blueprint finishes constructing the new model before replacing the old store, so gameplay scripts see a complete map. Newer blueprint versions are accepted by updater v52 without a matching plugin version number.
-
-### Updating The Plugin
-
-If you edit `plugins/BuildRetailStore.lua`, copy it into your Roblox plugins folder and restart Studio:
-
-```powershell
-Copy-Item -LiteralPath ".\plugins\BuildRetailStore.lua" "$env:LOCALAPPDATA\Roblox\Plugins\BuildRetailStore.lua" -Force
-```
-
-If the copy fails, Roblox Studio probably has the plugin file locked. Close Studio, run the copy command again, then reopen Studio.
-
-## Adding More Content
-
-### Add Products
-
-Edit `src/shared/RetailCatalog.luau`:
-
-- Add products to a department.
-- Set product color, material, size, and price.
-- Shelves and NPC orders will use the catalog automatically.
-
-### Add Pets
-
-Edit `src/shared/RetailAssets.luau`:
-
-- Add a pet entry with `id`, `name`, `rarity`, `weight`, `image`, `color`, `accentColor`, `detailColor`, `species`, and size.
-- Use `species` values like `dog`, `cat`, `bunny`, `sprite`, or `dragon` to change menu portraits and companion model details.
-- Higher `weight` means more common.
-- The client menu and server lottery read this shared table.
-
-### Change The Store Layout
-
-Edit `src/shared/RetailStoreBlueprint.luau`:
-
-- Move parts by changing positions and sizes.
-- Keep checkout/front entry clear before adding new props.
-- Avoid overlapping floor slabs at the same height because Roblox may flicker between surfaces.
-- Prefer non-colliding overlay markers for visual floor zones.
-
-After edits:
-
-```powershell
-.\.tools\rojo\rojo.exe build default.project.json -o build.rbxlx
-```
-
-Then connect Rojo in Studio and click **Retail Game -> Update Map**.
-
-## Troubleshooting
-
-### Update Map Uses Old Code
-
-- Make sure Rojo is connected.
-- Click **Check Sync**. The synced blueprint should be v52 or newer; the built map should match it after **Update Map**. The updater itself can remain v52 for newer map releases.
-- Save the file in your editor.
-- Restart Studio if the plugin itself was changed.
-- Check the map version sign in front of the store.
-
-### Plugin Copy Fails
-
-Close Roblox Studio and retry:
-
-```powershell
-Copy-Item -LiteralPath ".\plugins\BuildRetailStore.lua" "$env:LOCALAPPDATA\Roblox\Plugins\BuildRetailStore.lua" -Force
-```
-
-### Map Looks Like Parts Are Flickering
-
-This usually means two parts occupy the same plane. Check floor/sidewalk/paint pieces first. Use thin non-colliding overlays slightly above the surface instead of full duplicate slabs.
-
-### Rojo Is Missing
-
-Run:
-
-```powershell
-.\setup.ps1
-```
-
-### Rebuild From Scratch In Studio
-
-1. Connect Rojo.
-2. Click **Retail Game -> Clear Map**.
-3. Click **Retail Game -> Update Map**.
-4. Press **Play** to test mechanics.
-
-## v52 Model And Layout Fixes
-
-- Sealed the full height of both front-window openings, including the right jamb and header gaps.
-- Kept signs and small register components at their exact designed dimensions instead of snapping them onto the two-stud structural grid.
-- Separated the receipt printers, drawer assemblies, and monitors; added customer mats at checkout.
-- Repositioned the staff-board controls and corrected the break-room fridge, vending machine, and glass orientation.
-- Moved the seasonal display out of the entrance and made the spawn marker invisible and non-colliding.
-- Added a live open/closed sign by the entrance and clear NPC shopping/queue destinations.
-- Corrected the office door-frame positions and service-area display refreshes.
-- Fixed updater startup and blocked rebuilds during both running and paused Play tests.
-
-## v53 Visual Pass
-
-- Steel shop shelving, slim price rails, and individual fruit in wooden produce crates.
-- Detailed checkout stations with monitor stands, working price/status displays, card readers, belt guides, and drawer trim.
-- Round car tires and hubs, framed windows, painted roofs, mirrors, bumpers, and separate lights. Pickup and delivery-truck cabs no longer occupy their cargo space.
-- Separated carts and bench, rebuilt wire cart baskets and slatted seating, and moved parking away from the central entrance walkway.
-- Pet eye highlights, inner ears, softer dog/bunny ears, corrected tail proportions, and less luminous dragon wings. Pet switching and lottery rules are unchanged.
-
-Connect Rojo, then use **Plugins -> Retail Game -> Update Map**. Updater v52 supports map v53; no new plugin installation is needed for this visual pass. Car and equipped-pet visuals appear during Play.
-
-## v54 Layout Pass
-
-- Preserved exact wall and fixture dimensions throughout the blueprint instead of rounding them onto the two-stud grid.
-- Joined the back rooms into a continuous perimeter, removed the duplicate back divider, added doorway lintels, and moved room labels above their actual entrances.
-- Filled the front floor strip and extended the office walls to meet the exterior shell.
-- Removed obsolete bathroom and break-room props that overlapped the newer furniture. Separated counters, seating, cabinets, crates, and staging equipment across all eight perimeter rooms.
-- Opened the stock-room center lane and loading-room entrance. Moved produce clear of the cooler entrance and left a continuous rear cross aisle.
-- Separated pet care from the seasonal display, moved baskets beside the front wall, and placed bag holders beside checkout instead of inside the pet kiosk.
-- Replaced the misplaced blue parking patches with two reserved bays nearest the entrance, each beside a separate six-stud hatched access aisle connected to the sidewalk. NPCs use the ten ordinary bays only.
-- Moved the side walks clear of parked cars, lamps onto the islands, pickup paint onto the asphalt, and the dumpster away from the loading pallet.
-
-For this update, connect the retail Rojo server at **localhost:34872**, stop any Play test, and click **Plugins -> Retail Game -> Update Map**. The map sign should read **v54 test**. Updater v52 remains compatible; no plugin reinstall is needed. Shelf, checkout, and pet rules are unchanged.
-
-## v55 Store Expansion
-
-- Widened the building from 120 to 152 studs, keeping its 100-stud depth and the existing fixture sizes. The sales-floor width between the side-room walls grows from 84 to 116 studs.
-- Moved complete side rooms outward without stretching furniture; widened shelf spacing and aligned shopper and checkout markers with the new positions. The manager room's internal arrangement is preserved.
-- Rebuilt the restroom block as two separate single-occupancy bathrooms, each with its own toilet, sink, fittings, light, and working privacy door.
-- Removed the corridor gaps between pharmacy/bakery and bathroom/staff room. Each adjoining pair now shares a single wall.
-- Added usable staff-room seats, a properly supported table, and room lighting. Repositioned staff controls against the new wall, reduced and wall-mounted loading signs, and refinished the dock door.
-- Updated the roof, front walls/windows, parking field, fourteen ordinary parking bays, side walks, lighting islands, road edges, pickup area, and service yard to match the wider building. The two reserved entrance bays and their access aisles stay clear of NPC parking.
-
-Use **Plugins -> Retail Game -> Update Map** with the retail Rojo connection active. Updater v52 supports this build; the map sign should read **v55 test**. Privacy doors can be opened or closed from either side. They will not finish closing through a player in the doorway. Shelf, checkout, and pet economy rules are unchanged.
-
-## Development Checks
-
-Install the official [Luau Windows command-line release](https://github.com/luau-lang/luau/releases) into `.tools/luau`, then run:
-
-```powershell
-.\scripts\test-retail.ps1
-```
-
-This compiles the retail scripts, tests NPC stock reservations and refunds, checks updater startup and Play/pause/stop handling, constructs all eight car styles, executes the actual blueprint with construction doubles, and builds `build.rbxlx` with Rojo. Layout checks cover window seals, fixture-to-wall clearance, principal furniture separation in nine rooms, avatar-sized entrance routes, shared walls, the wider shell/exterior, reserved parking/access aisles, and sidewalk connections. Door tests cover proximity, animation guards, interrupted closing, and cancellation recovery. These checks do not simulate Roblox physics or pathfinding. In Studio, also walk the room entrances and parking approaches, and test bathroom doors, shopper checkout, closing during a trip, reopening, shelf reassignment, and the HUD.
-
-## GitHub
-
-Published repository:
-
-```text
-https://github.com/Tboy450/Roblox-game
-```
-
-Main branch:
-
-```text
-main
-```
+| `game/` | Standalone project, gameplay, UI and engine tests |
+| `game/assets/generated/` | Versioned GLBs and source/hash manifest |
+| `art/houdini/`, `art/blender/` | Procedural architecture and detailed prop sources |
+| `art/reference/` | Extracted Roblox v55 geometry and metadata |
+| `scripts/*game*.ps1` | Background setup, test, render and packaging |
+| `builds/` | Local reports and portable build; ignored by Git |
+| `src/`, `plugins/` | Preserved Roblox implementation/integration experiment |
+
+The reference revision is `8b47f52bfb817ede3c7f556cdf503c6f848ddb25`; the static export excludes unsynced Studio edits and live shoppers/vehicles. See [baseline documentation](docs/LEGACY_V55.md), [earlier Roblox plan](docs/ROBLOX_REBUILD_PLAN.md) and [integration experiment](docs/ASSET_IMPORT_TEST.md) for history. A future Roblox port is a separate task.
+
+Godot runtime notices are in `game/GODOT-LICENSE.txt` and `game/GODOT-THIRD-PARTY.txt`. The asset manifest records provenance and scale. No built-in image-generation service is used.

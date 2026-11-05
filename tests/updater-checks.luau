@@ -25,3 +25,30 @@ plugin.Unloading:Fire()
 flush()
 assert(waypoints == 1, "Unloading must cancel queued rebuilds")
 print("PASS: updater startup, running/paused guards, stop-to-edit refresh, unload cancellation")
+local protectedDestroyed = false
+services.Workspace.FindFirstChild = function(_, name)
+	if name == "RetailStore" then
+		return {
+			GetAttribute = function(_, attribute) return if attribute == "ImportedArt" then true else nil end,
+			Destroy = function() protectedDestroyed = true end,
+		}
+	end
+	return nil
+end
+mode = "edit"
+local beforeProtectedWaypoints = waypoints
+buttons["Update Map"].Click:Fire()
+buttons["Clear Map"].Click:Fire()
+assert(waypoints == beforeProtectedWaypoints and not protectedDestroyed,
+	"Updater and Clear Map must preserve imported art before any mutation")
+assert(warnings[#warnings]:find("Imported retail art is protected"), "Clear must explain imported-art protection")
+services.Workspace.FindFirstChild = function() return nil end
+services.ReplicatedStorage.FindFirstChild = function(_, name)
+	if name == "RetailMapConfig" then
+		return { GetAttribute = function() return "AssetTest" end }
+	end
+	return nil
+end
+buttons["Update Map"].Click:Fire()
+assert(waypoints == beforeProtectedWaypoints, "Test-place config must prevent legacy build even without a store")
+print("PASS: imported-art and test-place updater guards")
