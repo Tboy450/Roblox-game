@@ -3,7 +3,7 @@ local parts = {}
 for _, item in store:GetDescendants() do
 	if item:IsA("BasePart") then table.insert(parts, item) end
 end
-assert(store:GetAttribute("BlueprintVersion") == 55)
+assert(store:GetAttribute("BlueprintVersion") == 56)
 local function named(name)
 	for _, part in parts do if part.Name == name then return part end end
 	error("Missing part " .. name)

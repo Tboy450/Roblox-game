@@ -3,7 +3,7 @@ local RetailStoreBlueprint = {}
 local RetailCatalog = require(script.Parent:WaitForChild("RetailCatalog"))
 
 local DEFAULT_NAME = "RetailStore"
-local BLUEPRINT_VERSION = 55
+local BLUEPRINT_VERSION = 56
 local STARTING_TILL_CENTS = 20000
 
 export type BuildOptions = {
@@ -812,20 +812,20 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	)
 
 	-- ========== SALES FLOOR (symmetric zones + aisles) ==========
-	zoneMarker("Produce", -28, -18, 24, 18, Color3.fromRGB(92, 128, 82))
-	zoneMarker("Dairy", 0, -18, 24, 18, Color3.fromRGB(98, 112, 132))
-	zoneMarker("Frozen", 28, -18, 24, 18, Color3.fromRGB(92, 118, 138))
-	zoneMarker("General", 0, 12, 56, 28, Color3.fromRGB(148, 148, 152))
+	zoneMarker("Produce", -50, -18, 20, 18, Color3.fromRGB(92, 128, 82))
+	zoneMarker("Dairy", 0, -18, 20, 18, Color3.fromRGB(98, 112, 132))
+	zoneMarker("Frozen", 50, -18, 20, 18, Color3.fromRGB(92, 118, 138))
+	zoneMarker("General", 0, 14, 100, 32, Color3.fromRGB(148, 148, 152))
 
 	local aisleSigns = Instance.new("Model")
 	aisleSigns.Name = "AisleSigns"
 	aisleSigns.Parent = store
 	for _, sign in {
-		{ name = "ProduceSign", x = -28, z = -18, text = "PRODUCE", color = Color3.fromRGB(72, 112, 68) },
-		{ name = "DairySign", x = 0, z = -8, text = "DAIRY", color = Color3.fromRGB(72, 92, 122) },
-		{ name = "FrozenSign", x = 28, z = 6, text = "FROZEN", color = Color3.fromRGB(62, 102, 126) },
-		{ name = "PantrySign", x = -14, z = 33, text = "PANTRY", color = Color3.fromRGB(132, 92, 58) },
-		{ name = "HouseholdSign", x = 24, z = 33, text = "HOUSEHOLD", color = Color3.fromRGB(92, 88, 112) },
+		{ name = "ProduceSign", x = -50, z = -20, text = "PRODUCE", color = Color3.fromRGB(72, 112, 68) },
+		{ name = "DairySign", x = 0, z = -10, text = "DAIRY", color = Color3.fromRGB(72, 92, 122) },
+		{ name = "FrozenSign", x = 50, z = 4, text = "FROZEN", color = Color3.fromRGB(62, 102, 126) },
+		{ name = "PantrySign", x = -30, z = 30, text = "PANTRY", color = Color3.fromRGB(132, 92, 58) },
+		{ name = "HouseholdSign", x = 30, z = 30, text = "HOUSEHOLD", color = Color3.fromRGB(92, 88, 112) },
 	} do
 		addSign(aisleSigns, sign.name, sign.x, floorY + 11.3, sign.z, 12, sign.text, sign.color)
 	end
@@ -834,7 +834,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	endcaps.Name = "PromotionalEndcaps"
 	endcaps.Parent = store
 	for _, endcap in {
-		{ name = "SeasonalEndcap", x = -20, z = 28, color = Color3.fromRGB(70, 150, 130), prompt = "Seasonal Display" },
+		{ name = "SeasonalEndcap", x = -30, z = 12, color = Color3.fromRGB(70, 150, 130), prompt = "Seasonal Display" },
 	} do
 		local display = storePart({
 			name = endcap.name,
@@ -860,7 +860,7 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	local bins = Instance.new("Model")
 	bins.Name = "ProduceBins"
 	bins.Parent = store
-	for index, bx in { -42, -24, 12, 28, 42 } do
+	for index, bx in { -60, -30, 0, 30, 60 } do
 		local i, binZ = index - 3, -19
 		local crate = detailPart({
 			name = `Bin_{i}`,
@@ -1019,21 +1019,22 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	end
 
 	-- Aisles: keep the front third open for checkout, queueing, and NPC traffic.
+	-- Repositioned shelves to better fill expanded store
 	local shelfRows = {
-		{ z = -10, departments = { 1, 2, 3 } },
+		{ z = -20, departments = { 1, 2, 3 } },
 		{ z = 4, departments = { 4, 5, 2 } },
-		{ z = 18, departments = { 1, 4, 5 } },
+		{ z = 28, departments = { 1, 4, 5 } },
 	}
 	for _, row in shelfRows do
-		for columnIndex, x in { -42, 0, 42 } do
+		for columnIndex, x in { -50, 0, 50 } do
 			shelfUnit(x, row.z, row.departments[columnIndex])
 		end
 	end
 
 	-- Freezer row (raised off floor, glass in front of frame)
-	local freezerZ = -2
+	local freezerZ = -8
 	for i = -1, 1 do
-		local fx = i * 38
+		local fx = i * 50
 		local case = Instance.new("Model")
 		case.Name = `Freezer{i}`
 		case.Parent = store
@@ -3039,19 +3040,19 @@ function RetailStoreBlueprint.build(options: BuildOptions?): Model
 	trafficMarker("DriveCenter", 0, halfD + 38, "CarPath")
 	trafficMarker("StoreEntryOutside", -4, halfD + 8, "CustomerPath")
 	trafficMarker("StoreEntryInside", -4, halfD - 8, "CustomerPath")
-	trafficMarker("AisleHub", -10, 24, "CustomerPath")
-	trafficMarker("ShopProduce", -42, -6, "Shop")
+	trafficMarker("AisleHub", 0, 12, "CustomerPath")
+	trafficMarker("ShopProduce", -50, -6, "Shop")
 	trafficMarker("ShopDairy", 0, -6, "Shop")
-	trafficMarker("ShopFrozen", 42, -6, "Shop")
-	trafficMarker("ShopPantry", 0, 10, "Shop")
-	trafficMarker("ShopHousehold", 42, 24, "Shop")
-	trafficMarker("ShopBakery", -38 - wingOffset, 16, "Shop")
-	trafficMarker("NpcRegisterQueue", 42, halfD - 15, "Register")
-	trafficMarker("NpcRegisterSpot", 42, halfD - 18, "Register")
+	trafficMarker("ShopFrozen", 50, -6, "Shop")
+	trafficMarker("ShopPantry", 0, 14, "Shop")
+	trafficMarker("ShopHousehold", 50, 24, "Shop")
+	trafficMarker("ShopBakery", -50 - wingOffset, 16, "Shop")
+	trafficMarker("NpcRegisterQueue", 50, halfD - 15, "Register")
+	trafficMarker("NpcRegisterSpot", 50, halfD - 18, "Register")
 	for index = 1, 4 do
-		trafficMarker(`NpcQueueSlot{index}`, 42 - (index - 1) * 4, 38, "Queue")
+		trafficMarker(`NpcQueueSlot{index}`, 50 - (index - 1) * 4, 38, "Queue")
 	end
-	trafficMarker("CashierSpot", 42, halfD - 28, "Staff")
+	trafficMarker("CashierSpot", 50, halfD - 28, "Staff")
 	trafficMarker("RoadExit", halfW + 26, halfD + 88, "CarPath")
 
 	for index, spotDef in parkingBays do
