@@ -70,18 +70,3 @@ This has the same catch as option 2: merging the PR would replace `main`'s layou
 ### Avoid
 Don't `git reset --hard` or force-push this branch unless the user explicitly says to. `git revert` gets the same result
 without rewriting shared history.
-
-## Working in this repo
-- The `Prodigy Drift/` folder is untracked and belongs to a separate game. Leave it out of commits here.
-- `C:\Users\Heemi\Documents\roblox-game` is shared, so check `git status` first.
-
-## Also from Nov 5: SMOKE CULT (separate repo)
-If the user meant the drift game's tuning and controller changes, those are one commit, `2bea0be`, in
-`C:\Users\Heemi\OneDrive\Documents\ChatGPT\game\smoke-cult` on branch `codex/github-pages`, which publishes the live site.
-Undo with `git revert 2bea0be`, then `git push`. That also brings back the old public `SOURCES.md`, including the
-Prodigy Drift line, so keep the clean `SOURCES.md` unless the user says otherwise:
-```bash
-git revert --no-commit 2bea0be
-git restore --source=2bea0be --staged --worktree -- SOURCES.md
-git commit -m "Undo the tuning and controller changes"
-```
